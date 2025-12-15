@@ -181,14 +181,14 @@ unsigned int CHE::halfEdgePrevious(const unsigned int halfEdge) const
 
 unsigned int CHE::getNumberPoints() const
 {
-    return _coordinates.size() / _numberCoordinatesPerVertex;
+    return static_cast<unsigned int>(_coordinates.size()) / _numberCoordinatesPerVertex;
 }
 
 
 
 unsigned int CHE::getNumberElements() const
 {
-    return _halfEdgeVertex.size() / _numberVerticesByElement;
+    return static_cast<unsigned int>(_halfEdgeVertex.size()) / _numberVerticesByElement;
 }
 
 

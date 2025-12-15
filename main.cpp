@@ -61,9 +61,10 @@ void readMesh()
 
     auto *che = new CHE(points, triangles, 3, 3);
 
-    CHEOperations cheOperations(che);
+    const CHEOperations cheOperations(che);
 
-    std::vector<unsigned int> vertices = cheOperations.getNeighbourFaces(3);
+    const std::vector<unsigned int> vertices = cheOperations.getNeighbourFaces(3);
+    printf("Neighbour faces: %llu\n", vertices.size());
     for (unsigned int i = 0; i < vertices.size(); i++)
     {
         printf("%u: %d\n", i, vertices[i]);
