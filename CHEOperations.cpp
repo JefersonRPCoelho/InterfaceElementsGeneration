@@ -33,13 +33,13 @@ std::vector<unsigned int> CHEOperations::geNeighbourVertices(const unsigned int 
     do
     {
         // Get the vertex neighbor to the current half-edge.
-        const unsigned int vertex = _che->getHalfEdgeVertexIndex(_che->halfEdgeNext(currentHalfEdge));
+        const unsigned int vertex = _che->heVertexIndex(_che->heNext(currentHalfEdge));
 
         // Save it to the neighbor list.
         neighbourVertices.push_back(vertex);
 
         // Go to the next face.
-        currentHalfEdge = _che->halfEdgeOpposite(currentHalfEdge);
+        currentHalfEdge = _che->heOpposite(currentHalfEdge);
 
         // If it hits a border, stop.
         if (currentHalfEdge == -1)
@@ -48,7 +48,7 @@ std::vector<unsigned int> CHEOperations::geNeighbourVertices(const unsigned int 
         }
 
         // Get the next half-edge. Basically it goes back to a half-edge emanating from the vertex.
-        currentHalfEdge = _che->halfEdgeNext(currentHalfEdge);
+        currentHalfEdge = _che->heNext(currentHalfEdge);
     }
     while (currentHalfEdge != halfEdge);
 
@@ -64,13 +64,13 @@ std::vector<unsigned int> CHEOperations::geNeighbourVertices(const unsigned int 
         const unsigned int halfEdgePrevious = _che->halfEdgePrevious(currentHalfEdge);
 
         // Get the vertex neighbor to the current half-edge.
-        const unsigned int vertex = _che->getHalfEdgeVertexIndex(halfEdgePrevious);
+        const unsigned int vertex = _che->heVertexIndex(halfEdgePrevious);
 
         // Save it to the neighbor list.
         neighbourVertices.push_back(vertex);
 
         // Go to the next face.
-        currentHalfEdge = _che->halfEdgeOpposite(halfEdgePrevious);
+        currentHalfEdge = _che->heOpposite(halfEdgePrevious);
     }
     while (currentHalfEdge != -1);
 
@@ -82,7 +82,7 @@ std::vector<unsigned int> CHEOperations::geNeighbourVertices(const unsigned int 
 std::vector<unsigned> CHEOperations::getNeighbourFaces(const unsigned int face) const
 {
     std::vector<unsigned> neighbourFaces;
-    const unsigned int numberCoordinatesByVertex = _che->getNumberVertexByElement();
+    const unsigned int numberCoordinatesByVertex = _che->numberVertexByElement();
 
     //Get the face's first half edge id.
     const unsigned int halfEdgeInFace = face * numberCoordinatesByVertex;
@@ -94,7 +94,7 @@ std::vector<unsigned> CHEOperations::getNeighbourFaces(const unsigned int face) 
     do
     {
         // Get the neighbor's face half edge.
-        const unsigned int opposite = _che->halfEdgeOpposite(currentHalfEdge);
+        const unsigned int opposite = _che->heOpposite(currentHalfEdge);
 
         // Check if it is not a border.
         if (opposite != -1)
@@ -107,10 +107,66 @@ std::vector<unsigned> CHEOperations::getNeighbourFaces(const unsigned int face) 
         }
 
         // Go the next face's half-edge.
-        currentHalfEdge = _che->halfEdgeNext(currentHalfEdge);
+        currentHalfEdge = _che->heNext(currentHalfEdge);
     }
     while (currentHalfEdge != halfEdgeInFace);
 
     return neighbourFaces;
+}
+
+
+
+void CHEOperations::addInterfaceElements(const std::vector<unsigned int> &edges)
+{
+    _che->reserveSpaceForElements(static_cast<unsigned int>(edges.size()));
+
+    // For each edge, add a quad4 element.
+    for (const unsigned int he: edges)
+    {
+        // Get the edge vertices.
+        openEdge(he);
+    }
+}
+
+
+
+void CHEOperations::openEdge(const unsigned int he)
+{
+    // Get the opposite half-edge.
+    const unsigned int opposite = _che->heOpposite(he);
+
+    // It is not possible to open an edge in the border.
+    if (opposite == -1)
+        return;
+
+    // Get the next half-edge. It represents the other's edge vertex.
+    const unsigned int next = _che->heNext(he);
+
+    // Get the edge vertices.
+    const unsigned int vertexA = _che->heVertexIndex(he);
+    const unsigned int vertexB = _che->heVertexIndex(next);
+
+    // Get the next half-edge available.
+    const unsigned int availableHE = _che->numberOfElements() * _che->numberVertexByElement();
+
+    // Add the element to element's list.
+    _che->_halfEdgeVertex[availableHE + 0] = vertexA;
+    _che->_halfEdgeVertex[availableHE + 1] = vertexB;
+    _che->_halfEdgeVertex[availableHE + 2] = vertexB;
+    _che->_halfEdgeVertex[availableHE + 3] = vertexA;
+
+    // Update the opposite's list.
+    _che->_oppositeHalfEdge[he] = availableHE + 2;
+    _che->_oppositeHalfEdge[availableHE + 2] = he;
+
+    _che->_oppositeHalfEdge[opposite] = availableHE;
+    _che->_oppositeHalfEdge[availableHE] = opposite;
+
+    // Invalid opposites. @todo think better about this.
+    _che->_oppositeHalfEdge[availableHE + 1] = -2;
+    _che->_oppositeHalfEdge[availableHE + 3] = -2;
+
+    // Increment the number of valid elements.
+    _che->_numberOfValidElements++;
 }
 

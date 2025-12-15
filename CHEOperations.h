@@ -47,6 +47,21 @@ public:
      */
     [[nodiscard]] std::vector<unsigned int> getNeighbourFaces(unsigned int face) const;
 
+    /**
+     * @brief Add interface elements in the required edges.
+     *
+     * For each required edge a quad4 is inserted in the mesh. The function expects that each element in the input
+     * vector is a half edge along the desired edge to insert the interface element. That means, the desired edge is
+     * formed by the half-edge's vertex and the next half-edge's vertex.
+     * @param edges A list of half-edge representing the desired edges to insert the interface element.
+     */
+    void addInterfaceElements(const std::vector<unsigned int> &edges);
+private:
+    /**
+     * @todo document.
+     * @param he
+     */
+    void openEdge(unsigned int he);
 private:
     /**
      * CHE valid topology representation used to perform the operations.

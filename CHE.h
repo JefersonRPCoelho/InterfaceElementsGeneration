@@ -11,6 +11,7 @@
 
 class CHE final
 {
+    friend class CHEOperations;
 public:
     /**
      * @brief Build a CHE based on the coordinates and element list.
@@ -53,16 +54,16 @@ public:
     /**
      * @brief Get the element's list.
      *
-     * The element's list can only be edited by the CHE class. It is only available in the read only mode.
+     * The CHE class can only edit the element's list. It is only available in the read-only mode.
      * @return The elements list.
      */
-    const std::vector<unsigned int> &getElementsList();
+    const std::vector<unsigned int> &elementsList();
 
     /**
      * @brief Get the coordinate's vector.
      * @return The coordinate's vector.
      */
-    std::vector<double> &getCoordinates();
+    std::vector<double> &coordinates();
 
     /**
      * @brief Given a half-edge, return the element that contains the provided half-edge.
@@ -79,7 +80,7 @@ public:
      * @param halfEdge The given half-edge to get the next.
      * @return The next half-edge in relation to the provided half-edge.
      */
-    [[nodiscard]] unsigned int halfEdgeNext(unsigned int halfEdge) const;
+    [[nodiscard]] unsigned int heNext(unsigned int halfEdge) const;
 
     /**
      * @brief Get the previous half-edge.
@@ -95,13 +96,16 @@ public:
      * @brief Get the number of points in the mesh.
      * @return The number of points in the mesh.
      */
-    [[nodiscard]] unsigned int getNumberPoints() const;
+    [[nodiscard]] unsigned int numberPoints() const;
 
     /**
-     * @brief Get the number of elements in the mesh.
+     * @brief Get the number of reserved elements in the mesh.
+     *
+     * The number of reserved elements is the number of elements the current vector can store before requiring
+     * reallocation.
      * @return The number of elements in the mesh.
      */
-    [[nodiscard]] unsigned int getNumberElements() const;
+    [[nodiscard]] unsigned int numberReservedElements() const;
 
     /**
      * @brief  Get the number of coordinates by vertex.
@@ -109,7 +113,7 @@ public:
      * It represents the vertice dimension.
      * @return The number of coordinates required for each vertex.
      */
-    [[nodiscard]] unsigned int getNumberCoordinatesByVertex() const;
+    [[nodiscard]] unsigned int numberCoordinatesByVertex() const;
 
     /**
      * @brief Get the number of vertice for each element.
@@ -117,7 +121,7 @@ public:
      * It represents the element order.
      * @return The number of vertices required for each element.
      */
-    [[nodiscard]] unsigned int getNumberVertexByElement() const;
+    [[nodiscard]] unsigned int numberVertexByElement() const;
 
     /**
      * @brief Given a half-edge, get the coordinates from the vertex attached to the half-edge.
@@ -125,7 +129,7 @@ public:
      * @param coordinates A pre allocated vector with at least _numberCoordinatesPerVertex position. The function will
      * store the vertice coordinates in this vector.
      */
-    void getCoordinatesFromHalfEge(unsigned int halfEdge, double *coordinates) const;
+    void coordinatesFromHalfEge(unsigned int halfEdge, double *coordinates) const;
 
     /**
      * @brief Given a vertex index, get the coordinates.
@@ -133,32 +137,48 @@ public:
      * @param coordinates A pre allocated vector with at least _numberCoordinatesPerVertex position. The function will
      * store the vertice coordinates in this vector.
      */
-    void getCoordinatesFromIndex(unsigned int index, double *coordinates) const;
+    void coordinatesFromIndex(unsigned int index, double *coordinates) const;
 
     /**
      * @brief Given a half-edge, get the vertex represented by this half-edge.
      * @param halfEdge The half-edge attached to the vertex that is being required.
      * @return The vertex attached to the given half-edge.
      */
-    [[nodiscard]] unsigned int getHalfEdgeVertexIndex(unsigned int halfEdge) const;
+    [[nodiscard]] unsigned int heVertexIndex(unsigned int halfEdge) const;
 
     /**
      * @brief Given a half-edge, get the opposite half-edge.
      * @param halfEdge The given half-edge to query to the opposite.
      * @return The opposite half-edge if it exists or -1 if the opposite is a border.
      */
-    [[nodiscard]] unsigned int halfEdgeOpposite(unsigned int halfEdge) const;
+    [[nodiscard]] unsigned int heOpposite(unsigned int halfEdge) const;
 
+    /**
+     * Get the number of elements in the mesh.
+     * @return The number of valid elements in the mesh.
+     */
+    [[nodiscard]] unsigned int numberOfElements() const;
+
+    /**
+     * Print the data structure state.
+     */
+    void print() const;
 private:
     /**
-     * @brief Stores the coordinates vector.
+     * @brief @todo document
+     * @param numberElements
+     */
+    void reserveSpaceForElements(unsigned int numberElements);
+private:
+    /**
+     * @brief Stores the coordinate's vector.
      *
      * For each _numberCoordinatesPerVertex vector values, a vertice coordinate is represented.
      */
     std::vector<double> _coordinates;
 
     /**
-     * @brief Stores the elements list.
+     * @brief Stores the element's list.
      *
      * It also represents, implicitly, the half-edge list. The index vector is also the half-edge index for that
      * element.
@@ -173,27 +193,35 @@ private:
     std::vector<unsigned int> _oppositeHalfEdge;
 
     /**
-     * @brief Store the number of dimensions each vertex should store in the coordinates vector.
+     * @brief Store the number of dimensions each vertex should store in the coordinate's vector.
      */
     unsigned int _numberCoordinatesPerVertex;
 
     /**
      * @brief Stores the number of vertices by element.
      *
-     * This variable allows to extend the structure for any element level. The only constraint is that all elements on
-     * the mesh should have the same number of vertices.
+     * This variable allows you to extend the structure for any element level. The only constraint is that all elements
+     * on the mesh should have the same number of vertices.
      */
     unsigned int _numberVerticesByElement;
+
+    /**
+     * @brief Get the number of valid elements.
+     *
+     * The element list can be pre allocated, allowing to have invalid elements. This variable determines the number
+     * of valid elements in the vector.
+     */
+    unsigned int _numberOfValidElements;
 
 private:
     /**
      * @brief Build the opposite table.
      *
-     * The algorithm builds a temporary map from each vertex to all elements that shares that vertex and look for edge
+     * The algorithm builds a temporary map from each vertex to all elements that share that vertex and looks for edge
      * with the same vertex, but with opposite direction. Whenever a pair of edges with this characteristic is found,the
-     * correspondent pair of half-edge are assigned as opposite to each other.
+     * correspondent pair of half-edges is assigned as opposite to each other.
      *
-     * For those edges with no pair, the half-edge is assigned to -1, what means a border.
+     * For those edges with no pair, the half-edge is assigned to -1, which means a border.
      */
     void buildOppositesLinear();
 };

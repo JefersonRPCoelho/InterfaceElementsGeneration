@@ -17,7 +17,6 @@
 
 void readMesh()
 {
-    int trash = 0;
     std::string name;
 
     name = "../malha.txt";
@@ -37,38 +36,35 @@ void readMesh()
     in >> numberPoints >> numberTriangles;
 
     std::vector<double> points;
-    std::vector<unsigned int> triangles;
+    std::vector<unsigned int> elements;
 
     printf("Reading points...\n");
     for (int i = 0; i < numberPoints; i++)
     {
-        double x, y, z;
-        in >> trash >> x >> y >> z;
+        double x, y;
+        in >> x >> y;
         points.push_back(x);
         points.push_back(y);
-        points.push_back(z);
     }
 
     for (int i = 0; i < numberTriangles; i++)
     {
-        int p1, p2, p3;
-        in >> trash >> p1 >> p2 >> p3;
-        triangles.push_back(p1);
-        triangles.push_back(p2);
-        triangles.push_back(p3);
+        int p1, p2, p3, p4;
+        in >> p1 >> p2 >> p3 >> p4;
+        elements.push_back(p1);
+        elements.push_back(p2);
+        elements.push_back(p3);
+        elements.push_back(p4);
     }
     in.close();
 
-    auto *che = new CHE(points, triangles, 3, 3);
+    auto *che = new CHE(points, elements, 4, 2);
+    che->print();
 
-    const CHEOperations cheOperations(che);
+    CHEOperations cheOperations(che);
+    cheOperations.addInterfaceElements({1});
 
-    const std::vector<unsigned int> vertices = cheOperations.getNeighbourFaces(3);
-    printf("Neighbour faces: %llu\n", vertices.size());
-    for (unsigned int i = 0; i < vertices.size(); i++)
-    {
-        printf("%u: %d\n", i, vertices[i]);
-    }
+    che->print();
 
     delete che;
 }
