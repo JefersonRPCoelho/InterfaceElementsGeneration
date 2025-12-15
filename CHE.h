@@ -13,25 +13,35 @@ class CHE final
 {
 public:
     /**
-     * @brief @todo document
-     * @param coordinates
-     * @param elementsList 
-     * @param numberOfVertices 
-     * @param numberElements 
-     * @param numberVerticesByElement 
-     * @param numberCoordinates 
+     * @brief Build a CHE based on the coordinates and element list.
+     *
+     * This constructor uses only primitive types in order to be flexible. I will save the coordinates vector, the
+     * elements list, and build the opposite table.
+     * @param coordinates The coordinates vector. It should have @p numberOfVertices * @p numberCoordinates elements.
+     * @param elementsList The element list indexes. It should have @p numberElements * @p numberVerticesByElement
+     * integers.
+     * @param numberOfVertices The number of vertices in the coordinates vector.
+     * @param numberElements The number of elements in the elements vector.
+     * @param numberVerticesByElement The number of vertices by element. That is, 3 for triangles, 4 for quads, and so
+     * on.
+     * @param numberCoordinates The number of coordinates per point. That is, 2 for 2D, 3 for 3D, 6 for xyz and normals
+     * nx ny nz, and so on.
      */
     CHE(const double *coordinates, const unsigned int *elementsList, unsigned int numberOfVertices,
         unsigned int numberElements, unsigned int numberVerticesByElement, unsigned int numberCoordinates);
 
     /**
-     * @brief @todo document.
-     * @param vertices
-     * @param elementsList
-     * @param numberVerticesByElement
-     * @param numberCoordinates
+     * @brief Build a CHE based on the coordinates and elements list.
+     * It will save the coordinates vector, the elements list, and build the opposite table.
+     *
+     * @param coordinates The coordinates vector. It should have @p numberOfVertices * @p numberCoordinates elements.
+     * @param elementsList The element list indexes. It should have @p numberElements * @p numberVerticesByElement
+     * @param numberVerticesByElement The number of vertices by element. That is, 3 for triangles, 4 for quads, and so
+     * on.
+     * @param numberCoordinates The number of coordinates per point. That is, 2 for 2D, 3 for 3D, 6 for xyz and normals
+     * nx ny nz, and so on.
      */
-    CHE(const std::vector<double> &vertices, const std::vector<unsigned int> &elementsList,
+    CHE(const std::vector<double> &coordinates, const std::vector<unsigned int> &elementsList,
         unsigned int numberVerticesByElement,
         unsigned int numberCoordinates);
 
@@ -41,119 +51,149 @@ public:
     ~CHE() = default;
 
     /**
-     * @brief @todo document.
-     * @return
+     * @brief Get the elements list.
+     *
+     * The elements list can only be edited by the CHE class. It is only available in the read only mode.
+     * @return The elements list.
      */
     const std::vector<unsigned int> &getElementsList();
 
     /**
-     * @brief @todo document.
-     * @return
+     * @brief Get the coordinates vector.
+     * @return The coordinates vector.
      */
     std::vector<double> &getCoordinates();
 
     /**
-     * @brief @todo document.
-     * @param halfEdge
-     * @return
+     * @brief Given a half edge, return the element that contains the provided half edge.
+     * @param halfEdge The half edge provided to recognize the element it belongs to.
+     * @return The element the provided half edge belongs to.
      */
     [[nodiscard]] unsigned int halfEdgeElement(unsigned int halfEdge) const;
 
     /**
-     * @brief @todo document.
-     * @param halfEdge
-     * @return
+     * @brief Get the next half edge.
+     *
+     * Given a half edge, the next half edge is that half edge that appears just after the given half edge when
+     * considering the element orientation.
+     * @param halfEdge The given half edge to get the next.
+     * @return The next half edge in relation to the provided half edge.
      */
     [[nodiscard]] unsigned int halfEdgeNext(unsigned int halfEdge) const;
 
     /**
-     * @brief @todo document.
-     * @param halfEdge
-     * @return
+     * @brief Get the previous half edge.
+     *
+     * Given a half edge, the previous half edge is that half edge that appears just before the given half edge when
+     * considering the element orientation.
+     * @param halfEdge The given half edge to get the previous.
+     * @return The previous half edge in relation to the provided half edge.
      */
     [[nodiscard]] unsigned int halfEdgePrevious(unsigned int halfEdge) const;
 
     /**
-     * @brief @todo document.
-     * @return
+     * @brief Get the number of points in the mesh.
+     * @return The number of points in the mesh.
      */
     [[nodiscard]] unsigned int getNumberPoints() const;
 
     /**
-     * @brief @todo document.
-     * @return
+     * @brief Get the number of elements in the mesh.
+     * @return The number of elements in the mesh.
      */
     [[nodiscard]] unsigned int getNumberElements() const;
 
     /**
-     * @brief @todo document.
-     * @return
+     * @brief  Get the number of coordinates by vertex.
+     *
+     * It represents the vertice dimension.
+     * @return The number of coordinates required for each vertex.
      */
     [[nodiscard]] unsigned int getNumberCoordinatesByVertex() const;
 
     /**
-     * @brief @todo document.
-     * @return
+     * @brief Get the number of vertice for each element.
+     *
+     * It represents the element order.
+     * @return The number of vertices required for each element.
      */
     [[nodiscard]] unsigned int getNumberVertexByElement() const;
 
     /**
-     * @brief @todo document.
-     * @param halfEdge
-     * @param coordinates
+     * @brief Given a half edge, get the coordinates from the vertex attached to the half edge.
+     * @param halfEdge The half edge attached to the vertex of interest.
+     * @param coordinates A pre allocated vector with at least _numberCoordinatesPerVertex position. The function will
+     * store the vertice coordinates in this vector.
      */
     void getCoordinatesFromHalfEge(unsigned int halfEdge, double *coordinates) const;
 
     /**
-     * @brief @todo document.
-     * @param index
-     * @param coordinates
+     * @brief Given a vertex index, get the coordinates.
+     * @param index The vertex index.
+     * @param coordinates A pre allocated vector with at least _numberCoordinatesPerVertex position. The function will
+     * store the vertice coordinates in this vector.
      */
     void getCoordinatesFromIndex(unsigned int index, double *coordinates) const;
 
     /**
-     * @brief @todo document.
-     * @param halfEdge
-     * @return
+     * @brief Given a half edge, get the vertex represented by this half edge.
+     * @param halfEdge The half edge attached to the vertex that is being required.
+     * @return The vertex attached to the given half edge.
      */
     [[nodiscard]] unsigned int getHalfEdgeVertexIndex(unsigned int halfEdge) const;
 
     /**
-     * @brief @todo document.
-     * @param halfEdge
-     * @return
+     * @brief Given a half edge, get the opposite half edge.
+     * @param halfEdge The given half edge to query to the opposite.
+     * @return The opposite half edge if it exists or -1 if the opposite is a border.
      */
     [[nodiscard]] unsigned int halfEdgeOpposite(unsigned int halfEdge) const;
 
 private:
     /**
-     * @brief @todo document.
+     * @brief Stores the coordinates vector.
+     *
+     * For each _numberCoordinatesPerVertex vector values, a vertice coordinate is represented.
      */
     std::vector<double> _coordinates;
 
     /**
-     * @brief @todo document.
+     * @brief Stores the elements list.
+     *
+     * It also represents, implicitly, the half edge list. The index vector is also the half edge index for that
+     * element.
+     *
+     * For each _numberVerticesByElement vector values, an element is represented.
      */
     std::vector<unsigned int> _halfEdgeVertex;
 
     /**
-     * @brief @todo document.
+     * @brief For each half edge in the mesh, stores an opposite half edge or -1 if it is a border.
      */
     std::vector<unsigned int> _oppositeHalfEdge;
 
     /**
-     * @brief @todo document.
+     * @brief Store the number of dimensions each vertex should store in the coordinates vector.
      */
     unsigned int _numberCoordinatesPerVertex;
 
     /**
-     * @brief @todo document.
+     * @brief Stores the number of vertices by element.
+     *
+     * This variable allows to extend the structure for any element level. The only constraint is that all elements on
+     * the mesh should have the same number of vertices.
      */
     unsigned int _numberVerticesByElement;
 
 private:
     /**
-     * @brief @todo document.
+     * @brief Build the opposite table.
+     *
+     * The algorithm builds a temporary map from each vertex to all elements that shares that vertex and look for edge
+     * with the same vertex, but with opposite direction. Whenever a pair of edges with this characteristic is found,the
+     * correspondent pair of half edge are assigned as opposite to each other.
+     *
+     * For those edges with no pair, the half edge is assigned to -1, what means a border.
      */
     void buildOppositesLinear();
 };

@@ -35,10 +35,10 @@ CHE::CHE(const double *coordinates, const unsigned int *elementsList, const unsi
 
 
 CHE::CHE(
-    const std::vector<double> &vertices,
+    const std::vector<double> &coordinates,
     const std::vector<unsigned int> &elementsList,
     const unsigned int numberVerticesByElement,
-    const unsigned int numberCoordinates): _coordinates(vertices)
+    const unsigned int numberCoordinates): _coordinates(coordinates)
                                          , _halfEdgeVertex(elementsList)
                                          , _numberCoordinatesPerVertex(numberCoordinates)
                                          , _numberVerticesByElement(numberVerticesByElement)
