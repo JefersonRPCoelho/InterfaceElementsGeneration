@@ -90,7 +90,7 @@ public:
      * @param halfEdge The given half-edge to get the previous.
      * @return The previous half-edge in relation to the provided half-edge.
      */
-    [[nodiscard]] unsigned int halfEdgePrevious(unsigned int halfEdge) const;
+    [[nodiscard]] unsigned int hePrevious(unsigned int halfEdge) const;
 
     /**
      * @brief Get the number of points in the mesh.
@@ -158,6 +158,13 @@ public:
      * @return The number of valid elements in the mesh.
      */
     [[nodiscard]] unsigned int numberOfElements() const;
+
+public:
+    enum OPPOSITE
+    {
+        BORDER = -1,
+        COLLAPSED = -2,
+    };
 
     /**
      * Print the data structure state.

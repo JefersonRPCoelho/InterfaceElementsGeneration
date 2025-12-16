@@ -24,55 +24,74 @@ CHEOperations::CHEOperations(const CHEOperations &orig)
 
 
 
-std::vector<unsigned int> CHEOperations::geNeighbourVertices(const unsigned int halfEdge) const
+std::vector<unsigned int> CHEOperations::geNeighbourVertices(const unsigned int he) const
 {
     std::vector<unsigned int> neighbourVertices;
-    unsigned int currentHalfEdge = halfEdge;
+    unsigned int currentHE = he;
 
     //Turn around the vertex until get the starting point or hit a boundary.
     do
     {
         // Get the vertex neighbor to the current half-edge.
-        const unsigned int vertex = _che->heVertexIndex(_che->heNext(currentHalfEdge));
-
-        // Save it to the neighbor list.
-        neighbourVertices.push_back(vertex);
+        const unsigned int vertex = _che->heVertexIndex(_che->heNext(currentHE));
 
         // Go to the next face.
-        currentHalfEdge = _che->heOpposite(currentHalfEdge);
+        unsigned int oppositeHE = _che->heOpposite(currentHE);
+
+        // If the edge is collapsed, skip it.
+        if (oppositeHE == CHE::COLLAPSED)
+        {
+            currentHE = _che->heNext(currentHE);
+            oppositeHE = _che->heOpposite(currentHE);
+        }
+        else
+        {
+            // Save it to the neighbor list.
+            neighbourVertices.push_back(vertex);
+        }
 
         // If it hits a border, stop.
-        if (currentHalfEdge == -1)
+        if (oppositeHE == CHE::BORDER)
         {
+            currentHE = oppositeHE;
             break;
         }
 
         // Get the next half-edge. Basically it goes back to a half-edge emanating from the vertex.
-        currentHalfEdge = _che->heNext(currentHalfEdge);
+        currentHE = _che->heNext(oppositeHE);
     }
-    while (currentHalfEdge != halfEdge);
+    while (currentHE != he);
 
     // If the loop stops because it returns to the beginning, all vertices were already found.
-    if (currentHalfEdge != -1)
+    if (currentHE != CHE::BORDER)
         return neighbourVertices;
 
     // The loop hit a border. Start from the beginning and turn around the vertex in the other orientation.
-    currentHalfEdge = halfEdge;
+    currentHE = he;
     do
     {
         // Loop in the opposite orientation.
-        const unsigned int halfEdgePrevious = _che->halfEdgePrevious(currentHalfEdge);
+        unsigned int hePrevious = _che->hePrevious(currentHE);
+        const unsigned int oppositeHE = _che->heOpposite(hePrevious);
 
-        // Get the vertex neighbor to the current half-edge.
-        const unsigned int vertex = _che->heVertexIndex(halfEdgePrevious);
+        if (oppositeHE == CHE::COLLAPSED)
+        {
+            currentHE = _che->hePrevious(hePrevious);
+            hePrevious = currentHE;
+        }
+        else
+        {
+            // Get the vertex neighbor to the current half-edge.
+            const unsigned int vertex = _che->heVertexIndex(hePrevious);
 
-        // Save it to the neighbor list.
-        neighbourVertices.push_back(vertex);
+            // Save it to the neighbor list.
+            neighbourVertices.push_back(vertex);
+        }
 
         // Go to the next face.
-        currentHalfEdge = _che->heOpposite(halfEdgePrevious);
+        currentHE = _che->heOpposite(hePrevious);
     }
-    while (currentHalfEdge != -1);
+    while (currentHE != CHE::BORDER);
 
     return neighbourVertices;
 }
@@ -97,7 +116,7 @@ std::vector<unsigned> CHEOperations::getNeighbourFaces(const unsigned int face) 
         const unsigned int opposite = _che->heOpposite(currentHalfEdge);
 
         // Check if it is not a border.
-        if (opposite != -1)
+        if (opposite != CHE::BORDER && opposite != CHE::COLLAPSED)
         {
             // Get the face index.
             const unsigned int faceFound = opposite / numberCoordinatesByVertex;
@@ -136,7 +155,7 @@ void CHEOperations::openEdge(const unsigned int he)
     const unsigned int opposite = _che->heOpposite(he);
 
     // It is not possible to open an edge in the border.
-    if (opposite == -1)
+    if (opposite == CHE::BORDER)
         return;
 
     // Get the next half-edge. It represents the other's edge vertex.

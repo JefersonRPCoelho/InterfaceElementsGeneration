@@ -35,10 +35,10 @@ public:
 public:
     /**
      * @brief Given a half-edge, get the neighbor vertices to the given halfedge.
-     * @param halfEdge Half-edge used to get the neighbor vertices.
+     * @param he Half-edge used to get the neighbor vertices.
      * @return A vector with all neighbor vertices.
      */
-    [[nodiscard]] std::vector<unsigned int> geNeighbourVertices(unsigned int halfEdge) const;
+    [[nodiscard]] std::vector<unsigned int> geNeighbourVertices(unsigned int he) const;
 
     /**
      * @brief Given a face index, get all neighbor faces.

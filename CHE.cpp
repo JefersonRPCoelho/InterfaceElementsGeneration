@@ -59,7 +59,7 @@ CHE::CHE(
 void CHE::buildOppositesLinear()
 {
     // Initialize the opposite table with -1.
-    memset(_oppositeHalfEdge.data(), -1, _oppositeHalfEdge.size() * sizeof(unsigned int));
+    memset(_oppositeHalfEdge.data(), BORDER, _oppositeHalfEdge.size() * sizeof(unsigned int));
 
     // Get
     std::vector<std::vector<unsigned int> > vertexElementsVector(numberPoints());
@@ -88,7 +88,7 @@ void CHE::buildOppositesLinear()
             const unsigned int halfEdge = _numberVerticesByElement * i + j;
 
             // Avoid recomputing the opposite half-edge.
-            if (_oppositeHalfEdge[halfEdge] == -1)
+            if (_oppositeHalfEdge[halfEdge] == BORDER)
             {
                 // Get the next half-edge. It will enable us to get the edge vertices.
                 const unsigned int next = heNext(halfEdge);
@@ -97,7 +97,7 @@ void CHE::buildOppositesLinear()
                 const unsigned int vertexA = _halfEdgeVertex[halfEdge];
                 const unsigned int vertexB = _halfEdgeVertex[next];
 
-                auto oppositeHalfEdge = static_cast<unsigned int>(-1);
+                auto oppositeHalfEdge = static_cast<unsigned int>(BORDER);
 
                 // Check in the shared elements if there is a reverse edge.
                 for (const unsigned int halfEdgeVertex: vertexElementsVector[vertexB])
@@ -111,7 +111,7 @@ void CHE::buildOppositesLinear()
                 }
 
                 // Check if it is a border.
-                if (oppositeHalfEdge == -1)
+                if (oppositeHalfEdge == BORDER)
                     continue;
 
                 _oppositeHalfEdge[halfEdge] = oppositeHalfEdge;
@@ -205,7 +205,7 @@ unsigned int CHE::heNext(const unsigned int halfEdge) const
 
 
 
-unsigned int CHE::halfEdgePrevious(const unsigned int halfEdge) const
+unsigned int CHE::hePrevious(const unsigned int halfEdge) const
 {
     return _numberVerticesByElement * halfEdgeElement(halfEdge) + (halfEdge + _numberVerticesByElement - 1) %
            _numberVerticesByElement;
