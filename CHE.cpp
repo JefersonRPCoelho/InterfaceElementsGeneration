@@ -191,6 +191,13 @@ void CHE::reserveSpaceForElements(const unsigned int numberElements)
 
 
 
+void CHE::reserveSpaceForNodes(const unsigned int numberNodes)
+{
+    _coordinates.resize(_coordinates.size() + _numberCoordinatesPerVertex * numberNodes);
+}
+
+
+
 unsigned int CHE::halfEdgeElement(const unsigned int halfEdge) const
 {
     return halfEdge / _numberVerticesByElement;
@@ -217,6 +224,7 @@ unsigned int CHE::numberPoints() const
 {
     return static_cast<unsigned int>(_coordinates.size()) / _numberCoordinatesPerVertex;
 }
+
 
 
 unsigned int CHE::numberOfElements() const

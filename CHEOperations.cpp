@@ -168,11 +168,35 @@ void CHEOperations::openEdge(const unsigned int he)
     // Get the next half-edge available.
     const unsigned int availableHE = _che->numberOfElements() * _che->numberVertexByElement();
 
+    if (_collapsedVertex2HE.find(vertexA) != _collapsedVertex2HE.end())
+    {
+        const unsigned int collapsedHE = _collapsedVertex2HE.find(vertexA)->second;
+        printf("Vertex %u should be duplicated: %u\n", vertexA, collapsedHE);
+        const unsigned int newVertex = duplicateNode(collapsedHE, he);
+        _che->_halfEdgeVertex[availableHE + 0] = newVertex;
+
+        _che->_oppositeHalfEdge[availableHE + 3] = collapsedHE;
+        _che->_oppositeHalfEdge[collapsedHE] = availableHE + 3;
+    }
+    else
+    {
+        _che->_halfEdgeVertex[availableHE + 0] = vertexA;
+        _collapsedVertex2HE[vertexA] = availableHE + 3;
+        _che->_oppositeHalfEdge[availableHE + 3] = CHE::COLLAPSED;
+    }
+
+    if (_collapsedVertex2HE.find(vertexB) != _collapsedVertex2HE.end())
+    {
+        printf("Vertex %d should be duplicated\n", vertexB);
+    }
+
     // Add the element to element's list.
-    _che->_halfEdgeVertex[availableHE + 0] = vertexA;
     _che->_halfEdgeVertex[availableHE + 1] = vertexB;
     _che->_halfEdgeVertex[availableHE + 2] = vertexB;
     _che->_halfEdgeVertex[availableHE + 3] = vertexA;
+
+    // Save the collapsed vertex.
+    _collapsedVertex2HE[vertexB] = availableHE + 1;
 
     // Update the opposite's list.
     _che->_oppositeHalfEdge[he] = availableHE + 2;
@@ -182,10 +206,42 @@ void CHEOperations::openEdge(const unsigned int he)
     _che->_oppositeHalfEdge[availableHE] = opposite;
 
     // Invalid opposites. @todo think better about this.
-    _che->_oppositeHalfEdge[availableHE + 1] = -2;
-    _che->_oppositeHalfEdge[availableHE + 3] = -2;
+    _che->_oppositeHalfEdge[availableHE + 1] = CHE::COLLAPSED;
 
     // Increment the number of valid elements.
     _che->_numberOfValidElements++;
+}
+
+
+
+unsigned int CHEOperations::duplicateNode(const unsigned int startHE, const unsigned int endHE)
+{
+    const unsigned int availableNode = _che->numberPoints();
+
+    // Get space for extra node.
+    _che->reserveSpaceForNodes(1);
+
+    // Remove duplicate node from the list.
+    _collapsedVertex2HE.erase(_che->heVertexIndex(startHE));
+
+    // Update all neighbour elements.
+    unsigned int currentHE = startHE;
+    do
+    {
+        // Update the element with the new node.
+        _che->_halfEdgeVertex[currentHE] = availableNode;
+
+        // Move to the other element.
+        currentHE = _che->heOpposite(_che->hePrevious(currentHE));
+
+        if (currentHE == CHE::BORDER)
+        {
+            // @todo test.
+            break;
+        }
+    }
+    while (currentHE != endHE);
+
+    return availableNode;
 }
 

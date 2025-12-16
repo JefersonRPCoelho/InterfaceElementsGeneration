@@ -12,6 +12,7 @@
 class CHE final
 {
     friend class CHEOperations;
+
 public:
     /**
      * @brief Build a CHE based on the coordinates and element list.
@@ -170,12 +171,20 @@ public:
      * Print the data structure state.
      */
     void print() const;
+
 private:
     /**
      * @brief @todo document
      * @param numberElements
      */
     void reserveSpaceForElements(unsigned int numberElements);
+
+    /**
+     * @brief @todo document.
+     * @param numberNodes
+     */
+    void reserveSpaceForNodes(unsigned int numberNodes);
+
 private:
     /**
      * @brief Stores the coordinate's vector.

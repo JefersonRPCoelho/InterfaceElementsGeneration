@@ -62,11 +62,11 @@ void readMesh()
     che->print();
 
     CHEOperations cheOperations(che);
-    cheOperations.addInterfaceElements({1, 14});
+    cheOperations.addInterfaceElements({1, 13});
 
     che->print();
 
-    constexpr unsigned int he = 4;
+    constexpr unsigned int he = 2;
     const std::vector<unsigned int> nv = cheOperations.geNeighbourVertices(he);
     printf("%u: ", che->heVertexIndex(he));
     for (const unsigned int v: nv)

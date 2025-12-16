@@ -9,6 +9,7 @@
 
 #include "CHE.h"
 #include <vector>
+#include <map>
 
 class CHEOperations final
 {
@@ -56,15 +57,29 @@ public:
      * @param edges A list of half-edge representing the desired edges to insert the interface element.
      */
     void addInterfaceElements(const std::vector<unsigned int> &edges);
+
 private:
     /**
      * @todo document.
      * @param he
      */
     void openEdge(unsigned int he);
+
+    /**
+     * @brief @todo document.
+     * @param startHE
+     * @param endHE
+     * @return
+     */
+    unsigned int duplicateNode(unsigned int startHE, unsigned int endHE);
+
+private:
+
 private:
     /**
      * CHE valid topology representation used to perform the operations.
      */
     CHE *_che;
+
+    std::map<unsigned int, unsigned int> _collapsedVertex2HE;
 };
