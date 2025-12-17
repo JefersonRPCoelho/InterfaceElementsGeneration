@@ -6,6 +6,7 @@
  */
 
 #include "CHEOperations.h"
+#include <iostream>
 #include <vector>
 
 
@@ -145,7 +146,7 @@ void CHEOperations::addInterfaceElements(const std::vector<unsigned int> &edges)
         // Get the edge vertices.
         openEdge(he);
         _che->print();
-        printf("\n");
+        std::cout << std::endl;
     }
 
     for (auto v: _collapsedVertex2HE)
@@ -238,10 +239,10 @@ unsigned int CHEOperations::duplicateNode(const unsigned int startHE, const unsi
 {
     const unsigned int availableNode = _che->numberPoints();
 
-    // Get space for extra node.
+    // Get space for an extra node.
     _che->reserveSpaceForNodes(1);
 
-    // Remove duplicate node from the list.
+    // Remove the duplicate node from the list.
     _collapsedVertex2HE.erase(_che->heVertexIndex(startHE));
 
     // Update all neighbour elements.

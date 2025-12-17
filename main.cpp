@@ -12,7 +12,7 @@
 #include <fstream>
 #include "CHE.h"
 #include "CHEOperations.h"
-
+#include <set>
 
 
 void readMesh()
@@ -60,11 +60,25 @@ void readMesh()
 
     auto *che = new CHE(points, elements, 4, 2);
     che->print();
+    std::cout << std::endl;
 
     CHEOperations cheOperations(che);
     // cheOperations.addInterfaceElements({1, 13, 16, 28});
-    cheOperations.addInterfaceElements({1, 19});
+    cheOperations.addInterfaceElements({1, 16, 13, 28, 25, 17});
 
+    std::set<unsigned int> processedVertices;
+    for (unsigned int i = 0; i < che->numberOfElements(); i++)
+    {
+        for (unsigned int j = 0; j < che->numberVertexByElement(); j++)
+        {
+            const unsigned int vertex = che->heVertexIndex(i * che->numberVertexByElement() + j);
+            if (processedVertices.find(vertex) == processedVertices.end())
+            {
+                processedVertices.insert(vertex);
+
+            }
+        }
+    }
     constexpr unsigned int he = 2;
     const std::vector<unsigned int> nv = cheOperations.geNeighbourVertices(he);
     printf("%u: ", che->heVertexIndex(he));
