@@ -144,6 +144,13 @@ void CHEOperations::addInterfaceElements(const std::vector<unsigned int> &edges)
     {
         // Get the edge vertices.
         openEdge(he);
+        _che->print();
+        printf("\n");
+    }
+
+    for (auto v: _collapsedVertex2HE)
+    {
+        printf("%u: %u\n", v.first, v.second);
     }
 }
 
@@ -187,16 +194,32 @@ void CHEOperations::openEdge(const unsigned int he)
 
     if (_collapsedVertex2HE.find(vertexB) != _collapsedVertex2HE.end())
     {
-        printf("Vertex %d should be duplicated\n", vertexB);
+        const unsigned int collapsedHE1 = _collapsedVertex2HE.find(vertexB)->second;
+        const unsigned int collapsedHE = _che->heNext(collapsedHE1);
+        printf("Vertex %u should be duplicated: %u\n", vertexB, collapsedHE);
+        const unsigned int newVertex = duplicateNode(_che->heOpposite(he), collapsedHE);
+        _che->_halfEdgeVertex[availableHE + 1] = newVertex;
+        _che->_halfEdgeVertex[availableHE + 2] = vertexB;
+        _che->_halfEdgeVertex[collapsedHE] = newVertex;
+
+        _che->_oppositeHalfEdge[availableHE + 3] = CHE::COLLAPSED;
+
+        _che->_oppositeHalfEdge[availableHE + 1] = collapsedHE1;
+        _che->_oppositeHalfEdge[collapsedHE1] = availableHE + 1;
+    }
+    else
+    {
+        _che->_halfEdgeVertex[availableHE + 1] = vertexB;
+        _che->_halfEdgeVertex[availableHE + 2] = vertexB;
+
+        // Save the collapsed vertex.
+        _collapsedVertex2HE[vertexB] = availableHE + 1;
+
+        _che->_oppositeHalfEdge[availableHE + 1] = CHE::COLLAPSED;
     }
 
     // Add the element to element's list.
-    _che->_halfEdgeVertex[availableHE + 1] = vertexB;
-    _che->_halfEdgeVertex[availableHE + 2] = vertexB;
     _che->_halfEdgeVertex[availableHE + 3] = vertexA;
-
-    // Save the collapsed vertex.
-    _collapsedVertex2HE[vertexB] = availableHE + 1;
 
     // Update the opposite's list.
     _che->_oppositeHalfEdge[he] = availableHE + 2;
@@ -204,9 +227,6 @@ void CHEOperations::openEdge(const unsigned int he)
 
     _che->_oppositeHalfEdge[opposite] = availableHE;
     _che->_oppositeHalfEdge[availableHE] = opposite;
-
-    // Invalid opposites. @todo think better about this.
-    _che->_oppositeHalfEdge[availableHE + 1] = CHE::COLLAPSED;
 
     // Increment the number of valid elements.
     _che->_numberOfValidElements++;

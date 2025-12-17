@@ -62,9 +62,8 @@ void readMesh()
     che->print();
 
     CHEOperations cheOperations(che);
-    cheOperations.addInterfaceElements({1, 13});
-
-    che->print();
+    // cheOperations.addInterfaceElements({1, 13, 16, 28});
+    cheOperations.addInterfaceElements({1, 19});
 
     constexpr unsigned int he = 2;
     const std::vector<unsigned int> nv = cheOperations.geNeighbourVertices(he);
