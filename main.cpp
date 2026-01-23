@@ -15,14 +15,11 @@
 #include <set>
 
 
-void readMesh()
+
+CHE *readMesh(const std::string &filename)
 {
-    std::string name;
-
-    name = "../malha.txt";
-
     printf("Reading file!...\n");
-    std::ifstream in(name.c_str());
+    std::ifstream in(filename.c_str());
     if (in.is_open())
     {
         std::cout << "File found." << std::endl;
@@ -30,7 +27,7 @@ void readMesh()
     else
     {
         std::cout << "File not found." << std::endl;
-        return;
+        return nullptr;
     }
     int numberPoints = 0, numberTriangles = 0;
     in >> numberPoints >> numberTriangles;
@@ -60,25 +57,18 @@ void readMesh()
 
     auto *che = new CHE(points, elements, 4, 2);
     che->print();
-    std::cout << std::endl;
 
+    return che;
+}
+
+
+
+void insertInterfaceElements(CHE *che)
+{
     CHEOperations cheOperations(che);
-    // cheOperations.addInterfaceElements({1, 13, 16, 28});
-    cheOperations.addInterfaceElements({1, 16, 13, 28, 25, 17});
+    cheOperations.addInterfaceElements({29});
+    // cheOperations.addInterfaceElements({29, 18, 5, 21, 37, 36, 17, 13, 14, 40});
 
-    std::set<unsigned int> processedVertices;
-    for (unsigned int i = 0; i < che->numberOfElements(); i++)
-    {
-        for (unsigned int j = 0; j < che->numberVertexByElement(); j++)
-        {
-            const unsigned int vertex = che->heVertexIndex(i * che->numberVertexByElement() + j);
-            if (processedVertices.find(vertex) == processedVertices.end())
-            {
-                processedVertices.insert(vertex);
-
-            }
-        }
-    }
     constexpr unsigned int he = 2;
     const std::vector<unsigned int> nv = cheOperations.geNeighbourVertices(he);
     printf("%u: ", che->heVertexIndex(he));
@@ -87,15 +77,17 @@ void readMesh()
         printf("%u ", v);
     }
     printf("\n");
-
-    delete che;
 }
 
 
 
 int main(int argc, char **argv)
 {
-    readMesh();
+    CHE *che = readMesh("../malha2.txt");
+    insertInterfaceElements(che);
+
+    delete che;
+
     return 0;
 }
 

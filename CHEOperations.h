@@ -74,6 +74,8 @@ private:
     unsigned int duplicateNode(unsigned int startHE, unsigned int endHE);
 
 private:
+    // NEW
+    bool insertElement(unsigned int he);
 
 private:
     /**

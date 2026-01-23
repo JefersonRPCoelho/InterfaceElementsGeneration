@@ -144,15 +144,68 @@ void CHEOperations::addInterfaceElements(const std::vector<unsigned int> &edges)
     for (const unsigned int he: edges)
     {
         // Get the edge vertices.
-        openEdge(he);
+        insertElement(he);
         _che->print();
         std::cout << std::endl;
     }
 
-    for (auto v: _collapsedVertex2HE)
+    for (auto [vertex, he]: _collapsedVertex2HE)
     {
-        printf("%u: %u\n", v.first, v.second);
+        printf("%u: %u\n", vertex, he);
     }
+}
+
+
+
+bool CHEOperations::insertElement(const unsigned int he)
+{
+    // Check the edge validity.
+    if (_che->heOpposite(he) == CHE::BORDER || _che->heOpposite(he) == CHE::COLLAPSED)
+    {
+        return false;
+    }
+
+    // Get the edge vertices.
+    const unsigned int vertexA = _che->heVertexIndex(he);
+    const unsigned int vertexB = _che->heVertexIndex(_che->heNext(he));
+
+    // Get the key half edges
+    const unsigned int oppositeHE = _che->heOpposite(he);
+
+    // Add the new element.
+    const unsigned int availableHE = _che->numberOfElements() * _che->numberVertexByElement();
+    _che->_halfEdgeVertex[availableHE + 0] = vertexA;
+    _che->_halfEdgeVertex[availableHE + 1] = vertexB;
+    _che->_halfEdgeVertex[availableHE + 2] = vertexB;
+    _che->_halfEdgeVertex[availableHE + 3] = vertexA;
+
+    // Increment the number of valid elements.
+    _che->_numberOfValidElements++;
+
+    // Update the opposites.
+    _che->_oppositeHalfEdge[availableHE + 0] = oppositeHE;
+    _che->_oppositeHalfEdge[oppositeHE] = availableHE + 0;
+
+    _che->_oppositeHalfEdge[availableHE + 1] = CHE::COLLAPSED;
+
+    // Save the collapsed edge.
+    if (_collapsedVertex2HE.find(vertexB) == _collapsedVertex2HE.end())
+    {
+        _collapsedVertex2HE.insert({vertexB, availableHE + 1});
+    }
+
+    _che->_oppositeHalfEdge[availableHE + 2] = he;
+    _che->_oppositeHalfEdge[he] = availableHE + 2;
+
+    _che->_oppositeHalfEdge[availableHE + 3] = CHE::COLLAPSED;
+
+    // Save the collapsed edge.
+    if (_collapsedVertex2HE.find(vertexA) == _collapsedVertex2HE.end())
+    {
+        _collapsedVertex2HE.insert({vertexA, availableHE + 3});
+    }
+
+    return true;
 }
 
 
@@ -265,4 +318,6 @@ unsigned int CHEOperations::duplicateNode(const unsigned int startHE, const unsi
 
     return availableNode;
 }
+
+
 
