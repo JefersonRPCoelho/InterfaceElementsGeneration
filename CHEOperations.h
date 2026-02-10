@@ -48,6 +48,9 @@ public:
      */
     [[nodiscard]] std::vector<unsigned int> getNeighbourFaces(unsigned int face) const;
 
+    [[nodiscard]] bool isBorder(unsigned int he) const;
+
+
     /**
      * @brief Add interface elements in the required edges.
      *
@@ -77,11 +80,13 @@ private:
     // NEW
     bool insertElement(unsigned int he);
 
+    bool op1(unsigned int he);
 private:
     /**
      * CHE valid topology representation used to perform the operations.
      */
     CHE *_che;
+    std::vector<bool> _inInterfaceElement;
 
     std::map<unsigned int, unsigned int> _collapsedVertex2HE;
 };

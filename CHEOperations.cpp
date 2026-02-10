@@ -14,6 +14,7 @@
 CHEOperations::CHEOperations(CHE *che)
 {
     _che = che;
+    _inInterfaceElement.resize(_che->numberPoints(), false);
 }
 
 
@@ -136,6 +137,40 @@ std::vector<unsigned> CHEOperations::getNeighbourFaces(const unsigned int face) 
 
 
 
+bool CHEOperations::isBorder(const unsigned int he) const
+{
+    unsigned int currentHE = he;
+    bool border = false;
+    //Turn around the vertex until get the starting point or hit a boundary.
+    do
+    {
+        // Go to the next face.
+        unsigned int oppositeHE = _che->heOpposite(currentHE);
+
+        // If the edge is collapsed, skip it.
+        if (oppositeHE == CHE::COLLAPSED)
+        {
+            currentHE = _che->heNext(currentHE);
+            oppositeHE = _che->heOpposite(currentHE);
+        }
+
+        // If it hits a border, stop.
+        if (oppositeHE == CHE::BORDER)
+        {
+            border = true;
+            break;
+        }
+
+        // Get the next half-edge. Basically it goes back to a half-edge emanating from the vertex.
+        currentHE = _che->heNext(oppositeHE);
+    }
+    while (currentHE != he);
+
+    return border;
+}
+
+
+
 void CHEOperations::addInterfaceElements(const std::vector<unsigned int> &edges)
 {
     _che->reserveSpaceForElements(static_cast<unsigned int>(edges.size()));
@@ -169,40 +204,11 @@ bool CHEOperations::insertElement(const unsigned int he)
     const unsigned int vertexA = _che->heVertexIndex(he);
     const unsigned int vertexB = _che->heVertexIndex(_che->heNext(he));
 
-    // Get the key half edges
-    const unsigned int oppositeHE = _che->heOpposite(he);
-
-    // Add the new element.
-    const unsigned int availableHE = _che->numberOfElements() * _che->numberVertexByElement();
-    _che->_halfEdgeVertex[availableHE + 0] = vertexA;
-    _che->_halfEdgeVertex[availableHE + 1] = vertexB;
-    _che->_halfEdgeVertex[availableHE + 2] = vertexB;
-    _che->_halfEdgeVertex[availableHE + 3] = vertexA;
-
-    // Increment the number of valid elements.
-    _che->_numberOfValidElements++;
-
-    // Update the opposites.
-    _che->_oppositeHalfEdge[availableHE + 0] = oppositeHE;
-    _che->_oppositeHalfEdge[oppositeHE] = availableHE + 0;
-
-    _che->_oppositeHalfEdge[availableHE + 1] = CHE::COLLAPSED;
-
-    // Save the collapsed edge.
-    if (_collapsedVertex2HE.find(vertexB) == _collapsedVertex2HE.end())
+    // Test for OP1. None of the vertices are neighbored to an interface element, so the edge should only be opened as a
+    // preparation for the next operations.
+    if (!_inInterfaceElement[vertexA] && !_inInterfaceElement[vertexB])
     {
-        _collapsedVertex2HE.insert({vertexB, availableHE + 1});
-    }
-
-    _che->_oppositeHalfEdge[availableHE + 2] = he;
-    _che->_oppositeHalfEdge[he] = availableHE + 2;
-
-    _che->_oppositeHalfEdge[availableHE + 3] = CHE::COLLAPSED;
-
-    // Save the collapsed edge.
-    if (_collapsedVertex2HE.find(vertexA) == _collapsedVertex2HE.end())
-    {
-        _collapsedVertex2HE.insert({vertexA, availableHE + 3});
+        return op1(he);
     }
 
     return true;
@@ -210,114 +216,100 @@ bool CHEOperations::insertElement(const unsigned int he)
 
 
 
-void CHEOperations::openEdge(const unsigned int he)
+bool CHEOperations::op1(const unsigned int he)
 {
-    // Get the opposite half-edge.
-    const unsigned int opposite = _che->heOpposite(he);
-
-    // It is not possible to open an edge in the border.
-    if (opposite == CHE::BORDER)
-        return;
-
-    // Get the next half-edge. It represents the other's edge vertex.
-    const unsigned int next = _che->heNext(he);
-
     // Get the edge vertices.
     const unsigned int vertexA = _che->heVertexIndex(he);
-    const unsigned int vertexB = _che->heVertexIndex(next);
+    const unsigned int vertexB = _che->heVertexIndex(_che->heNext(he));
 
-    // Get the next half-edge available.
+    // Get the key half-edges
+    const unsigned int op = _che->heOpposite(he);
+
+    // It is not possible to open an edge in the border.
+    if (op == CHE::BORDER)
+    {
+        return false;
+    }
+
+    // Get the vertex indexes for the new element. By default, it is assumed that the edge is inside the mesh, so no
+    // vertex duplication in the geometry vertex is necessary.
+    unsigned int v1 = vertexA;
+    const unsigned int v2 = vertexB;
+    unsigned int v3 = vertexB;
+    const unsigned int v4 = vertexA;
+
+    // Check if the vertexes are in the border.
+    const bool isVertexABorder = isBorder(he);
+    const bool isVertexBBorder = isBorder(_che->heNext(he));
+
+    // Duplicate the vertex A if necessary.
+    if (isVertexABorder)
+    {
+        const unsigned int newVertex = _che->numberPoints();
+        _che->reserveSpaceForNodes(1);
+        v1 = newVertex;
+    }
+
+    // Duplicate the vertex B if necessary.
+    if (isVertexBBorder)
+    {
+        const unsigned int newVertex = _che->numberPoints();
+        _che->reserveSpaceForNodes(1);
+        v3 = newVertex;
+    }
+
+    // Next free position in the elements' vector.
     const unsigned int availableHE = _che->numberOfElements() * _che->numberVertexByElement();
 
-    if (_collapsedVertex2HE.find(vertexA) != _collapsedVertex2HE.end())
-    {
-        const unsigned int collapsedHE = _collapsedVertex2HE.find(vertexA)->second;
-        printf("Vertex %u should be duplicated: %u\n", vertexA, collapsedHE);
-        const unsigned int newVertex = duplicateNode(collapsedHE, he);
-        _che->_halfEdgeVertex[availableHE + 0] = newVertex;
+    // Alias to the new element corners.
+    const unsigned int a = availableHE + 0;
+    const unsigned int b = availableHE + 1;
+    const unsigned int c = availableHE + 2;
+    const unsigned int d = availableHE + 3;
 
-        _che->_oppositeHalfEdge[availableHE + 3] = collapsedHE;
-        _che->_oppositeHalfEdge[collapsedHE] = availableHE + 3;
-    }
-    else
-    {
-        _che->_halfEdgeVertex[availableHE + 0] = vertexA;
-        _collapsedVertex2HE[vertexA] = availableHE + 3;
-        _che->_oppositeHalfEdge[availableHE + 3] = CHE::COLLAPSED;
-    }
+    // Add the new element.
+    _che->_halfEdgeVertex[a] = v1;
+    _che->_halfEdgeVertex[b] = v2;
+    _che->_halfEdgeVertex[c] = v3;
+    _che->_halfEdgeVertex[d] = v4;
 
-    if (_collapsedVertex2HE.find(vertexB) != _collapsedVertex2HE.end())
-    {
-        const unsigned int collapsedHE1 = _collapsedVertex2HE.find(vertexB)->second;
-        const unsigned int collapsedHE = _che->heNext(collapsedHE1);
-        printf("Vertex %u should be duplicated: %u\n", vertexB, collapsedHE);
-        const unsigned int newVertex = duplicateNode(_che->heOpposite(he), collapsedHE);
-        _che->_halfEdgeVertex[availableHE + 1] = newVertex;
-        _che->_halfEdgeVertex[availableHE + 2] = vertexB;
-        _che->_halfEdgeVertex[collapsedHE] = newVertex;
-
-        _che->_oppositeHalfEdge[availableHE + 3] = CHE::COLLAPSED;
-
-        _che->_oppositeHalfEdge[availableHE + 1] = collapsedHE1;
-        _che->_oppositeHalfEdge[collapsedHE1] = availableHE + 1;
-    }
-    else
-    {
-        _che->_halfEdgeVertex[availableHE + 1] = vertexB;
-        _che->_halfEdgeVertex[availableHE + 2] = vertexB;
-
-        // Save the collapsed vertex.
-        _collapsedVertex2HE[vertexB] = availableHE + 1;
-
-        _che->_oppositeHalfEdge[availableHE + 1] = CHE::COLLAPSED;
-    }
-
-    // Add the element to element's list.
-    _che->_halfEdgeVertex[availableHE + 3] = vertexA;
-
-    // Update the opposite's list.
-    _che->_oppositeHalfEdge[he] = availableHE + 2;
-    _che->_oppositeHalfEdge[availableHE + 2] = he;
-
-    _che->_oppositeHalfEdge[opposite] = availableHE;
-    _che->_oppositeHalfEdge[availableHE] = opposite;
-
-    // Increment the number of valid elements.
+    // Update the number of valid elements.
     _che->_numberOfValidElements++;
-}
 
+    // Update the opposites.
+    _che->_oppositeHalfEdge[a] = op;
+    _che->_oppositeHalfEdge[op] = a;
 
-
-unsigned int CHEOperations::duplicateNode(const unsigned int startHE, const unsigned int endHE)
-{
-    const unsigned int availableNode = _che->numberPoints();
-
-    // Get space for an extra node.
-    _che->reserveSpaceForNodes(1);
-
-    // Remove the duplicate node from the list.
-    _collapsedVertex2HE.erase(_che->heVertexIndex(startHE));
-
-    // Update all neighbour elements.
-    unsigned int currentHE = startHE;
-    do
+    // If the vertex A is in a border, the vertex is duplicated and the opposite is a border. Otherwise, the edge is
+    // collapsed.
+    if (isVertexBBorder)
     {
-        // Update the element with the new node.
-        _che->_halfEdgeVertex[currentHE] = availableNode;
-
-        // Move to the other element.
-        currentHE = _che->heOpposite(_che->hePrevious(currentHE));
-
-        if (currentHE == CHE::BORDER)
-        {
-            // @todo test.
-            break;
-        }
+        _che->_oppositeHalfEdge[b] = CHE::BORDER;
     }
-    while (currentHE != endHE);
+    else
+    {
+        _che->_oppositeHalfEdge[b] = CHE::COLLAPSED;
+    }
 
-    return availableNode;
+    // Same for the vertex B.
+    if (isVertexABorder)
+    {
+        _che->_oppositeHalfEdge[d] = CHE::BORDER;
+    }
+    else
+    {
+        _che->_oppositeHalfEdge[d] = CHE::COLLAPSED;
+    }
+    _che->_oppositeHalfEdge[c] = he;
+    _che->_oppositeHalfEdge[he] = c;
+
+    // Update the vertices' status.
+    _inInterfaceElement[vertexA] = true;
+    _inInterfaceElement[vertexB] = true;
+
+    return true;
 }
+
 
 
 
