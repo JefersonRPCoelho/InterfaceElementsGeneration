@@ -23,6 +23,9 @@ CHE::CHE(const double *coordinates, const unsigned int *elementsList, const unsi
     _coordinates.resize(numberCoordinates * numberOfVertices);
     _halfEdgeVertex.resize(numberVerticesByElement * numberElements);
     _oppositeHalfEdge.resize(numberVerticesByElement * numberElements);
+    _isInterfaceElement.resize(numberElements, false);
+    _inInterfaceElement.resize(numberOfVertices, false);
+
 
     // Copy the data.
     memcpy(_coordinates.data(), coordinates, numberCoordinates * numberOfVertices * sizeof(double));
@@ -49,6 +52,9 @@ CHE::CHE(
     _oppositeHalfEdge.resize(_halfEdgeVertex.size());
 
     _numberOfValidElements = static_cast<unsigned int>(elementsList.size() / numberVerticesByElement);
+    _isInterfaceElement.resize(_numberOfValidElements, false);
+    _inInterfaceElement.resize(_coordinates.size() / _numberCoordinatesPerVertex, false);
+
 
     // Build the opposite table.
     buildOppositesLinear();
@@ -161,7 +167,7 @@ void CHE::print() const
         {
             printf("%.2lf ", _coordinates[i * _numberCoordinatesPerVertex + j]);
         }
-        printf("\n");
+        printf(" -> %d\n", static_cast<int>(_inInterfaceElement[i]));
     }
     printf("Elements:\n");
     for (unsigned int i = 0; i < numberOfElements(); i++)
@@ -171,7 +177,7 @@ void CHE::print() const
         {
             printf("%u ", _halfEdgeVertex[i * _numberVerticesByElement + j]);
         }
-        printf("\n");
+        printf(" -> %d\n", static_cast<int>(_isInterfaceElement[i]) );
     }
 
     printf("Opposites:\n");
@@ -187,6 +193,7 @@ void CHE::reserveSpaceForElements(const unsigned int numberElements)
 {
     _halfEdgeVertex.resize(_halfEdgeVertex.size() + _numberVerticesByElement * numberElements);
     _oppositeHalfEdge.resize(_oppositeHalfEdge.size() + _numberVerticesByElement * numberElements);
+    _isInterfaceElement.resize(_isInterfaceElement.size() +  numberElements);
 }
 
 
@@ -194,6 +201,8 @@ void CHE::reserveSpaceForElements(const unsigned int numberElements)
 void CHE::reserveSpaceForNodes(const unsigned int numberNodes)
 {
     _coordinates.resize(_coordinates.size() + _numberCoordinatesPerVertex * numberNodes);
+    _inInterfaceElement.resize(_inInterfaceElement.size() +  numberNodes);
+
 }
 
 
@@ -230,6 +239,18 @@ unsigned int CHE::numberPoints() const
 unsigned int CHE::numberOfElements() const
 {
     return _numberOfValidElements;
+}
+
+
+
+bool CHE::isInterfaceElement(const unsigned int element) const
+{
+    if (element >= _isInterfaceElement.size())
+    {
+        return false;
+    }
+
+    return _isInterfaceElement[element];
 }
 
 

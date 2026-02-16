@@ -160,6 +160,8 @@ public:
      */
     [[nodiscard]] unsigned int numberOfElements() const;
 
+    [[nodiscard]] bool isInterfaceElement(unsigned int element) const;
+
 public:
     enum OPPOSITE
     {
@@ -192,6 +194,9 @@ private:
      * For each _numberCoordinatesPerVertex vector values, a vertice coordinate is represented.
      */
     std::vector<double> _coordinates;
+
+    std::vector<bool> _isInterfaceElement;
+    std::vector<bool> _inInterfaceElement;
 
     /**
      * @brief Stores the element's list.
