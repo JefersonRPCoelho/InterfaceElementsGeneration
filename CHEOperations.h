@@ -50,6 +50,10 @@ public:
 
     [[nodiscard]] bool isBorder(unsigned int he) const;
 
+    [[nodiscard]] std::vector<unsigned int> getInterfaceElements(unsigned int he) const;
+    [[nodiscard]] unsigned int getAvailableVertex(const std::vector<unsigned int> &interfaceElements, unsigned int he);
+    [[nodiscard]] bool op2(unsigned int he, unsigned int heVertex);
+
 
     /**
      * @brief Add interface elements in the required edges.
@@ -86,7 +90,4 @@ private:
      * CHE valid topology representation used to perform the operations.
      */
     CHE *_che;
-    std::vector<bool> _inInterfaceElement;
-
-    std::map<unsigned int, unsigned int> _collapsedVertex2HE;
 };
