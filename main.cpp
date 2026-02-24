@@ -14,6 +14,8 @@
 #include "CHEOperations.h"
 #include <set>
 
+#include "InterfaceElementOperators.h"
+
 
 
 CHE *readMesh(const std::string &filename)
@@ -65,9 +67,12 @@ CHE *readMesh(const std::string &filename)
 
 void insertInterfaceElements(CHE *che)
 {
-    CHEOperations cheOperations(che);
+    // CHEOperations cheOperations(che);
     // cheOperations.addInterfaceElements({16, 17, 18, 19});
-    cheOperations.addInterfaceElements({28, 13, 16, 11});
+    // cheOperations.addInterfaceElements({28, 13, 16, 11});
+
+    InterfaceElementOperators op(che);
+    op.insertInterfaceElements({28, 13, 16, 11});
 
     // constexpr unsigned int he = 2;
     // const std::vector<unsigned int> nv = cheOperations.geNeighbourVertices(he);

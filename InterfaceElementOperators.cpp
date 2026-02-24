@@ -16,6 +16,18 @@ InterfaceElementOperators::InterfaceElementOperators(CHE *che) : _che(che)
 
 
 
+void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsigned int> &edges)
+{
+    for (auto &a: edges)
+    {
+        const unsigned int b = _che->heNext(a);
+        OperatorType operatorA = retrieveOperator(a);
+        OperatorType operatorB = retrieveOperator(b);
+    }
+}
+
+
+
 InterfaceElementOperators::OperatorType InterfaceElementOperators::retrieveOperator(const unsigned int he)
 {
     auto op = OperatorType::UNDEFINED;

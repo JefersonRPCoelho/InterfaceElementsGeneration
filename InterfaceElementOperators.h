@@ -4,7 +4,7 @@
 
 #pragma once
 #include <unordered_map>
-
+#include <vector>
 #include "CHE.h"
 
 
@@ -25,6 +25,9 @@ public:
      */
     explicit InterfaceElementOperators(CHE *che);
 
+    void insertInterfaceElements(const std::vector<unsigned int> &edges);
+
+private:
     [[nodiscard]] bool canonical(unsigned int he);
 
     [[nodiscard]] bool splitElement(unsigned int he, unsigned int heVertex);
@@ -35,7 +38,6 @@ public:
 
     [[nodiscard]] OperatorType retrieveOperator(unsigned int he);
 
-private:
     /**
      * Try to retrieve the available vertex to be used in the new interface element. This function supposes:
      *    1. The vertex represented by the half-edge he is already known as a duplicated vertex, i.e., it is on the

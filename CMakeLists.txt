@@ -10,9 +10,10 @@ add_executable(InterfaceElementsPrototype
         main.cpp
         CHE.cpp
         CHEOperations.cpp
+        InterfaceElementOperators.cpp
 )
 
 target_include_directories(InterfaceElementsPrototype
-    PRIVATE
+        PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
