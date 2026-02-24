@@ -191,7 +191,7 @@ private:
     /**
      * @brief Stores the coordinate's vector.
      *
-     * For each _numberCoordinatesPerVertex vector values, a vertice coordinate is represented.
+     * For each _numberCoordinatesPerVertex vector value, a vertice coordinate is represented.
      */
     std::vector<double> _coordinates;
 

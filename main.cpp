@@ -66,8 +66,8 @@ CHE *readMesh(const std::string &filename)
 void insertInterfaceElements(CHE *che)
 {
     CHEOperations cheOperations(che);
-    cheOperations.addInterfaceElements({35, 32, 33});
-    // cheOperations.addInterfaceElements({29, 18, 5, 21, 37, 36, 17, 13, 14, 40});
+    // cheOperations.addInterfaceElements({16, 17, 18, 19});
+    cheOperations.addInterfaceElements({28, 13, 16, 11});
 
     // constexpr unsigned int he = 2;
     // const std::vector<unsigned int> nv = cheOperations.geNeighbourVertices(he);

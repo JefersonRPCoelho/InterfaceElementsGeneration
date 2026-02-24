@@ -202,7 +202,7 @@ std::vector<unsigned int> CHEOperations::getInterfaceElements(const unsigned int
             break;
         }
 
-        // Get the next half-edge. Basically it goes back to a half-edge emanating from the vertex.
+        // Get the next half-edge. Basically, it goes back to a half-edge emanating from the vertex.
         currentHE = _che->heNext(oppositeHE);
     }
     while (currentHE != he);
@@ -308,7 +308,7 @@ bool CHEOperations::insertElement(const unsigned int he)
     }
     if (_che->_inInterfaceElement[vertexA] && !_che->_inInterfaceElement[vertexB])
     {
-        auto interfaceElements = getInterfaceElements(he);
+        const auto interfaceElements = getInterfaceElements(he);
         const unsigned int vertexTobeReused = getAvailableVertex(interfaceElements, he);
         return op2(_che->heOpposite(he), vertexTobeReused);
     }
@@ -321,6 +321,8 @@ bool CHEOperations::insertElement(const unsigned int he)
     }
     if (_che->_inInterfaceElement[vertexA] && _che->_inInterfaceElement[vertexB])
     {
+        const auto interfaceElements = getInterfaceElements(he);
+
         printf("Error: trying to open an already open edge: (%u, %u)\n", vertexA, vertexB);
     }
 
@@ -516,6 +518,88 @@ bool CHEOperations::op2(const unsigned int he, const unsigned int heVertex)
     {
         _che->_oppositeHalfEdge[d] = CHE::COLLAPSED;
     }
+
+    // Update the vertices' status.
+    _che->_inInterfaceElement[v1] = true;
+    _che->_inInterfaceElement[v2] = true;
+    _che->_inInterfaceElement[v3] = true;
+    _che->_inInterfaceElement[v4] = true;
+
+    return true;
+}
+
+
+
+bool CHEOperations::op3(const unsigned int he)
+{
+    // Check the-edge validity.
+    const unsigned int opposite = _che->heOpposite(he);
+    if (opposite == CHE::BORDER || opposite == CHE::COLLAPSED)
+    {
+        return false;
+    }
+
+    // Get the corners that should be updated after the operation.
+    const unsigned int a1 = _che->heNext(he);
+    const unsigned int b0 = opposite;
+    const unsigned int c0 = _che->heNext(_che->heOpposite(a1));
+    const unsigned int e1 = _che->heOpposite(_che->hePrevious(he));
+    const unsigned int e0 = _che->hePrevious(e1);
+
+    // Create a new vertex.
+    const unsigned int newVertex1 = _che->numberPoints();
+    const unsigned int newVertex2 = newVertex1 + 1;
+    _che->reserveSpaceForNodes(2);
+
+    // Update the elements with the new indexation.
+    _che->_halfEdgeVertex[e1] = newVertex1;
+    _che->_halfEdgeVertex[he] = newVertex1;
+    _che->_halfEdgeVertex[a1] = newVertex2;
+    _che->_halfEdgeVertex[c0] = newVertex2;
+
+    // Get the edge vertices.
+    const unsigned int vertexA = _che->heVertexIndex(he);
+    const unsigned int vertexB = _che->heVertexIndex(a1);
+
+    // Get the vertex indexes for the new element.
+    const unsigned int v1 = vertexA;
+    const unsigned int v2 = vertexB;
+    const unsigned int v3 = newVertex2;
+    const unsigned int v4 = newVertex1;
+
+    // Next free position in the elements' vector.
+    const unsigned int availableHE = _che->numberOfElements() * _che->numberVertexByElement();
+
+    // Alias to the new element corners.
+    const unsigned int n0 = availableHE + 0;
+    const unsigned int n1 = availableHE + 1;
+    const unsigned int n2 = availableHE + 2;
+    const unsigned int n3 = availableHE + 3;
+
+    // Add the new element.
+    _che->_halfEdgeVertex[n0] = v1;
+    _che->_halfEdgeVertex[n1] = v2;
+    _che->_halfEdgeVertex[n2] = v3;
+    _che->_halfEdgeVertex[n3] = v4;
+
+    // Label the element.
+    _che->_isInterfaceElement[_che->_numberOfValidElements] = true;
+
+    // Update the number of valid elements.
+    _che->_numberOfValidElements++;
+
+    // Update opposites.
+    _che->_oppositeHalfEdge[e0] = n0;
+    _che->_oppositeHalfEdge[n0] = e0;
+
+    _che->_oppositeHalfEdge[b0] = n1;
+    _che->_oppositeHalfEdge[n1] = b0;
+
+    _che->_oppositeHalfEdge[c0] = n2;
+    _che->_oppositeHalfEdge[n2] = c0;
+
+    _che->_oppositeHalfEdge[he] = n3;
+    _che->_oppositeHalfEdge[n3] = he;
 
     // Update the vertices' status.
     _che->_inInterfaceElement[v1] = true;
