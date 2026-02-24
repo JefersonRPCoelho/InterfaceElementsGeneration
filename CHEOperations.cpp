@@ -188,7 +188,7 @@ std::vector<unsigned int> CHEOperations::getInterfaceElements(const unsigned int
             oppositeHE = _che->heOpposite(currentHE);
         }
 
-        const unsigned int element = currentHE /_che->numberVertexByElement();
+        const unsigned int element = currentHE / _che->numberVertexByElement();
         if (_che->isInterfaceElement(element))
         {
             // Save it to the neighbor list.
@@ -224,7 +224,7 @@ std::vector<unsigned int> CHEOperations::getInterfaceElements(const unsigned int
             currentHE = _che->hePrevious(hePrevious);
             hePrevious = currentHE;
         }
-        const unsigned int element = currentHE /_che->numberVertexByElement();
+        const unsigned int element = currentHE / _che->numberVertexByElement();
         if (_che->isInterfaceElement(element))
         {
             // Save it to the neighbor list.
@@ -255,29 +255,34 @@ void CHEOperations::addInterfaceElements(const std::vector<unsigned int> &edges)
     }
 }
 
-unsigned int CHEOperations::getAvailableVertex(const std::vector<unsigned int> &interfaceElements, const unsigned int he)
+
+
+unsigned int CHEOperations::getAvailableVertex(const std::vector<unsigned int> &interfaceElements,
+                                               const unsigned int he)
 {
-    const unsigned int f1 = _che->halfEdgeElement(he);
-    const unsigned int f2 = _che->halfEdgeElement(_che->heOpposite(he));
+    const unsigned int f1 = _che->heElement(he);
+    const unsigned int f2 = _che->heElement(_che->heOpposite(he));
     unsigned int nodeTobeReused = CHE::BORDER;
 
-    for (const unsigned int f : interfaceElements)
+    for (const unsigned int f: interfaceElements)
     {
         const unsigned int he1 = f * _che->numberVertexByElement();
         unsigned int ehe = he1;
         do
         {
             const unsigned int opposite = _che->heOpposite(ehe);
-            if (opposite != CHE::BORDER && opposite != CHE::COLLAPSED && _che->heVertexIndex(ehe) == _che->heVertexIndex(_che->hePrevious(ehe)))
+            if (opposite != CHE::BORDER && opposite != CHE::COLLAPSED && _che->heVertexIndex(ehe) == _che->
+                heVertexIndex(_che->hePrevious(ehe)))
             {
-                const unsigned int oppositeElement = _che->halfEdgeElement(opposite);
+                const unsigned int oppositeElement = _che->heElement(opposite);
                 if (oppositeElement == f1 || oppositeElement == f2)
                 {
                     nodeTobeReused = ehe;
                 }
             }
             ehe = _che->heNext(ehe);
-        }while (ehe != he1 && nodeTobeReused == CHE::BORDER);
+        }
+        while (ehe != he1 && nodeTobeReused == CHE::BORDER);
 
         if (nodeTobeReused != CHE::BORDER)
         {
@@ -286,6 +291,7 @@ unsigned int CHEOperations::getAvailableVertex(const std::vector<unsigned int> &
     }
     return nodeTobeReused;
 }
+
 
 
 bool CHEOperations::insertElement(const unsigned int he)
@@ -317,7 +323,6 @@ bool CHEOperations::insertElement(const unsigned int he)
         const auto interfaceElements = getInterfaceElements(_che->heNext(he));
         const unsigned int vertexTobeReused = getAvailableVertex(interfaceElements, he);
         return op2(he, vertexTobeReused);
-
     }
     if (_che->_inInterfaceElement[vertexA] && _che->_inInterfaceElement[vertexB])
     {
@@ -431,6 +436,7 @@ bool CHEOperations::op1(const unsigned int he)
 
     return true;
 }
+
 
 
 bool CHEOperations::op2(const unsigned int he, const unsigned int heVertex)

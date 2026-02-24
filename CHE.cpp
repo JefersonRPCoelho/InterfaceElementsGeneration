@@ -177,7 +177,7 @@ void CHE::print() const
         {
             printf("%u ", _halfEdgeVertex[i * _numberVerticesByElement + j]);
         }
-        printf(" -> %d\n", static_cast<int>(_isInterfaceElement[i]) );
+        printf(" -> %d\n", static_cast<int>(_isInterfaceElement[i]));
     }
 
     printf("Opposites:\n");
@@ -193,7 +193,7 @@ void CHE::reserveSpaceForElements(const unsigned int numberElements)
 {
     _halfEdgeVertex.resize(_halfEdgeVertex.size() + _numberVerticesByElement * numberElements);
     _oppositeHalfEdge.resize(_oppositeHalfEdge.size() + _numberVerticesByElement * numberElements);
-    _isInterfaceElement.resize(_isInterfaceElement.size() +  numberElements);
+    _isInterfaceElement.resize(_isInterfaceElement.size() + numberElements);
 }
 
 
@@ -201,13 +201,12 @@ void CHE::reserveSpaceForElements(const unsigned int numberElements)
 void CHE::reserveSpaceForNodes(const unsigned int numberNodes)
 {
     _coordinates.resize(_coordinates.size() + _numberCoordinatesPerVertex * numberNodes);
-    _inInterfaceElement.resize(_inInterfaceElement.size() +  numberNodes);
-
+    _inInterfaceElement.resize(_inInterfaceElement.size() + numberNodes);
 }
 
 
 
-unsigned int CHE::halfEdgeElement(const unsigned int halfEdge) const
+unsigned int CHE::heElement(const unsigned int halfEdge) const
 {
     return halfEdge / _numberVerticesByElement;
 }
@@ -216,14 +215,14 @@ unsigned int CHE::halfEdgeElement(const unsigned int halfEdge) const
 
 unsigned int CHE::heNext(const unsigned int halfEdge) const
 {
-    return _numberVerticesByElement * halfEdgeElement(halfEdge) + (halfEdge + 1) % _numberVerticesByElement;
+    return _numberVerticesByElement * heElement(halfEdge) + (halfEdge + 1) % _numberVerticesByElement;
 }
 
 
 
 unsigned int CHE::hePrevious(const unsigned int halfEdge) const
 {
-    return _numberVerticesByElement * halfEdgeElement(halfEdge) + (halfEdge + _numberVerticesByElement - 1) %
+    return _numberVerticesByElement * heElement(halfEdge) + (halfEdge + _numberVerticesByElement - 1) %
            _numberVerticesByElement;
 }
 

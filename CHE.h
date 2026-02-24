@@ -71,7 +71,7 @@ public:
      * @param halfEdge The half-edge provided to recognize the element it belongs to.
      * @return The element the provided half-edge belongs to.
      */
-    [[nodiscard]] unsigned int halfEdgeElement(unsigned int halfEdge) const;
+    [[nodiscard]] unsigned int heElement(unsigned int halfEdge) const;
 
     /**
      * @brief Get the next half-edge.
