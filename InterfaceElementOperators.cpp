@@ -37,6 +37,17 @@ InterfaceElementOperators::OperatorType InterfaceElementOperators::retrieveOpera
     // If there is an available vertex, it can be a case of splitting an element of expanding an edge.
     else if (_collapsed.find(v) != _collapsed.end())
     {
+        // Try to retrieve the available vertex. If it is possible, we should use the SPLIT_ELEMENT operator.
+        const unsigned int availableVertex = retrieveAvailableVertex(he);
+
+        if (availableVertex != CHE::BORDER)
+        {
+            op = OperatorType::SPLIT_ELEMENT;
+        }
+        else
+        {
+            op = OperatorType::EXPAND_EDGE;
+        }
     }
 
     // If the vertex is part of an interface element, but has no vertex available (duplicated), it is the case of
@@ -97,10 +108,6 @@ unsigned int InterfaceElementOperators::retrieveAvailableVertex(const unsigned i
 
     //Get the vertex index.
     const unsigned v = _che->heVertexIndex(he);
-
-    // Get the elements that share the edge.
-    const unsigned int e1 = _che->heElement(he);
-    const unsigned int e2 = _che->heElement(b);
 
     // Get the half-edge from the collapsed edge.
     assert(_collapsed.find(v) != _collapsed.end());
