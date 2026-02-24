@@ -3,3 +3,129 @@
 //
 
 #include "InterfaceElementOperators.h"
+
+#include <assert.h>
+
+
+
+InterfaceElementOperators::InterfaceElementOperators(CHE *che) : _che(che)
+{
+    // In the beginning, there is no interface element in the mesh.
+    _inInterfaceElement.resize(_che->numberPoints(), false);
+}
+
+
+
+InterfaceElementOperators::OperatorType InterfaceElementOperators::retrieveOperator(const unsigned int he)
+{
+    auto op = OperatorType::UNDEFINED;
+
+    // Get the edge vertices.
+    const unsigned v = _che->heVertexIndex(he);
+
+    // If the vertice is not part of any interface element yet, it should be used the canonical operator.
+    // C             D
+    //  \           /
+    //  A --------- B
+    //  /           \
+    // E             F
+    if (!_inInterfaceElement[v])
+    {
+        op = OperatorType::CANONICAL;
+    }
+
+    // If there is an available vertex, it can be a case of splitting an element of expanding an edge.
+    else if (_collapsed.find(v) != _collapsed.end())
+    {
+    }
+
+    // If the vertex is part of an interface element, but has no vertex available (duplicated), it is the case of
+    // opening a hole in the mesh.
+    else
+    {
+        op = OperatorType::OPEN_HOLE;
+    }
+
+    return op;
+}
+
+
+
+unsigned int InterfaceElementOperators::retrieveAvailableVertex(const unsigned int he)
+{
+    // It is for sure that there is a vertex available at this point. It remains to decide the operation type. The
+    // function will try to prove that it is the case of a SPLIT_ELEMENT, in the case of failure, it will be determined
+    // that it is the EXPAND_EDGE case. If the function can prove it is the SPLIT_ELEMENT case, it will return the
+    // half-edge index that should be used to reindex the elements.
+    //
+    // Given the he representing a or b from the edge A->B we will try to verify if the edge A->B shares a face with an
+    // edge incoming or outgoing from one of the available vertices.
+    //
+    // In the image below, x represents the possible half-edges stored in the _collapsed map. X is always the start of
+    // the collapsed edge.
+    //
+    // We should validate if one of the x for the vertex is in fact collapsed and, when validated, determine if there is
+    // a common element between an edge incoming/outgoing the collapsed edge and the edge being split.
+    //
+    // If it is not possible to determine this edge, the operator EXPAND_EDGE should be used. Otherwise, it should also
+    // be determined the half-edge that should be used to reindex the elements with the available vertex.
+    //
+    // From the half-edge he, x1 = opposite(previous(he)) and x = next(opposite(next(opposite(he)))).
+    //
+    // +------+--------------+------+
+    // |      |              |      |
+    // |  I   |              |   I  |
+    // |x   x1|he  --->      |x     |
+    // +------A--------------B------+
+    // |     x|     <---    b|x2   x|
+    // |  I   |              |   I  |
+    // |    x3|              |      |
+    // +------+--------------+------+
+    //
+    // About the opposites:
+    //     1. Opposites from he and b will always exist at this point because it is the edge where the interface element
+    //     is being inserted. The algorithm should ignore edge borders before this point.
+    //     2. Once the interface element does exist, it is for sure possible to move from the continuous element to it
+    //     by definition, once it was originated split one of the continuo element edge. If the interface element does
+    //     not exist, the opposite may not exist. However, these cases are not from interest of this function
+    //
+
+    assert(_che->heOpposite(he) != CHE::BORDER && _che->heOpposite(he) != CHE::COLLAPSED);
+
+    // Get the opposite half-edge.
+    const unsigned int b = _che->heOpposite(he);
+
+    //Get the vertex index.
+    const unsigned v = _che->heVertexIndex(he);
+
+    // Get the elements that share the edge.
+    const unsigned int e1 = _che->heElement(he);
+    const unsigned int e2 = _che->heElement(b);
+
+    // Get the half-edge from the collapsed edge.
+    assert(_collapsed.find(v) != _collapsed.end());
+
+    // The tests are only true when the edge being split and the interface element with the available vertex share an
+    // element.
+
+    // Test the first hypothesis.
+    if (const unsigned int x1 = _che->heOpposite(_che->hePrevious(he)) != CHE::BORDER)
+    {
+        if (_collapsed[v] == _che->hePrevious(x1))
+        {
+            return x1;
+        }
+    }
+
+    // Test the second hypothesis.
+    if (const unsigned int x3 = _che->heOpposite(_che->heNext(b)) != CHE::BORDER)
+    {
+        const unsigned int x = _che->heNext(x3);
+        if (_collapsed[v] == x)
+        {
+            return x;
+        }
+    }
+
+    return CHE::BORDER;
+}
