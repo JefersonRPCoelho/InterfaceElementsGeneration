@@ -18,11 +18,60 @@ InterfaceElementOperators::InterfaceElementOperators(CHE *che) : _che(che)
 
 void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsigned int> &edges)
 {
+    // Reserve space for the new elements. It assumes all edges are valid and one element will be insert for each edge.
+    _che->reserveSpaceForElements(static_cast<unsigned int>(edges.size()));
+
+    // Insert an element for each edge.
     for (auto &a: edges)
     {
-        const unsigned int b = _che->heNext(a);
+        // C             D
+        //  \  a -->    /
+        //  A --------- B
+        //  /    <-- b  \
+        // E             F
+        // Get the opposite half-edge from the same edge. The half-edges 'a' and 'b' represent the same edge.
+        const unsigned int b = _che->heOpposite(a);
+
+        // If the half-edge has no opposite, it is not valid, once it is not possible to open an edge.
+        if (b == CHE::BORDER || b == CHE::COLLAPSED)
+        {
+            printf("The edge represent by the half-edge [%u]is not valid\n", a);
+            continue;
+        }
+
+        // Create a new element. All new interface elements will follow the template below. All the operators should
+        // take it into consideration. Some key points:
+        //     1. The middle edges are always represented by the half-edges h0 and h2.
+        //     2. The edge that will 'split' the vertex A has its vertices defined by h3 -> h0, following the
+        //     orientation order.
+        //     3. The edge that will 'split' the vertex B has its vertices defined by h1 -> h2, following the
+        //     orientation order.
+        //     4. The new element is defined by FGHE.
+        // E +--------------+ H
+        //   | h3  <---   h2|
+        //   |              |
+        //   | h0  --->   h1|
+        // F +--------------+ G
+
+        // Get the interface element's half-edge.
+        const unsigned int h0 = _che->nextAvailableHE();
+        const unsigned int h2 = h0 + 2;
+
+        // Update the opposites for the middle edges.
+        _che->_oppositeHalfEdge[h0] = b;
+        _che->_oppositeHalfEdge[b] = h0;
+
+        _che->_oppositeHalfEdge[h2] = a;
+        _che->_oppositeHalfEdge[a] = h2;
+
+        // Retrieve the operator for the vertex A.
         OperatorType operatorA = retrieveOperator(a);
+
+        // Retrieve the operator for the vertex B.
         OperatorType operatorB = retrieveOperator(b);
+
+        // Update the number of valid elements. Only update it after all updates are done.
+        _che->_numberOfValidElements++;
     }
 }
 
@@ -35,7 +84,7 @@ InterfaceElementOperators::OperatorType InterfaceElementOperators::retrieveOpera
     // Get the edge vertices.
     const unsigned v = _che->heVertexIndex(he);
 
-    // If the vertice is not part of any interface element yet, it should be used the canonical operator.
+    // If the vertice is not part of any interface element yet, the canonical operator should be used.
     // C             D
     //  \           /
     //  A --------- B
@@ -109,8 +158,8 @@ unsigned int InterfaceElementOperators::retrieveAvailableVertex(const unsigned i
     //     1. Opposites from he and b will always exist at this point because it is the edge where the interface element
     //     is being inserted. The algorithm should ignore edge borders before this point.
     //     2. Once the interface element does exist, it is for sure possible to move from the continuous element to it
-    //     by definition, once it was originated split one of the continuo element edge. If the interface element does
-    //     not exist, the opposite may not exist. However, these cases are not from interest of this function
+    //     by definition, once it was originated, split one of the continuos element edge. If the interface element does
+    //     not exist, the opposite may not exist. However, these cases are not the interest of this function.
     //
 
     assert(_che->heOpposite(he) != CHE::BORDER && _che->heOpposite(he) != CHE::COLLAPSED);

@@ -48,7 +48,7 @@ private:
      * The function will try to prove that the operator is SPLIT_ELEMENT. In case of failure, it is determined that the
      * operator is EXPAND_EDGE.
      *
-     * @param he A he from the edge being split that belongs to the vertex that should be tested.
+     * @param he A half-edge from the edge being split that belongs to the vertex that should be tested.
      * @return The half-edge from the vertex that should be used in the SPLIT_ELEMENT operator, or CHE::BORDER if the
      * operator is EXPAND_EDGE.
      */
