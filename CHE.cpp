@@ -242,6 +242,40 @@ unsigned int CHE::numberOfElements() const
 
 
 
+bool CHE::isBorder(const unsigned int he) const
+{
+    unsigned int currentHE = he;
+    bool border = false;
+    //Turn around the vertex until get the starting point or hit a boundary.
+    do
+    {
+        // Go to the next face.
+        unsigned int oppositeHE = heOpposite(currentHE);
+
+        // If the edge is collapsed, skip it.
+        if (oppositeHE == CHE::COLLAPSED)
+        {
+            currentHE = heNext(currentHE);
+            oppositeHE = heOpposite(currentHE);
+        }
+
+        // If it hits a border, stop.
+        if (oppositeHE == CHE::BORDER)
+        {
+            border = true;
+            break;
+        }
+
+        // Get the next half-edge. Basically, it goes back to a half-edge emanating from the vertex.
+        currentHE = heNext(oppositeHE);
+    }
+    while (currentHE != he);
+
+    return border;
+}
+
+
+
 unsigned int CHE::nextAvailableHE() const
 {
     return numberOfElements() * numberVertexByElement();

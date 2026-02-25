@@ -162,6 +162,13 @@ public:
     [[nodiscard]] unsigned int numberOfElements() const;
 
     /**
+     * Determine if a vertex is on the mesh border or not.
+     * @param he A half-edge in the vertex that should be tested if it is on the border or not.
+     * @return True if the vertex is on the border and false otherwise.
+     */
+    [[nodiscard]] bool isBorder(unsigned int he) const;
+
+    /**
      * @todo
      * @return
      */
