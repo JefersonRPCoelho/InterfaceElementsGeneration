@@ -3,8 +3,8 @@
 //
 
 #include "InterfaceElementOperators.h"
-
-#include <assert.h>
+#include <iostream>
+#include <cassert>
 
 
 
@@ -55,7 +55,41 @@ void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsign
 
         // Get the interface element's half-edge.
         const unsigned int h0 = _che->nextAvailableHE();
+        const unsigned int h1 = h0 + 1;
         const unsigned int h2 = h0 + 2;
+        const unsigned int h3 = h0 + 3;
+
+        // Retrieve the operator for the vertex A.
+        switch (retrieveOperator(a))
+        {
+            case OperatorType::CANONICAL:
+                canonical(a, h3);
+                break;
+            case OperatorType::SPLIT_ELEMENT:
+                break;
+            case OperatorType::EXPAND_EDGE:
+                break;
+            case OperatorType::OPEN_HOLE:
+                break;
+            case OperatorType::UNDEFINED:
+                break;
+        }
+
+        // Retrieve the operator for the vertex B.
+        switch (retrieveOperator(b))
+        {
+            case OperatorType::CANONICAL:
+                canonical(b, h1);
+                break;
+            case OperatorType::SPLIT_ELEMENT:
+                break;
+            case OperatorType::EXPAND_EDGE:
+                break;
+            case OperatorType::OPEN_HOLE:
+                break;
+            case OperatorType::UNDEFINED:
+                break;
+        }
 
         // Update the opposites for the middle edges.
         _che->_oppositeHalfEdge[h0] = b;
@@ -64,15 +98,79 @@ void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsign
         _che->_oppositeHalfEdge[h2] = a;
         _che->_oppositeHalfEdge[a] = h2;
 
-        // Retrieve the operator for the vertex A.
-        OperatorType operatorA = retrieveOperator(a);
-
-        // Retrieve the operator for the vertex B.
-        OperatorType operatorB = retrieveOperator(b);
-
         // Update the number of valid elements. Only update it after all updates are done.
         _che->_numberOfValidElements++;
     }
+    _che->print();
+    std::cout << std::endl;
+
+    printf("Collapsed vertices: ");
+    for (auto &v: _collapsed)
+    {
+        printf("%u -> %u", v.first, v.second);
+    }
+    std::cout << std::endl;
+}
+
+
+
+bool InterfaceElementOperators::canonical(const unsigned int edgeHE, const unsigned int elementHE)
+{
+    // e = edgeHE.
+    // x = elementHE
+    // V +--------------+ V
+    //   |     <---    x|e
+    //   |      I       |
+    //   |              |
+    //   +--------------+
+
+    // Get the vertex index.
+    const unsigned int v = _che->heVertexIndex(edgeHE);
+
+    // The vertex should not be part of any interface element when using this operator.
+    assert(_che->_inInterfaceElement[v] == false);
+
+    // If the vertex is on the border, a new geometry vertex should be created.
+    if (_che->isBorder(edgeHE))
+    {
+        // Get the index for the new vertex.
+        const unsigned int newVertex = _che->numberPoints();
+
+        // Create the new vertex in the geometry. @todo precompute the number of required vertices.
+        _che->reserveSpaceForNodes(1);
+
+        // Add the element to the newly created element.
+        _che->_halfEdgeVertex[elementHE] = newVertex;
+
+        // Reindex all nodes with this vertex from the edge to the border.
+        reindexElements(edgeHE, CHE::BORDER, newVertex);
+
+        // As the vertex is on the border, the created edge is also on the border.
+        _che->_oppositeHalfEdge[elementHE] = CHE::BORDER;
+
+        // Label the new vertex as part of an interface element.
+        _che->_inInterfaceElement[newVertex] = true;
+    }
+    //If the vertex is internal, we should only duplicate it.
+    else
+    {
+        // Duplicate the existing vertex for the new element.
+        _che->_halfEdgeVertex[elementHE] = v;
+
+        // In this case, the edge is collapsed, so the opposite is undefined.
+        _che->_oppositeHalfEdge[elementHE] = CHE::COLLAPSED;
+
+        // Save the collapsed edge.
+        _collapsed[v] = elementHE;
+    }
+
+    // Keep the former vertex in the element.
+    _che->_halfEdgeVertex[_che->heNext(elementHE)] = v;
+
+    // Label the vertex as part of an interface element.
+    _che->_inInterfaceElement[v] = true;
+
+    return true;
 }
 
 
@@ -90,7 +188,7 @@ InterfaceElementOperators::OperatorType InterfaceElementOperators::retrieveOpera
     //  A --------- B
     //  /           \
     // E             F
-    if (!_inInterfaceElement[v])
+    if (!_che->_inInterfaceElement[v])
     {
         op = OperatorType::CANONICAL;
     }
@@ -111,7 +209,7 @@ InterfaceElementOperators::OperatorType InterfaceElementOperators::retrieveOpera
         }
     }
 
-    // If the vertex is part of an interface element, but has no vertex available (duplicated), it is the case of
+    // If the vertex is part of an interface element but has no vertex available (duplicated), it is the case of
     // opening a hole in the mesh.
     else
     {
@@ -119,6 +217,24 @@ InterfaceElementOperators::OperatorType InterfaceElementOperators::retrieveOpera
     }
 
     return op;
+}
+
+
+
+void InterfaceElementOperators::reindexElements(const unsigned int he, const unsigned int stopHE,
+                                                const unsigned int v) const
+{
+    unsigned int currentHE = he;
+    const unsigned int startHE = currentHE;
+    do
+    {
+        // Reindex the element to the new vertex.
+        _che->_halfEdgeVertex[currentHE] = v;
+
+        // Get the opposite half-edge.
+        currentHE = _che->heOpposite(_che->hePrevious(currentHE));
+    }
+    while (currentHE != stopHE && currentHE != CHE::BORDER && currentHE != startHE);
 }
 
 
