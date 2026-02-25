@@ -12,6 +12,7 @@
 class CHE final
 {
     friend class CHEOperations;
+    friend class InterfaceElementOperators;
 
 public:
     /**
@@ -160,6 +161,17 @@ public:
      */
     [[nodiscard]] unsigned int numberOfElements() const;
 
+    /**
+     * @todo
+     * @return
+     */
+    [[nodiscard]] unsigned int nextAvailableHE() const;
+
+    /**
+     * @todo
+     * @param element
+     * @return
+     */
     [[nodiscard]] bool isInterfaceElement(unsigned int element) const;
 
 public:

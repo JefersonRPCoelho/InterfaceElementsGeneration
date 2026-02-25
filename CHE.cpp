@@ -242,6 +242,13 @@ unsigned int CHE::numberOfElements() const
 
 
 
+unsigned int CHE::nextAvailableHE() const
+{
+    return numberOfElements() * numberVertexByElement();
+}
+
+
+
 bool CHE::isInterfaceElement(const unsigned int element) const
 {
     if (element >= _isInterfaceElement.size())
