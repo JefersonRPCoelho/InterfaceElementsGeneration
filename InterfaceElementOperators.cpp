@@ -18,7 +18,7 @@ InterfaceElementOperators::InterfaceElementOperators(CHE *che) : _che(che)
 
 void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsigned int> &edges)
 {
-    // Reserve space for the new elements. It assumes all edges are valid and one element will be insert for each edge.
+    // Reserve space for the new elements. It assumes all edges are valid and one element will be inserted for each edge.
     _che->reserveSpaceForElements(static_cast<unsigned int>(edges.size()));
 
     // Insert an element for each edge.
@@ -59,13 +59,17 @@ void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsign
         const unsigned int h2 = h0 + 2;
         const unsigned int h3 = h0 + 3;
 
+        // Variable used to determine the available vertex half-edge index for the SPLIT_ELEMENT operator.
+        unsigned int availableVertexHE = CHE::BORDER, sharedElementHE = CHE::BORDER;
+
         // Retrieve the operator for the vertex A.
-        switch (retrieveOperator(a))
+        switch (retrieveOperator(a, availableVertexHE, sharedElementHE))
         {
             case OperatorType::CANONICAL:
                 canonical(a, h3);
                 break;
             case OperatorType::SPLIT_ELEMENT:
+                splitElement(a, availableVertexHE, sharedElementHE, h3);
                 break;
             case OperatorType::EXPAND_EDGE:
                 break;
@@ -76,12 +80,13 @@ void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsign
         }
 
         // Retrieve the operator for the vertex B.
-        switch (retrieveOperator(b))
+        switch (retrieveOperator(b, availableVertexHE, sharedElementHE))
         {
             case OperatorType::CANONICAL:
                 canonical(b, h1);
                 break;
             case OperatorType::SPLIT_ELEMENT:
+                splitElement(b, availableVertexHE, sharedElementHE, h1);
                 break;
             case OperatorType::EXPAND_EDGE:
                 break;
@@ -100,16 +105,18 @@ void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsign
 
         // Update the number of valid elements. Only update it after all updates are done.
         _che->_numberOfValidElements++;
-    }
-    _che->print();
-    std::cout << std::endl;
 
-    printf("Collapsed vertices: ");
-    for (auto &v: _collapsed)
-    {
-        printf("%u -> %u", v.first, v.second);
+
+        _che->print();
+        std::cout << std::endl;
+
+        printf("Collapsed vertices: ");
+        for (auto &v: _collapsed)
+        {
+            printf("%u -> %u", v.first, v.second);
+        }
+        std::cout << std::endl;
     }
-    std::cout << std::endl;
 }
 
 
@@ -175,9 +182,65 @@ bool InterfaceElementOperators::canonical(const unsigned int edgeHE, const unsig
 
 
 
-InterfaceElementOperators::OperatorType InterfaceElementOperators::retrieveOperator(const unsigned int he)
+bool InterfaceElementOperators::splitElement(const unsigned int he, const unsigned int availableVertexHE,
+                                             const unsigned int sharedElementHE, const unsigned int elementHE)
+{
+    // Get the vertex index.
+    const unsigned int v = _che->heVertexIndex(he);
+
+    // Get the index for the new vertex.
+    const unsigned int newVertex = _che->numberPoints();
+
+    // Create the new vertex in the geometry. @todo precompute the number of required vertices.
+    _che->reserveSpaceForNodes(1);
+
+    // Update the pre-existent interface element.
+    _che->_halfEdgeVertex[availableVertexHE] = newVertex;
+
+    // Update the continuous element.
+    _che->_halfEdgeVertex[sharedElementHE] = newVertex;
+
+    // Update the new interface element.
+    if (he == sharedElementHE)
+    {
+        // This is the case where the half-edge he is inside the shared element. In this case the elementHE is used to
+        // the new vertex, and the next vertice is kept with the former vertex to keep the right orientation.
+        _che->_halfEdgeVertex[elementHE] = newVertex;
+        _che->_halfEdgeVertex[_che->heNext(elementHE)] = v;
+
+        // Update the opposites.
+        _che->_oppositeHalfEdge[elementHE] = _che->hePrevious(availableVertexHE);
+        _che->_oppositeHalfEdge[_che->hePrevious(availableVertexHE)] = elementHE;
+    }
+    else
+    {
+        // This is the case where the half-edge he is not part of the shared element. In this case the elementHE is used
+        // to the former vertex, and the next vertice is kept with the new vertex to keep the right orientation.
+        _che->_halfEdgeVertex[elementHE] = v;
+        _che->_halfEdgeVertex[_che->heNext(elementHE)] = newVertex;
+
+        // Update the opposites.
+        _che->_oppositeHalfEdge[elementHE] = availableVertexHE;
+        _che->_oppositeHalfEdge[availableVertexHE] = elementHE;
+    }
+
+    // Label the vertex as part of an interface element.
+    _che->_inInterfaceElement[newVertex] = true;
+    _che->_inInterfaceElement[v] = true;
+
+    // Remove collapse edge.
+    _collapsed.erase(v);
+
+    return true;
+}
+
+
+
+InterfaceElementOperators::OperatorType InterfaceElementOperators::retrieveOperator(
+    const unsigned int he, unsigned int &availableVertexHE, unsigned int &sharedElementHE)
 {
     auto op = OperatorType::UNDEFINED;
+    availableVertexHE = CHE::BORDER;
 
     // Get the edge vertices.
     const unsigned v = _che->heVertexIndex(he);
@@ -197,9 +260,9 @@ InterfaceElementOperators::OperatorType InterfaceElementOperators::retrieveOpera
     else if (_collapsed.find(v) != _collapsed.end())
     {
         // Try to retrieve the available vertex. If it is possible, we should use the SPLIT_ELEMENT operator.
-        const unsigned int availableVertex = retrieveAvailableVertex(he);
+        retrieveAvailableVertex(he, availableVertexHE, sharedElementHE);
 
-        if (availableVertex != CHE::BORDER)
+        if (availableVertexHE != CHE::BORDER)
         {
             op = OperatorType::SPLIT_ELEMENT;
         }
@@ -239,7 +302,8 @@ void InterfaceElementOperators::reindexElements(const unsigned int he, const uns
 
 
 
-unsigned int InterfaceElementOperators::retrieveAvailableVertex(const unsigned int he)
+void InterfaceElementOperators::retrieveAvailableVertex(const unsigned int he, unsigned int &availableVertexHE,
+                                                        unsigned int &sharedElementHE)
 {
     // It is for sure that there is a vertex available at this point. It remains to decide the operation type. The
     // function will try to prove that it is the case of a SPLIT_ELEMENT, in the case of failure, it will be determined
@@ -280,6 +344,9 @@ unsigned int InterfaceElementOperators::retrieveAvailableVertex(const unsigned i
 
     assert(_che->heOpposite(he) != CHE::BORDER && _che->heOpposite(he) != CHE::COLLAPSED);
 
+    // Initialize output variables.
+    availableVertexHE = sharedElementHE = CHE::BORDER;
+
     // Get the opposite half-edge.
     const unsigned int b = _che->heOpposite(he);
 
@@ -293,23 +360,26 @@ unsigned int InterfaceElementOperators::retrieveAvailableVertex(const unsigned i
     // element.
 
     // Test the first hypothesis.
-    if (const unsigned int x1 = _che->heOpposite(_che->hePrevious(he)) != CHE::BORDER)
+    const unsigned int x1 = _che->heOpposite(_che->hePrevious(he));
+    if (x1 != CHE::BORDER)
     {
         if (_collapsed[v] == _che->hePrevious(x1))
         {
-            return x1;
+            availableVertexHE = x1;
+            sharedElementHE = he;
+            return;
         }
     }
 
     // Test the second hypothesis.
-    if (const unsigned int x3 = _che->heOpposite(_che->heNext(b)) != CHE::BORDER)
+    const unsigned int x3 = _che->heOpposite(_che->heNext(b));
+    if (x3 != CHE::BORDER)
     {
         const unsigned int x = _che->heNext(x3);
         if (_collapsed[v] == x)
         {
-            return x;
+            availableVertexHE = x;
+            sharedElementHE = _che->heNext(b);
         }
     }
-
-    return CHE::BORDER;
 }

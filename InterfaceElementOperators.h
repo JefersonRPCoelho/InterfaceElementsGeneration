@@ -53,13 +53,38 @@ private:
      */
     bool canonical(unsigned int edgeHE, unsigned int elementHE);
 
-    [[nodiscard]] bool splitElement(unsigned int he, unsigned int heVertex);
+    /**
+     * Perform the Split Element operator in a vertex identified by the half-edge he.
+     *
+     * This operator is always applied in a vertex with a collapsed edge. The interface element with this collapsed
+     * edge should have an edge in the element of he.
+     *
+     * The half-edge availableVertexHE identifies one vertex of the collapsed edge that should be used to insert the new
+     * vertex in the shared element.
+     *
+     * The half-edge sharedElementHE should identify the available vertex in the shared element.
+     *
+     * The elementHE, as in the canonical operator, should represent the first edge-vertex being opened. First, in the
+     * sense of orientation.
+     * @param he A half-edge identifying the vertex where the operator should be applied. This vertex should be part of
+     * a collapsed edge.
+     * @param availableVertexHE A half-edge representing the selected vertex to replaced by a geometric vertex in the
+     * pre-existent interface element. The interface element that generated the collapsed edge.
+     * @param sharedElementHE A half-edge representing the available vertex in the shared element.
+    * @param elementHE The half-edge that identifies the edge being created in the vertice inside the new interface
+     * element. The operator supposes that the element is already created and will only work on adjusting the neighbor
+     * around the vertex.
+     * @return True if the operation was performed successfully and false otherwise.
+     */
+    bool splitElement(unsigned int he, unsigned int availableVertexHE, unsigned int sharedElementHE,
+                      unsigned int elementHE);
 
     [[nodiscard]] bool expandEdge(unsigned int he);
 
     [[nodiscard]] bool insertHole(unsigned int he);
 
-    [[nodiscard]] OperatorType retrieveOperator(unsigned int he);
+    [[nodiscard]] OperatorType retrieveOperator(unsigned int he, unsigned int &availableVertexHE,
+                                                unsigned int &sharedElementHE);
 
     /**
      * Given a half-edge he in a given vertex x, reindex all elements in the CCW direction with the new vertex v until
@@ -86,10 +111,13 @@ private:
      * operator is EXPAND_EDGE.
      *
      * @param he A half-edge from the edge being split that belongs to the vertex that should be tested.
-     * @return The half-edge from the vertex that should be used in the SPLIT_ELEMENT operator, or CHE::BORDER if the
-     * operator is EXPAND_EDGE.
+     * @param availableVertexHE If the operation is defined as SPLIT_ELEMENT, the function will write in this variable
+    * the half-edge index for the available vertex to be used in the operator or CHE::BORDER if the operator is
+    * EXPAND_EDGE.
+    * @param sharedElementHE The half-edge for the node that should be index inside the shared face or CHE::BORDER if
+    * the operator is EXPAND_EDGE.
      */
-    [[nodiscard]] unsigned int retrieveAvailableVertex(unsigned int he);
+    void retrieveAvailableVertex(unsigned int he, unsigned int &availableVertexHE, unsigned int &sharedElementHE);
 
 private:
     /**
