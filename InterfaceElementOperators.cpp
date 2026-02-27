@@ -483,3 +483,68 @@ void InterfaceElementOperators::retrieveAvailableVertex(const unsigned int he, u
         }
     }
 }
+
+
+
+unsigned int InterfaceElementOperators::computeNumberOfNewVertices(const std::vector<unsigned int> &edges) const
+{
+    std::unordered_map<unsigned int, unsigned int> vertexCount;
+    for (const auto &a: edges)
+    {
+        // Get the next vertex half-edge.
+        const unsigned int b = _che->heNext(a);
+
+        // Get both edges vertices;
+        const unsigned int v1 = _che->heVertexIndex(a);
+        const unsigned int v2 = _che->heVertexIndex(b);
+
+        // Count the number of times the vertex appears.
+        if (vertexCount.find(v1) == vertexCount.end())
+        {
+            vertexCount[v1] = 1;
+        }
+        else
+        {
+            vertexCount[v1]++;
+        }
+
+        // If the vertex is not part of an interface element, we will need an extra vertex in the border.
+        if (_che->isBorder(a) && !_che->_inInterfaceElement[v1])
+        {
+            vertexCount[v1]++;
+        }
+
+        if (vertexCount.find(v2) == vertexCount.end())
+        {
+            vertexCount[v2] = 1;
+        }
+        else
+        {
+            vertexCount[v2]++;
+        }
+
+        if (_che->isBorder(b) && !_che->_inInterfaceElement[v2])
+        {
+            vertexCount[v2]++;
+        }
+    }
+
+    unsigned int numberOfNewVertices = 0;
+    for (const auto &[vertex, count]: vertexCount)
+    {
+        if (_che->_inInterfaceElement[vertex] == false)
+        {
+            // If the vertice is not part of an interface element, we need n - 1 vertex. The vertex itself will be
+            // reused. For the vertices on the border, it was already added an extra count, so it is correct to use the
+            // same formula.
+            numberOfNewVertices += (count - 1);
+        }
+        else
+        {
+            // Once the vertex is already part of an interface element, each new edge will generate a new vertex.
+            numberOfNewVertices += count;
+        }
+    }
+
+    return numberOfNewVertices;
+}

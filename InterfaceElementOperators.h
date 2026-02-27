@@ -173,6 +173,22 @@ private:
      */
     void retrieveAvailableVertex(unsigned int he, unsigned int &availableVertexHE, unsigned int &sharedElementHE);
 
+public:
+    /**
+     * Compute the number of new vertices will be required to insert interface elements in the provided edges.
+     *
+     * The current implementation uses the following rules to determine the number of new vertices:
+     *     1. As a general rule, from the start, each vertex will need n - 1 new vertices if it is not in the border or
+     *     n if it is in the border, where n is the vertex valence in terms of selected edges.
+     *     2. If the vertex is already part of an interface element, the number of required new vertices is n.
+     *
+     * The first time a vertex is split, it generates a collapsed edge, which does not require a new vertex. From that
+     * on, every new operation will generate a new vertex.
+     * @param edges The group of edges represented one of their half-edges that should be used to insert new interface
+     * elements.
+     */
+    [[nodiscard]] unsigned int computeNumberOfNewVertices(const std::vector<unsigned int> &edges) const;
+
 private:
     /**
      * CHE instance that should be modified by the class operators.
