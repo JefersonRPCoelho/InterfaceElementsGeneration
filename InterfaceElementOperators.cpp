@@ -75,7 +75,9 @@ void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsign
                 expandEdge(a, h3);
                 break;
             case OperatorType::OPEN_HOLE:
+                insertHole(a, h3);
                 break;
+                printf("It was not possible to recognize the operator for the half-edge %d\n", a);
             case OperatorType::UNDEFINED:
                 break;
         }
@@ -93,8 +95,10 @@ void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsign
                 expandEdge(b, h1);
                 break;
             case OperatorType::OPEN_HOLE:
+                insertHole(b, h1);
                 break;
             case OperatorType::UNDEFINED:
+                printf("It was not possible to recognize the operator for the half-edge %d\n", a);
                 break;
         }
 
@@ -105,19 +109,11 @@ void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsign
         _che->_oppositeHalfEdge[h2] = a;
         _che->_oppositeHalfEdge[a] = h2;
 
+        // Label the element as interface element.
+        _che->_isInterfaceElement[_che->_numberOfValidElements] = true;
+
         // Update the number of valid elements. Only update it after all updates are done.
         _che->_numberOfValidElements++;
-
-
-        _che->print();
-        std::cout << std::endl;
-
-        printf("Collapsed vertices: ");
-        for (auto &v: _collapsed)
-        {
-            printf("%u -> %u", v.first, v.second);
-        }
-        std::cout << std::endl << std::endl;
     }
 }
 
@@ -271,6 +267,69 @@ bool InterfaceElementOperators::expandEdge(const unsigned int he, const unsigned
 
     // Remove collapse edge.
     _collapsed.erase(v);
+
+    return true;
+}
+
+
+
+bool InterfaceElementOperators::insertHole(const unsigned int he, const unsigned int elementHE)
+{
+    // Get the vertex index.
+    const unsigned int v = _che->heVertexIndex(he);
+
+    // Get the index for the new vertex.
+    const unsigned int newVertex = _che->numberPoints();
+
+    // Create the new vertex in the geometry. @todo precompute the number of required vertices.
+    _che->reserveSpaceForNodes(1);
+
+    // Reindex with the new vertex.
+    unsigned int currentHE = he;
+    do
+    {
+        // Reindex the element to the new vertex.
+        _che->_halfEdgeVertex[currentHE] = newVertex;
+
+        // Get the opposite half-edge.
+        currentHE = _che->heOpposite(_che->hePrevious(currentHE));
+    }
+    while (currentHE != CHE::BORDER && !_che->_isInterfaceElement[_che->heElement(currentHE)]);
+
+    // @todo Is it possible?
+    assert(currentHE != CHE::BORDER);
+
+    // Update the interface element.
+    _che->_halfEdgeVertex[currentHE] = newVertex;
+
+    // Open a hole in the interface element.
+    _che->_oppositeHalfEdge[_che->hePrevious(currentHE)] = CHE::BORDER;
+
+    // Look for the half-edge in the other side to create a hole.
+    currentHE = he;
+    do
+    {
+        // Get the opposite half-edge.
+        currentHE = _che->heNext(_che->heOpposite(currentHE));
+    }
+    while (currentHE != CHE::BORDER && !_che->_isInterfaceElement[_che->heElement(currentHE)]);
+
+    // @todo Is it possible?
+    assert(currentHE != CHE::BORDER);
+
+    // Open a hole in the interface element.
+    _che->_oppositeHalfEdge[currentHE] = CHE::BORDER;
+
+    // Update the new interface element.
+    _che->_halfEdgeVertex[elementHE] = newVertex;
+    _che->_halfEdgeVertex[_che->heNext(elementHE)] = v;
+
+    // Update the opposite for the edge.
+    _che->_oppositeHalfEdge[elementHE] = CHE::BORDER;
+
+    // Label the vertex as part of an interface element.
+    _che->_inInterfaceElement[newVertex] = true;
+    _che->_inInterfaceElement[v] = true;
 
     return true;
 }

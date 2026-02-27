@@ -99,7 +99,26 @@ private:
      */
     bool expandEdge(unsigned int he, unsigned int elementHE);
 
-    [[nodiscard]] bool insertHole(unsigned int he);
+    /**
+     * Perform the Insert Hole operator in a vertex identified by the half-edge he.
+     *
+     * This operator should be applied in vertices that are already part of an interface element and are not collapsed,
+     * i.e., there is no available vertex. In these cases, the vertex is duplicated and one side of the original
+     * vertex has all the elements updated with the new vertex. The stop condition is when an interface element is
+     * found. The other side should be traversed to update the opposite of the first edge in an interface element to
+     * BORDER. Doing it from both sides will open or increase the hole.
+     *
+     * The elementHE, as in the canonical operator, should represent the first edge-vertex being opened. First, in the
+     * sense of orientation.
+     *
+     * @param he A half-edge identifying the vertex where the operator should be applied. This vertex should be part of
+     * a collapsed edge.
+     * @param elementHE The half-edge that identifies the edge being created in the vertice inside the new interface
+     * element. The operator supposes that the element is already created and will only work on adjusting the neighbor
+     * around the vertex.
+     * @return True if the operation was performed successfully and false otherwise.
+     */
+    bool insertHole(unsigned int he, unsigned int elementHE);
 
     [[nodiscard]] OperatorType retrieveOperator(unsigned int he, unsigned int &availableVertexHE,
                                                 unsigned int &sharedElementHE);
