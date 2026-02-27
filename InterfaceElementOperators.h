@@ -25,6 +25,11 @@ public:
      */
     explicit InterfaceElementOperators(CHE *che);
 
+    /**
+     * Insert interface elements in a group of provided edges.
+     * @param edges A vector with one half-edge for each input edge. Each edge is defined for two half-edges. There user
+     * can select anyone of them.
+     */
     void insertInterfaceElements(const std::vector<unsigned int> &edges);
 
 private:
@@ -120,6 +125,17 @@ private:
      */
     bool openHole(unsigned int he, unsigned int elementHE);
 
+    /**
+     * Given a half-edge defining an edge, determine which operator should be used in the half-edge's vertex.
+     * @param he A half-edge defining an edge and the vertex where the operator should be applied.
+     * @param availableVertexHE For SPLIT_ELEMENT only: when the SPLIT_ELEMENT operator is selected, the half-edge for
+     * one of the vertices in the collapsed edge is selected to be used by the operator and saved in this variable. This
+     * half-edge is used to reindex the element with a newly created vertex.
+     * @param sharedElementHE For SPLIT_ELEMENT only: when the SPLIT_ELEMENT operator is selected, the half-edge for the
+    * selected vertex in the shared element is selected to be used by the operator and saved in this variable. This
+     * half-edge is used to reindex the shared element with a newly created vertex.
+     * @return The retrieved operator.
+     */
     [[nodiscard]] OperatorType retrieveOperator(unsigned int he, unsigned int &availableVertexHE,
                                                 unsigned int &sharedElementHE);
 
