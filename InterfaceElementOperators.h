@@ -68,6 +68,7 @@ private:
      * sense of orientation.
      * @param he A half-edge identifying the vertex where the operator should be applied. This vertex should be part of
      * a collapsed edge.
+     * 
      * @param availableVertexHE A half-edge representing the selected vertex to replaced by a geometric vertex in the
      * pre-existent interface element. The interface element that generated the collapsed edge.
      * @param sharedElementHE A half-edge representing the available vertex in the shared element.
@@ -79,7 +80,24 @@ private:
     bool splitElement(unsigned int he, unsigned int availableVertexHE, unsigned int sharedElementHE,
                       unsigned int elementHE);
 
-    [[nodiscard]] bool expandEdge(unsigned int he);
+    /**
+     * Perform the Expand Edge operator in a vertex identified by the half-edge he.
+     *
+     * This operator is always applied in a vertex with a collapsed edge. Unlike the Split Element operator, the Expand
+     * Edge should be used WHEN IT IS NOT POSSIBLE to determine a common element between an edge from the interface
+     * element with the collapsed edge and the edge being split.
+     *
+     * The elementHE, as in the canonical operator, should represent the first edge-vertex being opened. First, in the
+     * sense of orientation.
+     *
+     * @param he A half-edge identifying the vertex where the operator should be applied. This vertex should be part of
+     * a collapsed edge.
+     * @param elementHE The half-edge that identifies the edge being created in the vertice inside the new interface
+     * element. The operator supposes that the element is already created and will only work on adjusting the neighbor
+     * around the vertex.
+     * @return True if the operation was performed successfully and false otherwise.
+     */
+    bool expandEdge(unsigned int he, unsigned int elementHE);
 
     [[nodiscard]] bool insertHole(unsigned int he);
 
@@ -98,7 +116,8 @@ private:
      * @param stopHE The half-edge the algorithm should stop when finding it. It can be CHE::BORDER.
      * @param v The new vertex index that should be used to replace the vertex in he.
      */
-    void reindexElements(unsigned int he, unsigned int stopHE, unsigned int v) const;
+    void reindexElementsCCW(unsigned int he, unsigned int stopHE, unsigned int v) const;
+
 
     /**
      * Try to retrieve the available vertex to be used in the new interface element. This function supposes:

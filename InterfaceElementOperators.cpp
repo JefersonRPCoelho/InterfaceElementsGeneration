@@ -72,6 +72,7 @@ void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsign
                 splitElement(a, availableVertexHE, sharedElementHE, h3);
                 break;
             case OperatorType::EXPAND_EDGE:
+                expandEdge(a, h3);
                 break;
             case OperatorType::OPEN_HOLE:
                 break;
@@ -89,6 +90,7 @@ void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsign
                 splitElement(b, availableVertexHE, sharedElementHE, h1);
                 break;
             case OperatorType::EXPAND_EDGE:
+                expandEdge(b, h1);
                 break;
             case OperatorType::OPEN_HOLE:
                 break;
@@ -115,7 +117,7 @@ void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsign
         {
             printf("%u -> %u", v.first, v.second);
         }
-        std::cout << std::endl;
+        std::cout << std::endl << std::endl;
     }
 }
 
@@ -150,7 +152,7 @@ bool InterfaceElementOperators::canonical(const unsigned int edgeHE, const unsig
         _che->_halfEdgeVertex[elementHE] = newVertex;
 
         // Reindex all nodes with this vertex from the edge to the border.
-        reindexElements(edgeHE, CHE::BORDER, newVertex);
+        reindexElementsCCW(edgeHE, CHE::BORDER, newVertex);
 
         // As the vertex is on the border, the created edge is also on the border.
         _che->_oppositeHalfEdge[elementHE] = CHE::BORDER;
@@ -236,6 +238,45 @@ bool InterfaceElementOperators::splitElement(const unsigned int he, const unsign
 
 
 
+bool InterfaceElementOperators::expandEdge(const unsigned int he, const unsigned int elementHE)
+{
+    // Get the vertex index.
+    const unsigned int v = _che->heVertexIndex(he);
+
+    assert(_collapsed.find(v) != _collapsed.end());
+
+    // Get the index for the new vertex.
+    const unsigned int newVertex = _che->numberPoints();
+
+    // Create the new vertex in the geometry. @todo precompute the number of required vertices.
+    _che->reserveSpaceForNodes(1);
+
+    // Get the available vertex half-edge.
+    const unsigned int availableVertexHE = _collapsed[v];
+
+    // Reindex all the elements from the "left" side to the new vertex.
+    reindexElementsCCW(availableVertexHE, he, newVertex);
+
+    // Update the edge opposites.
+    _che->_oppositeHalfEdge[availableVertexHE] = elementHE;
+    _che->_oppositeHalfEdge[elementHE] = availableVertexHE;
+
+    // Update the new interface element.
+    _che->_halfEdgeVertex[elementHE] = v;
+    _che->_halfEdgeVertex[_che->heNext(elementHE)] = newVertex;
+
+    // Label the vertex as part of an interface element.
+    _che->_inInterfaceElement[newVertex] = true;
+    _che->_inInterfaceElement[v] = true;
+
+    // Remove collapse edge.
+    _collapsed.erase(v);
+
+    return true;
+}
+
+
+
 InterfaceElementOperators::OperatorType InterfaceElementOperators::retrieveOperator(
     const unsigned int he, unsigned int &availableVertexHE, unsigned int &sharedElementHE)
 {
@@ -284,8 +325,8 @@ InterfaceElementOperators::OperatorType InterfaceElementOperators::retrieveOpera
 
 
 
-void InterfaceElementOperators::reindexElements(const unsigned int he, const unsigned int stopHE,
-                                                const unsigned int v) const
+void InterfaceElementOperators::reindexElementsCCW(const unsigned int he, const unsigned int stopHE,
+                                                   const unsigned int v) const
 {
     unsigned int currentHE = he;
     const unsigned int startHE = currentHE;
