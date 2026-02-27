@@ -67,12 +67,26 @@ CHE *readMesh(const std::string &filename)
 
 void insertInterfaceElements(CHE *che)
 {
+    if (che == nullptr)
+    {
+        return;
+    }
     // CHEOperations cheOperations(che);
     // cheOperations.addInterfaceElements({16, 17, 18, 19});
     // cheOperations.addInterfaceElements({28, 13, 16, 11});
-
+    //
+    // for (unsigned int i = 0; i < che->numberOfElements() * che->numberVertexByElement(); i++)
+    // {
+    //     const unsigned int v = che->heVertexIndex(i);
+    //     std::cout << "Vertex: " << v << " -> " << che->isBorder(i) << std::endl;
+    // }
+    // return;
     InterfaceElementOperators op(che);
-    op.insertInterfaceElements({28, 13, 16, 11});
+    op.insertInterfaceElements({28, 29, 32, 19, 36, 23, 11, 40, 27, 43});
+
+    che->print();
+    std::cout << std::endl;
+
 
     // constexpr unsigned int he = 2;
     // const std::vector<unsigned int> nv = cheOperations.geNeighbourVertices(he);

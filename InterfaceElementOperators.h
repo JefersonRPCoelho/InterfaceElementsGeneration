@@ -100,7 +100,7 @@ private:
     bool expandEdge(unsigned int he, unsigned int elementHE);
 
     /**
-     * Perform the Insert Hole operator in a vertex identified by the half-edge he.
+     * Perform the Open Hole operator in a vertex identified by the half-edge he.
      *
      * This operator should be applied in vertices that are already part of an interface element and are not collapsed,
      * i.e., there is no available vertex. In these cases, the vertex is duplicated and one side of the original
@@ -118,7 +118,7 @@ private:
      * around the vertex.
      * @return True if the operation was performed successfully and false otherwise.
      */
-    bool insertHole(unsigned int he, unsigned int elementHE);
+    bool openHole(unsigned int he, unsigned int elementHE);
 
     [[nodiscard]] OperatorType retrieveOperator(unsigned int he, unsigned int &availableVertexHE,
                                                 unsigned int &sharedElementHE);

@@ -75,7 +75,7 @@ void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsign
                 expandEdge(a, h3);
                 break;
             case OperatorType::OPEN_HOLE:
-                insertHole(a, h3);
+                openHole(a, h3);
                 break;
                 printf("It was not possible to recognize the operator for the half-edge %d\n", a);
             case OperatorType::UNDEFINED:
@@ -95,7 +95,7 @@ void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsign
                 expandEdge(b, h1);
                 break;
             case OperatorType::OPEN_HOLE:
-                insertHole(b, h1);
+                openHole(b, h1);
                 break;
             case OperatorType::UNDEFINED:
                 printf("It was not possible to recognize the operator for the half-edge %d\n", a);
@@ -273,7 +273,7 @@ bool InterfaceElementOperators::expandEdge(const unsigned int he, const unsigned
 
 
 
-bool InterfaceElementOperators::insertHole(const unsigned int he, const unsigned int elementHE)
+bool InterfaceElementOperators::openHole(const unsigned int he, const unsigned int elementHE)
 {
     // Get the vertex index.
     const unsigned int v = _che->heVertexIndex(he);
