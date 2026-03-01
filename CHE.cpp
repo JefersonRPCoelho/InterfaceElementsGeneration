@@ -16,6 +16,7 @@ CHE::CHE(const double *coordinates, const unsigned int *elementsList, const unsi
          const unsigned int numberCoordinates): _numberCoordinatesPerVertex(numberCoordinates)
                                               , _numberVerticesByElement(numberVerticesByElement)
                                               , _numberOfValidElements(numberElements)
+                                              , _numberOfValidPoints(numberOfVertices)
 
 
 {
@@ -52,6 +53,7 @@ CHE::CHE(
     _oppositeHalfEdge.resize(_halfEdgeVertex.size());
 
     _numberOfValidElements = static_cast<unsigned int>(elementsList.size() / numberVerticesByElement);
+    _numberOfValidPoints = static_cast<unsigned int>(coordinates.size() / numberCoordinates);
     _isInterfaceElement.resize(_numberOfValidElements, false);
     _inInterfaceElement.resize(_coordinates.size() / _numberCoordinatesPerVertex, false);
 
@@ -230,7 +232,30 @@ unsigned int CHE::hePrevious(const unsigned int halfEdge) const
 
 unsigned int CHE::numberPoints() const
 {
-    return static_cast<unsigned int>(_coordinates.size()) / _numberCoordinatesPerVertex;
+    return _numberOfValidPoints;
+}
+
+
+
+unsigned int CHE::addPoint(const double *coordinates)
+{
+    if (coordinates == nullptr)
+    {
+        for (unsigned int i = 0; i < _numberCoordinatesPerVertex; i++)
+        {
+            _coordinates.push_back(0.0);
+        }
+    }
+    else
+    {
+        for (unsigned int i = 0; i < _numberCoordinatesPerVertex; i++)
+        {
+            _coordinates.push_back(coordinates[i]);
+        }
+    }
+    _numberOfValidPoints++;
+
+    return _numberOfValidPoints - 1;
 }
 
 

@@ -101,6 +101,15 @@ public:
     [[nodiscard]] unsigned int numberPoints() const;
 
     /**
+     * @brief Add a new point to the mesh geometry.
+     *
+     * The function supposes that the required space is already allocated.
+     * @param coordinates - The coordinates for the new point. If it is nullptr the origin point will be used.
+     * @return The index for the new vertex.
+     */
+    unsigned int addPoint(const double *coordinates = nullptr);
+
+    /**
      * @brief Get the number of reserved elements in the mesh.
      *
      * The number of reserved elements is the number of elements the current vector can store before requiring
@@ -252,6 +261,14 @@ private:
      * of valid elements in the vector.
      */
     unsigned int _numberOfValidElements;
+
+    /**
+     * @brief Stores the number of points inserted in the mesh.
+     *
+     * The points related structured can be pre-allocated, allowing to having elements that are not part of the mesh yet.
+     * This variable determines the number of valid points in the mesh.
+     */
+    unsigned int _numberOfValidPoints;
 
 private:
     /**
