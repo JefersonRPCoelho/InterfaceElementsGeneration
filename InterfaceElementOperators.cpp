@@ -18,8 +18,14 @@ InterfaceElementOperators::InterfaceElementOperators(CHE *che) : _che(che)
 
 void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsigned int> &edges)
 {
+    // Get the number of required new vertices.
+    const unsigned int numNewVertices = computeNumberOfNewVertices(edges);
+
     // Reserve space for the new elements. It assumes all edges are valid and one element will be inserted for each edge.
     _che->reserveSpaceForElements(static_cast<unsigned int>(edges.size()));
+
+    // Reserve space for new nodes. It assumes all edges are valid and one element will be inserted for each edge.
+    _che->reserveSpaceForNodes(numNewVertices);
 
     // Insert an element for each edge.
     for (auto &a: edges)
@@ -139,10 +145,7 @@ bool InterfaceElementOperators::canonical(const unsigned int edgeHE, const unsig
     if (_che->isBorder(edgeHE))
     {
         // Get the index for the new vertex.
-        const unsigned int newVertex = _che->numberPoints();
-
-        // Create the new vertex in the geometry. @todo precompute the number of required vertices.
-        _che->reserveSpaceForNodes(1);
+        const unsigned int newVertex = _che->addPoint();
 
         // Add the element to the newly created element.
         _che->_halfEdgeVertex[elementHE] = newVertex;
@@ -187,10 +190,7 @@ bool InterfaceElementOperators::splitElement(const unsigned int he, const unsign
     const unsigned int v = _che->heVertexIndex(he);
 
     // Get the index for the new vertex.
-    const unsigned int newVertex = _che->numberPoints();
-
-    // Create the new vertex in the geometry. @todo precompute the number of required vertices.
-    _che->reserveSpaceForNodes(1);
+    const unsigned int newVertex = _che->addPoint();
 
     // Update the pre-existent interface element.
     _che->_halfEdgeVertex[availableVertexHE] = newVertex;
@@ -242,10 +242,7 @@ bool InterfaceElementOperators::expandEdge(const unsigned int he, const unsigned
     assert(_collapsed.find(v) != _collapsed.end());
 
     // Get the index for the new vertex.
-    const unsigned int newVertex = _che->numberPoints();
-
-    // Create the new vertex in the geometry. @todo precompute the number of required vertices.
-    _che->reserveSpaceForNodes(1);
+    const unsigned int newVertex = _che->addPoint();
 
     // Get the available vertex half-edge.
     const unsigned int availableVertexHE = _collapsed[v];
@@ -279,10 +276,7 @@ bool InterfaceElementOperators::openHole(const unsigned int he, const unsigned i
     const unsigned int v = _che->heVertexIndex(he);
 
     // Get the index for the new vertex.
-    const unsigned int newVertex = _che->numberPoints();
-
-    // Create the new vertex in the geometry. @todo precompute the number of required vertices.
-    _che->reserveSpaceForNodes(1);
+    const unsigned int newVertex = _che->addPoint();
 
     // Reindex with the new vertex.
     unsigned int currentHE = he;
