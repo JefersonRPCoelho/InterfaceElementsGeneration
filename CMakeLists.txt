@@ -9,7 +9,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_executable(InterfaceElementsPrototype
         main.cpp
         CHE.cpp
-        CHEOperations.cpp
         InterfaceElementOperators.cpp
 )
 
