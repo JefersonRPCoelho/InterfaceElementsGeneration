@@ -6,6 +6,7 @@
  */
 
 #include "CHE.h"
+#include <cassert>
 #include <map>
 #include <cstdio>
 
@@ -24,9 +25,6 @@ CHE::CHE(const double *coordinates, const unsigned int *elementsList, const unsi
     _coordinates.resize(numberCoordinates * numberOfVertices);
     _halfEdgeVertex.resize(numberVerticesByElement * numberElements);
     _oppositeHalfEdge.resize(numberVerticesByElement * numberElements);
-    _isInterfaceElement.resize(numberElements, false);
-    _inInterfaceElement.resize(numberOfVertices, false);
-
 
     // Copy the data.
     memcpy(_coordinates.data(), coordinates, numberCoordinates * numberOfVertices * sizeof(double));
@@ -54,9 +52,6 @@ CHE::CHE(
 
     _numberOfValidElements = static_cast<unsigned int>(elementsList.size() / numberVerticesByElement);
     _numberOfValidPoints = static_cast<unsigned int>(coordinates.size() / numberCoordinates);
-    _isInterfaceElement.resize(_numberOfValidElements, false);
-    _inInterfaceElement.resize(_coordinates.size() / _numberCoordinatesPerVertex, false);
-
 
     // Build the opposite table.
     buildOppositesLinear();
@@ -147,6 +142,8 @@ std::vector<double> &CHE::coordinates()
 
 unsigned int CHE::heVertexIndex(const unsigned int halfEdge) const
 {
+    assert(halfEdge < _halfEdgeVertex.size());
+
     return _halfEdgeVertex[halfEdge];
 }
 
@@ -154,6 +151,8 @@ unsigned int CHE::heVertexIndex(const unsigned int halfEdge) const
 
 unsigned int CHE::heOpposite(const unsigned int halfEdge) const
 {
+    assert(halfEdge < _halfEdgeVertex.size());
+
     return _oppositeHalfEdge[halfEdge];
 }
 
@@ -169,7 +168,6 @@ void CHE::print() const
         {
             printf("%.2lf ", _coordinates[i * _numberCoordinatesPerVertex + j]);
         }
-        printf(" -> %d\n", static_cast<int>(_inInterfaceElement[i]));
     }
     printf("Elements:\n");
     for (unsigned int i = 0; i < numberOfElements(); i++)
@@ -179,7 +177,6 @@ void CHE::print() const
         {
             printf("%u ", _halfEdgeVertex[i * _numberVerticesByElement + j]);
         }
-        printf(" -> %d\n", static_cast<int>(_isInterfaceElement[i]));
     }
 
     printf("Opposites:\n");
@@ -195,7 +192,6 @@ void CHE::reserveSpaceForElements(const unsigned int numberElements)
 {
     _halfEdgeVertex.resize(_halfEdgeVertex.size() + _numberVerticesByElement * numberElements);
     _oppositeHalfEdge.resize(_oppositeHalfEdge.size() + _numberVerticesByElement * numberElements);
-    _isInterfaceElement.resize(_isInterfaceElement.size() + numberElements);
 }
 
 
@@ -203,7 +199,6 @@ void CHE::reserveSpaceForElements(const unsigned int numberElements)
 void CHE::reserveSpaceForNodes(const unsigned int numberNodes)
 {
     _coordinates.resize(_coordinates.size() + _numberCoordinatesPerVertex * numberNodes);
-    _inInterfaceElement.resize(_inInterfaceElement.size() + numberNodes);
 }
 
 
@@ -260,6 +255,38 @@ unsigned int CHE::addPoint(const double *coordinates)
 
 
 
+unsigned int CHE::commitElement()
+{
+    assert(_numberOfValidElements + 1 < _halfEdgeVertex.size() / _numberVerticesByElement);
+
+    _numberOfValidElements++;
+    return _numberOfValidElements - 1;
+}
+
+
+
+void CHE::setOpposite(const unsigned int halfEdge, const unsigned int oppositeHalfEdge)
+{
+    assert(halfEdge < _halfEdgeVertex.size());
+
+    _oppositeHalfEdge[halfEdge] = oppositeHalfEdge;
+    if (oppositeHalfEdge != BORDER && oppositeHalfEdge != COLLAPSED)
+    {
+        _oppositeHalfEdge[oppositeHalfEdge] = halfEdge;
+    }
+}
+
+
+
+void CHE::setElementVertex(const unsigned int he, const unsigned int vertex)
+{
+    assert(he < _halfEdgeVertex.size());
+
+    _halfEdgeVertex[he] = vertex;
+}
+
+
+
 unsigned int CHE::numberOfElements() const
 {
     return _numberOfValidElements;
@@ -303,19 +330,9 @@ bool CHE::isBorder(const unsigned int he) const
 
 unsigned int CHE::nextAvailableHE() const
 {
+    assert(numberOfElements() < _halfEdgeVertex.size() / _numberVerticesByElement);
+
     return numberOfElements() * numberVertexByElement();
-}
-
-
-
-bool CHE::isInterfaceElement(const unsigned int element) const
-{
-    if (element >= _isInterfaceElement.size())
-    {
-        return false;
-    }
-
-    return _isInterfaceElement[element];
 }
 
 

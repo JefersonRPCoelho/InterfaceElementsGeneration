@@ -12,7 +12,13 @@
 class CHE final
 {
     friend class CHEOperations;
-    friend class InterfaceElementOperators;
+
+public:
+    enum OPPOSITE
+    {
+        BORDER = -1,
+        COLLAPSED = -2,
+    };
 
 public:
     /**
@@ -110,6 +116,28 @@ public:
     unsigned int addPoint(const double *coordinates = nullptr);
 
     /**
+     * Mark the next element index as valid.
+     * @return The index for the new valid element.
+     */
+    unsigned int commitElement();
+
+    /**
+     * Define the opposite for halfEdge as oppositeHalfEdge.
+     *
+     * If oppositeHalfEdge is a valid half-edge, the opposite is set in both directions.
+     * @param halfEdge The half-edge to set the opposite.
+     * @param oppositeHalfEdge The opposite half-edge.
+     */
+    void setOpposite(unsigned int halfEdge, unsigned int oppositeHalfEdge);
+
+    /**
+     * @brief Set a vertex in an element half-edge, i.e., change the element connectivity.
+     * @param he The element half-edge.
+     * @param vertex The vertex index.
+     */
+    void setElementVertex(unsigned int he, unsigned int vertex);
+
+    /**
      * @brief Get the number of reserved elements in the mesh.
      *
      * The number of reserved elements is the number of elements the current vector can store before requiring
@@ -178,40 +206,31 @@ public:
     [[nodiscard]] bool isBorder(unsigned int he) const;
 
     /**
-     * @todo
-     * @return
+     * Get the next available half-edge in the mesh available to be used in new elements.
+     * @return The next available half-edge index.
      */
     [[nodiscard]] unsigned int nextAvailableHE() const;
-
-    /**
-     * @todo
-     * @param element
-     * @return
-     */
-    [[nodiscard]] bool isInterfaceElement(unsigned int element) const;
-
-public:
-    enum OPPOSITE
-    {
-        BORDER = -1,
-        COLLAPSED = -2,
-    };
 
     /**
      * Print the data structure state.
      */
     void print() const;
 
-private:
     /**
-     * @brief @todo document
-     * @param numberElements
+     * @brief Reserve space for new elements.
+     *
+     * Although the space is reserved, it is not used. The number of elements inserted in the mesh is controlled by
+     * _numberOfValidElements, so avoid using the vectors' size to determine the number of elements.
+     * @param numberElements Number of extra elements that should be reserved in the mesh.
      */
     void reserveSpaceForElements(unsigned int numberElements);
 
     /**
-     * @brief @todo document.
-     * @param numberNodes
+     * @brief Reserve space for new nodes.
+     *
+     * Although the space is reserved, it is not used. The number of points inserted in the mesh is controlled by
+     * _numberOfValidPoints, so avoid using the vectors' size to determine the number of points.
+     * @param numberNodes Number of extra points that should be reserved in the mesh.
      */
     void reserveSpaceForNodes(unsigned int numberNodes);
 
@@ -222,9 +241,6 @@ private:
      * For each _numberCoordinatesPerVertex vector value, a vertice coordinate is represented.
      */
     std::vector<double> _coordinates;
-
-    std::vector<bool> _isInterfaceElement;
-    std::vector<bool> _inInterfaceElement;
 
     /**
      * @brief Stores the element's list.
