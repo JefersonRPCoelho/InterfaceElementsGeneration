@@ -12,6 +12,7 @@ InterfaceElementOperators::InterfaceElementOperators(CHE *che) : _che(che)
 {
     // In the beginning, there is no interface element in the mesh.
     _inInterfaceElement.resize(_che->numberPoints(), false);
+    _isInterfaceElement.resize(_che->numberOfElements(), false);
 }
 
 
@@ -23,9 +24,11 @@ void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsign
 
     // Reserve space for the new elements. It assumes all edges are valid and one element will be inserted for each edge.
     _che->reserveSpaceForElements(static_cast<unsigned int>(edges.size()));
+    _isInterfaceElement.resize(_isInterfaceElement.size() + edges.size(), false);
 
     // Reserve space for new nodes. It assumes all edges are valid and one element will be inserted for each edge.
     _che->reserveSpaceForNodes(numNewVertices);
+    _inInterfaceElement.resize(_inInterfaceElement.size() + numNewVertices, false);
 
     // Insert an element for each edge.
     for (auto &a: edges)
@@ -109,17 +112,14 @@ void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsign
         }
 
         // Update the opposites for the middle edges.
-        _che->_oppositeHalfEdge[h0] = b;
-        _che->_oppositeHalfEdge[b] = h0;
+        _che->setOpposite(h0, b);
+        _che->setOpposite(h2, a);
 
-        _che->_oppositeHalfEdge[h2] = a;
-        _che->_oppositeHalfEdge[a] = h2;
+        // Validate the new inserted element.
+        const unsigned int newElement = _che->commitElement();
 
         // Label the element as interface element.
-        _che->_isInterfaceElement[_che->_numberOfValidElements] = true;
-
-        // Update the number of valid elements. Only update it after all updates are done.
-        _che->_numberOfValidElements++;
+        _isInterfaceElement[newElement] = true;
     }
 }
 
@@ -139,7 +139,7 @@ bool InterfaceElementOperators::canonical(const unsigned int edgeHE, const unsig
     const unsigned int v = _che->heVertexIndex(edgeHE);
 
     // The vertex should not be part of any interface element when using this operator.
-    assert(_che->_inInterfaceElement[v] == false);
+    assert(_inInterfaceElement[v] == false);
 
     // If the vertex is on the border, a new geometry vertex should be created.
     if (_che->isBorder(edgeHE))
@@ -148,35 +148,36 @@ bool InterfaceElementOperators::canonical(const unsigned int edgeHE, const unsig
         const unsigned int newVertex = _che->addPoint();
 
         // Add the element to the newly created element.
-        _che->_halfEdgeVertex[elementHE] = newVertex;
+        _che->setElementVertex(elementHE, newVertex);
 
         // Reindex all nodes with this vertex from the edge to the border.
         reindexElementsCCW(edgeHE, CHE::BORDER, newVertex);
 
         // As the vertex is on the border, the created edge is also on the border.
-        _che->_oppositeHalfEdge[elementHE] = CHE::BORDER;
+        _che->setOpposite(elementHE, CHE::BORDER);
 
         // Label the new vertex as part of an interface element.
-        _che->_inInterfaceElement[newVertex] = true;
+        _inInterfaceElement[newVertex] = true;
     }
     //If the vertex is internal, we should only duplicate it.
     else
     {
         // Duplicate the existing vertex for the new element.
-        _che->_halfEdgeVertex[elementHE] = v;
+        _che->setElementVertex(elementHE, v);
 
         // In this case, the edge is collapsed, so the opposite is undefined.
-        _che->_oppositeHalfEdge[elementHE] = CHE::COLLAPSED;
+        _che->setOpposite(elementHE, CHE::COLLAPSED);
 
         // Save the collapsed edge.
         _collapsed[v] = elementHE;
     }
 
     // Keep the former vertex in the element.
-    _che->_halfEdgeVertex[_che->heNext(elementHE)] = v;
+    _che->setElementVertex(_che->heNext(elementHE), v);
+
 
     // Label the vertex as part of an interface element.
-    _che->_inInterfaceElement[v] = true;
+    _inInterfaceElement[v] = true;
 
     return true;
 }
@@ -193,38 +194,37 @@ bool InterfaceElementOperators::splitElement(const unsigned int he, const unsign
     const unsigned int newVertex = _che->addPoint();
 
     // Update the pre-existent interface element.
-    _che->_halfEdgeVertex[availableVertexHE] = newVertex;
+    _che->setElementVertex(availableVertexHE, newVertex);
+
 
     // Update the continuous element.
-    _che->_halfEdgeVertex[sharedElementHE] = newVertex;
+    _che->setElementVertex(sharedElementHE, newVertex);
 
     // Update the new interface element.
     if (he == sharedElementHE)
     {
         // This is the case where the half-edge he is inside the shared element. In this case the elementHE is used to
         // the new vertex, and the next vertice is kept with the former vertex to keep the right orientation.
-        _che->_halfEdgeVertex[elementHE] = newVertex;
-        _che->_halfEdgeVertex[_che->heNext(elementHE)] = v;
+        _che->setElementVertex(elementHE, newVertex);
+        _che->setElementVertex(_che->heNext(elementHE), v);
 
         // Update the opposites.
-        _che->_oppositeHalfEdge[elementHE] = _che->hePrevious(availableVertexHE);
-        _che->_oppositeHalfEdge[_che->hePrevious(availableVertexHE)] = elementHE;
+        _che->setOpposite(elementHE, _che->hePrevious(availableVertexHE));
     }
     else
     {
         // This is the case where the half-edge he is not part of the shared element. In this case the elementHE is used
         // to the former vertex, and the next vertice is kept with the new vertex to keep the right orientation.
-        _che->_halfEdgeVertex[elementHE] = v;
-        _che->_halfEdgeVertex[_che->heNext(elementHE)] = newVertex;
+        _che->setElementVertex(elementHE, v);
+        _che->setElementVertex(_che->heNext(elementHE), newVertex);
 
         // Update the opposites.
-        _che->_oppositeHalfEdge[elementHE] = availableVertexHE;
-        _che->_oppositeHalfEdge[availableVertexHE] = elementHE;
+        _che->setOpposite(elementHE, availableVertexHE);
     }
 
     // Label the vertex as part of an interface element.
-    _che->_inInterfaceElement[newVertex] = true;
-    _che->_inInterfaceElement[v] = true;
+    _inInterfaceElement[newVertex] = true;
+    _inInterfaceElement[v] = true;
 
     // Remove collapse edge.
     _collapsed.erase(v);
@@ -251,16 +251,16 @@ bool InterfaceElementOperators::expandEdge(const unsigned int he, const unsigned
     reindexElementsCCW(availableVertexHE, he, newVertex);
 
     // Update the edge opposites.
-    _che->_oppositeHalfEdge[availableVertexHE] = elementHE;
-    _che->_oppositeHalfEdge[elementHE] = availableVertexHE;
+    _che->setOpposite(availableVertexHE, elementHE);
 
     // Update the new interface element.
-    _che->_halfEdgeVertex[elementHE] = v;
-    _che->_halfEdgeVertex[_che->heNext(elementHE)] = newVertex;
+    _che->setElementVertex(elementHE, v);
+    _che->setElementVertex(_che->heNext(elementHE), newVertex);
+
 
     // Label the vertex as part of an interface element.
-    _che->_inInterfaceElement[newVertex] = true;
-    _che->_inInterfaceElement[v] = true;
+    _inInterfaceElement[newVertex] = true;
+    _inInterfaceElement[v] = true;
 
     // Remove collapse edge.
     _collapsed.erase(v);
@@ -283,21 +283,21 @@ bool InterfaceElementOperators::openHole(const unsigned int he, const unsigned i
     do
     {
         // Reindex the element to the new vertex.
-        _che->_halfEdgeVertex[currentHE] = newVertex;
+        _che->setElementVertex(currentHE, newVertex);
 
         // Get the opposite half-edge.
         currentHE = _che->heOpposite(_che->hePrevious(currentHE));
     }
-    while (currentHE != CHE::BORDER && !_che->_isInterfaceElement[_che->heElement(currentHE)]);
+    while (currentHE != CHE::BORDER && !_isInterfaceElement[_che->heElement(currentHE)]);
 
     // @todo Is it possible?
     assert(currentHE != CHE::BORDER);
 
     // Update the interface element.
-    _che->_halfEdgeVertex[currentHE] = newVertex;
+    _che->setElementVertex(currentHE, newVertex);
 
     // Open a hole in the interface element.
-    _che->_oppositeHalfEdge[_che->hePrevious(currentHE)] = CHE::BORDER;
+    _che->setOpposite(_che->hePrevious(currentHE), CHE::BORDER);
 
     // Look for the half-edge in the other side to create a hole.
     currentHE = he;
@@ -306,24 +306,24 @@ bool InterfaceElementOperators::openHole(const unsigned int he, const unsigned i
         // Get the opposite half-edge.
         currentHE = _che->heNext(_che->heOpposite(currentHE));
     }
-    while (currentHE != CHE::BORDER && !_che->_isInterfaceElement[_che->heElement(currentHE)]);
+    while (currentHE != CHE::BORDER && !_isInterfaceElement[_che->heElement(currentHE)]);
 
     // @todo Is it possible?
     assert(currentHE != CHE::BORDER);
 
     // Open a hole in the interface element.
-    _che->_oppositeHalfEdge[currentHE] = CHE::BORDER;
+    _che->setOpposite(currentHE, CHE::BORDER);
 
     // Update the new interface element.
-    _che->_halfEdgeVertex[elementHE] = newVertex;
-    _che->_halfEdgeVertex[_che->heNext(elementHE)] = v;
+    _che->setElementVertex(elementHE, newVertex);
+    _che->setElementVertex(_che->heNext(elementHE), v);
 
     // Update the opposite for the edge.
-    _che->_oppositeHalfEdge[elementHE] = CHE::BORDER;
+    _che->setOpposite(elementHE, CHE::BORDER);
 
     // Label the vertex as part of an interface element.
-    _che->_inInterfaceElement[newVertex] = true;
-    _che->_inInterfaceElement[v] = true;
+    _inInterfaceElement[newVertex] = true;
+    _inInterfaceElement[v] = true;
 
     return true;
 }
@@ -345,7 +345,7 @@ InterfaceElementOperators::OperatorType InterfaceElementOperators::retrieveOpera
     //  A --------- B
     //  /           \
     // E             F
-    if (!_che->_inInterfaceElement[v])
+    if (!_inInterfaceElement[v])
     {
         op = OperatorType::CANONICAL;
     }
@@ -386,7 +386,7 @@ void InterfaceElementOperators::reindexElementsCCW(const unsigned int he, const 
     do
     {
         // Reindex the element to the new vertex.
-        _che->_halfEdgeVertex[currentHE] = v;
+        _che->setElementVertex(currentHE, v);
 
         // Get the opposite half-edge.
         currentHE = _che->heOpposite(_che->hePrevious(currentHE));
@@ -503,7 +503,7 @@ unsigned int InterfaceElementOperators::computeNumberOfNewVertices(const std::ve
         }
 
         // If the vertex is not part of an interface element, we will need an extra vertex in the border.
-        if (_che->isBorder(a) && !_che->_inInterfaceElement[v1])
+        if (_che->isBorder(a) && !_inInterfaceElement[v1])
         {
             vertexCount[v1]++;
         }
@@ -517,7 +517,7 @@ unsigned int InterfaceElementOperators::computeNumberOfNewVertices(const std::ve
             vertexCount[v2]++;
         }
 
-        if (_che->isBorder(b) && !_che->_inInterfaceElement[v2])
+        if (_che->isBorder(b) && !_inInterfaceElement[v2])
         {
             vertexCount[v2]++;
         }
@@ -526,7 +526,7 @@ unsigned int InterfaceElementOperators::computeNumberOfNewVertices(const std::ve
     unsigned int numberOfNewVertices = 0;
     for (const auto &[vertex, count]: vertexCount)
     {
-        if (_che->_inInterfaceElement[vertex] == false)
+        if (_inInterfaceElement[vertex] == false)
         {
             // If the vertice is not part of an interface element, we need n - 1 vertex. The vertex itself will be
             // reused. For the vertices on the border, it was already added an extra count, so it is correct to use the

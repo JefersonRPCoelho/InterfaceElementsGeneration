@@ -201,6 +201,11 @@ private:
     std::vector<bool> _inInterfaceElement;
 
     /**
+     * Determine if an element is an interface element or not.
+     */
+    std::vector<bool> _isInterfaceElement;
+
+    /**
      * Stores the current collapsed edges. The key is the vertex that is collapsed, and the value is the half-edge from
      * the first-edge vertex.
      *
