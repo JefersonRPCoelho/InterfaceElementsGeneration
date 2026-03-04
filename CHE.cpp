@@ -257,7 +257,7 @@ unsigned int CHE::addPoint(const double *coordinates)
 
 unsigned int CHE::commitElement()
 {
-    assert(_numberOfValidElements + 1 < _halfEdgeVertex.size() / _numberVerticesByElement);
+    assert(_numberOfValidElements + 1 <= _halfEdgeVertex.size() / _numberVerticesByElement);
 
     _numberOfValidElements++;
     return _numberOfValidElements - 1;

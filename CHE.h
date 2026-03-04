@@ -11,8 +11,6 @@
 
 class CHE final
 {
-    friend class CHEOperations;
-
 public:
     enum OPPOSITE
     {
