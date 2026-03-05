@@ -10,7 +10,7 @@ add_executable(InterfaceElementsPrototype
         main.cpp
         CHE.cpp
         IBHM.cpp
-        InterfaceElementOperators.cpp
+        CHEInterfaceElementBuilder.cpp
 )
 
 target_include_directories(InterfaceElementsPrototype

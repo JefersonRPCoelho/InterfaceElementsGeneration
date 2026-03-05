@@ -1,14 +1,14 @@
 //
 // Created by jcoelho on 2/24/2026.
 //
-
-#include "InterfaceElementOperators.h"
 #include <iostream>
 #include <cassert>
+#include "CHEInterfaceElementBuilder.h"
+#include "CHE.h"
 
 
 
-InterfaceElementOperators::InterfaceElementOperators(CHE *che) : _che(che)
+CHEInterfaceElementBuilder::CHEInterfaceElementBuilder(CHE *che) : _che(che)
 {
     // In the beginning, there is no interface element in the mesh.
     _inInterfaceElement.resize(_che->numberPoints(), false);
@@ -17,7 +17,7 @@ InterfaceElementOperators::InterfaceElementOperators(CHE *che) : _che(che)
 
 
 
-void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsigned int> &edges)
+void CHEInterfaceElementBuilder::insertInterfaceElements(const std::vector<unsigned int> &edges)
 {
     // Get the number of required new vertices.
     const unsigned int numNewVertices = computeNumberOfNewVertices(edges);
@@ -125,7 +125,7 @@ void InterfaceElementOperators::insertInterfaceElements(const std::vector<unsign
 
 
 
-bool InterfaceElementOperators::canonical(const unsigned int edgeHE, const unsigned int elementHE)
+bool CHEInterfaceElementBuilder::canonical(const unsigned int edgeHE, const unsigned int elementHE)
 {
     // e = edgeHE.
     // x = elementHE
@@ -184,8 +184,8 @@ bool InterfaceElementOperators::canonical(const unsigned int edgeHE, const unsig
 
 
 
-bool InterfaceElementOperators::splitElement(const unsigned int he, const unsigned int availableVertexHE,
-                                             const unsigned int sharedElementHE, const unsigned int elementHE)
+bool CHEInterfaceElementBuilder::splitElement(const unsigned int he, const unsigned int availableVertexHE,
+                                              const unsigned int sharedElementHE, const unsigned int elementHE)
 {
     // Get the vertex index.
     const unsigned int v = _che->heVertexIndex(he);
@@ -234,7 +234,7 @@ bool InterfaceElementOperators::splitElement(const unsigned int he, const unsign
 
 
 
-bool InterfaceElementOperators::expandEdge(const unsigned int he, const unsigned int elementHE)
+bool CHEInterfaceElementBuilder::expandEdge(const unsigned int he, const unsigned int elementHE)
 {
     // Get the vertex index.
     const unsigned int v = _che->heVertexIndex(he);
@@ -270,7 +270,7 @@ bool InterfaceElementOperators::expandEdge(const unsigned int he, const unsigned
 
 
 
-bool InterfaceElementOperators::openHole(const unsigned int he, const unsigned int elementHE)
+bool CHEInterfaceElementBuilder::openHole(const unsigned int he, const unsigned int elementHE)
 {
     // Get the vertex index.
     const unsigned int v = _che->heVertexIndex(he);
@@ -330,7 +330,7 @@ bool InterfaceElementOperators::openHole(const unsigned int he, const unsigned i
 
 
 
-InterfaceElementOperators::OperatorType InterfaceElementOperators::retrieveOperator(
+CHEInterfaceElementBuilder::OperatorType CHEInterfaceElementBuilder::retrieveOperator(
     const unsigned int he, unsigned int &availableVertexHE, unsigned int &sharedElementHE)
 {
     auto op = OperatorType::UNDEFINED;
@@ -378,8 +378,8 @@ InterfaceElementOperators::OperatorType InterfaceElementOperators::retrieveOpera
 
 
 
-void InterfaceElementOperators::reindexElementsCCW(const unsigned int he, const unsigned int stopHE,
-                                                   const unsigned int v) const
+void CHEInterfaceElementBuilder::reindexElementsCCW(const unsigned int he, const unsigned int stopHE,
+                                                    const unsigned int v) const
 {
     unsigned int currentHE = he;
     const unsigned int startHE = currentHE;
@@ -396,8 +396,8 @@ void InterfaceElementOperators::reindexElementsCCW(const unsigned int he, const 
 
 
 
-void InterfaceElementOperators::retrieveAvailableVertex(const unsigned int he, unsigned int &availableVertexHE,
-                                                        unsigned int &sharedElementHE)
+void CHEInterfaceElementBuilder::retrieveAvailableVertex(const unsigned int he, unsigned int &availableVertexHE,
+                                                         unsigned int &sharedElementHE)
 {
     // It is for sure that there is a vertex available at this point. It remains to decide the operation type. The
     // function will try to prove that it is the case of a SPLIT_ELEMENT, in the case of failure, it will be determined
@@ -480,7 +480,7 @@ void InterfaceElementOperators::retrieveAvailableVertex(const unsigned int he, u
 
 
 
-unsigned int InterfaceElementOperators::computeNumberOfNewVertices(const std::vector<unsigned int> &edges) const
+unsigned int CHEInterfaceElementBuilder::computeNumberOfNewVertices(const std::vector<unsigned int> &edges) const
 {
     std::unordered_map<unsigned int, unsigned int> vertexCount;
     for (const auto &a: edges)

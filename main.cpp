@@ -12,7 +12,7 @@
 #include <fstream>
 #include "CHE.h"
 #include "IBHM.h"
-#include "InterfaceElementOperators.h"
+#include "CHEInterfaceElementBuilder.h"
 
 
 
@@ -135,7 +135,7 @@ void insertInterfaceElementsCHE(CHE *che)
     }
 
     const std::vector<unsigned int> edges = {28, 29, 32, 19, 36, 23, 11, 40, 27, 43};
-    InterfaceElementOperators op(che);
+    CHEInterfaceElementBuilder op(che);
     unsigned int count = 0;
     for (const unsigned int edge: edges)
     {

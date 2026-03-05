@@ -5,11 +5,10 @@
 #pragma once
 #include <unordered_map>
 #include <vector>
-#include "CHE.h"
+class CHE;
 
 
-
-class InterfaceElementOperators
+class CHEInterfaceElementBuilder
 {
 public:
     /**
@@ -23,7 +22,7 @@ public:
      * modified.
      * @param che The CHE instance that should be modified.
      */
-    explicit InterfaceElementOperators(CHE *che);
+    explicit CHEInterfaceElementBuilder(CHE *che);
 
     /**
      * Insert interface elements in a group of provided edges.
