@@ -13,9 +13,13 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+if(WIN32)
+    set(APP_ICON_RESOURCE "${CMAKE_CURRENT_SOURCE_DIR}/UI/Resources/icon.rc")
+endif()
 
 add_executable(${PROJECT_NAME}
         main.cpp
+        ${APP_ICON_RESOURCE}
         ${CMAKE_CURRENT_SOURCE_DIR}/TopologyDataStructures/CHE.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/TopologyDataStructures/IBHM.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/InterfaceElementsBuilder/CHEInterfaceElementBuilder.cpp

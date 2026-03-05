@@ -1,8 +1,8 @@
 #pragma once
 
 #include <QMainWindow>
-#include <QOpenGLWidget>
 
+class IBHM;
 class Canvas;
 class QComboBox;
 class QLineEdit;
@@ -14,6 +14,8 @@ class MainWindow final : public QMainWindow
 
 public:
     explicit MainWindow(QWidget *parent = nullptr);
+
+    ~MainWindow() override;
 
 private:
     /**
@@ -27,4 +29,5 @@ private:
     void openMesh();
 
 private:
+    IBHM *_ibhm = nullptr;
 };

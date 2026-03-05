@@ -2,19 +2,21 @@
 // Created by Jeferson Coelho on 12/07/25.
 //
 
-#include "MainWindow.h"
 #include <QVBoxLayout>
-#include <QLabel>
 #include <QComboBox>
 #include <QLineEdit>
-#include <QSpinBox>
 #include <QPushButton>
-#include <iostream>
 #include <QMenuBar>
 #include <QFileDialog>
 #include <QSettings>
 #include <QCheckBox>
+
+#include <iostream>
+#include <fstream>
+
 #include "Canvas.h"
+#include "MainWindow.h"
+#include "IBHM.h"
 
 
 
@@ -61,6 +63,13 @@ MainWindow::MainWindow(QWidget *parent)
 
 
 
+MainWindow::~MainWindow()
+{
+    delete _ibhm;
+}
+
+
+
 void MainWindow::runSlot() const
 {
 }
@@ -90,6 +99,49 @@ void MainWindow::openMesh()
     // Save teh used directory.
     settings.setValue("lastCoordsDir", QFileInfo(fileName).absolutePath());
 
-    printf("Opening mesh file: %s \n", fileName.toStdString().c_str());
+    printf("Reading mesh file: %s \n", fileName.toStdString().c_str());
+
+    std::ifstream in(fileName.toStdString().c_str());
+    if (!in.is_open())
+    {
+        std::cerr << "Error opening the file " << fileName.toStdString() << std::endl;
+        return;
+    }
+
+    // Mesh data.
+    std::vector<double> coordinates;
+    std::vector<unsigned int> elements;
+    std::vector<unsigned int> offset;
+
+    unsigned int numberPoints = 0, numberElements = 0;
+    in >> numberPoints >> numberElements;
+
+    coordinates.resize(numberPoints * 2);
+
+    // Read the coordinates.
+    for (unsigned int i = 0; i < numberPoints; i++)
+    {
+        in >> coordinates[i * 2 + 0] >> coordinates[i * 2 + 1];
+    }
+
+    // Read the elements.
+    offset.resize(numberElements + 1, 0);
+    for (unsigned int i = 0; i < numberElements; i++)
+    {
+        unsigned int elementSize = 0;
+        in >> elementSize;
+        offset[i + 1] = offset[i] + elementSize;
+
+        for (unsigned int j = 0; j < elementSize; j++)
+        {
+            unsigned int vertex;
+            in >> vertex;
+            elements.push_back(vertex);
+        }
+    }
+
+    delete _ibhm;
+    _ibhm = new IBHM(coordinates, elements, offset, 2);
+    _ibhm->print();
 }
 
