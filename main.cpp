@@ -10,6 +10,8 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+
+#include "IBHMInterfaceElementBuilder.h"
 #include "TopologyDataStructures/CHE.h"
 #include "TopologyDataStructures/IBHM.h"
 #include "InterfaceElementsBuilder/CHEInterfaceElementBuilder.h"
@@ -104,25 +106,68 @@ IBHM *readHybridMesh(const std::string &filename)
             elements.push_back(vertex);
         }
     }
-
-    for (unsigned int i = 0; i < elements.size(); i++)
-    {
-        printf("%u: %u\n", i, elements[i]);
-    }
+    auto *ibhm = new IBHM(coordinates, elements, offset, 2);
+    ibhm->print();
     std::cout << std::endl;
-
-    // Print the mesh.
-    for (unsigned int i = 0; i < numberElements; i++)
-    {
-        printf("%u: ", i);
-        for (unsigned int j = offset[i]; j < offset[i + 1]; j++)
-        {
-            printf("%u ", elements[j]);
-        }
-        std::cout << std::endl;
-    }
-
-    return new IBHM(coordinates, elements, offset, 2);
+    // for (unsigned int i = 0; i < elements.size(); i++)
+    // {
+    //     printf("%u: %u\n", i, elements[i]);
+    // }
+    // std::cout << std::endl;
+    //
+    // // Print the mesh.
+    // for (unsigned int i = 0; i < numberElements; i++)
+    // {
+    //     printf("%u: ", i);
+    //     for (unsigned int j = offset[i]; j < offset[i + 1]; j++)
+    //     {
+    //         printf("%u ", elements[j]);
+    //     }
+    //     std::cout << std::endl;
+    // }
+    //
+    // printf("Testing next:\n");
+    // for (unsigned int i = 0; i < ibhm->numberOfElements(); i++)
+    // {
+    //     for (unsigned int he = ibhm->firstElementHE(i); he < ibhm->firstElementHE(i + 1); he++)
+    //     {
+    //         printf("%u: %u\n", he, ibhm->heNext(he));
+    //     }
+    //     printf("\n");
+    // }
+    //
+    // std::cout << std::endl;
+    // printf("Testing previous:\n");
+    // for (unsigned int i = 0; i < ibhm->numberOfElements(); i++)
+    // {
+    //     for (unsigned int he = ibhm->firstElementHE(i); he < ibhm->firstElementHE(i + 1); he++)
+    //     {
+    //         printf("%u: %u\n", he, ibhm->hePrevious(he));
+    //     }
+    //     printf("\n");
+    // }
+    // std::cout << std::endl;
+    // printf("Testing opposite:\n");
+    // for (unsigned int i = 0; i < ibhm->numberOfElements(); i++)
+    // {
+    //     for (unsigned int he = ibhm->firstElementHE(i); he < ibhm->firstElementHE(i + 1); he++)
+    //     {
+    //         printf("%u: %u\n", he, ibhm->heOpposite(he));
+    //     }
+    //     printf("\n");
+    // }
+    // std::cout << std::endl;
+    // printf("Testing Element:\n");
+    // for (unsigned int i = 0; i < ibhm->numberOfElements(); i++)
+    // {
+    //     for (unsigned int he = ibhm->firstElementHE(i); he < ibhm->firstElementHE(i + 1); he++)
+    //     {
+    //         printf("%u: %u\n", he, ibhm->heElement(he));
+    //     }
+    //     printf("\n");
+    // }
+    // std::cout << std::endl;
+    return ibhm;
 }
 
 
@@ -152,43 +197,42 @@ void insertInterfaceElementsCHE(CHE *che)
 
 
 
-//
-// void insertInterfaceElementsIBHM(IBHM *ibhm)
-// {
-//     if (ibhm == nullptr)
-//     {
-//         return;
-//     }
-//
-//     const std::vector<unsigned int> edges = {28, 29, 32, 19, 36, 23, 11, 40, 27, 43};
-//     InterfaceElementOperators op(ibhm);
-//     unsigned int count = 0;
-//     for (const unsigned int edge: edges)
-//     {
-//         const unsigned int numNewVertices = op.computeNumberOfNewVertices({edge});
-//         count += numNewVertices;
-//         printf("Number of new vertices: %u\n", numNewVertices);
-//         op.insertInterfaceElements({edge});
-//     }
-//     ibhm->print();
-//     printf("Total number of new vertices: %u\n", count);
-//
-//     std::cout << std::endl;
-// }
+void insertInterfaceElementsIBHM(IBHM *ibhm)
+{
+    if (ibhm == nullptr)
+    {
+        return;
+    }
+
+    // const std::vector<unsigned int> edges = {28, 29, 32, 19, 36, 23, 11, 40, 27, 43};
+    const std::vector<unsigned int> edges = {30, 31, 34, 19, 38, 23, 11, 42, 26, 47, 29, 45};
+    IBHMInterfaceElementBuilder op(ibhm);
+    unsigned int count = 0;
+    for (const unsigned int edge: edges)
+    {
+        const unsigned int numNewVertices = op.computeNumberOfNewVertices({edge});
+        count += numNewVertices;
+        printf("Number of new vertices: %u\n", numNewVertices);
+        op.insertInterfaceElements({edge});
+    }
+    ibhm->print();
+    printf("Total number of new vertices: %u\n", count);
+
+    std::cout << std::endl;
+}
 
 
 
 int main(int argc, char **argv)
 {
-    CHE *che = readMesh("../malha2.txt");
-    insertInterfaceElementsCHE(che);
-    delete che;
+    // CHE *che = readMesh("../malha2.txt");
+    // insertInterfaceElementsCHE(che);
+    // delete che;
 
 
-    // IBHM *ibhm = readHybridMesh("../malha2.txt");
-    // insertInterfaceElementsIBHM(ibhm);
-
-    // delete ibhm;
+    IBHM *ibhm = readHybridMesh("../malha2Hyb.txt");
+    insertInterfaceElementsIBHM(ibhm);
+    delete ibhm;
 
     return 0;
 }

@@ -131,6 +131,7 @@ void IBHM::print() const
         {
             printf("%.2lf ", _coordinates[i * _numberCoordinatesPerVertex + j]);
         }
+        printf("\n");
     }
     printf("Elements:\n");
     for (unsigned int i = 0; i < numberOfElements(); i++)
@@ -140,12 +141,18 @@ void IBHM::print() const
         {
             printf("%u ", _halfEdgeVertex[j]);
         }
+        printf("\n");
     }
 
     printf("Opposites:\n");
-    for (unsigned int i = 0; i < _oppositeHalfEdge.size(); i++)
+    for (unsigned int i = 0; i < numberOfElements(); i++)
     {
-        printf("%u: %u\n", i, _oppositeHalfEdge[i]);
+        printf("Element %u:\n", i);
+        for (unsigned int j = _offset[i]; j < _offset[i + 1]; j++)
+        {
+            printf("%u: %u\n", j, _oppositeHalfEdge[j]);
+        }
+        printf("\n");
     }
 }
 
@@ -221,7 +228,7 @@ unsigned int IBHM::hePrevious(const unsigned int halfEdge) const
 
     // Get the element size.
     const size_t position = it - _offset.begin();
-    const size_t elementSize = _offset[position + 1] - _offset[position];
+    const unsigned int elementSize = _offset[position + 1] - _offset[position];
     const unsigned int firstHE = (*it);
 
     assert(position < _offset.size() - 1);
@@ -264,7 +271,7 @@ unsigned int IBHM::addPoint(const double *coordinates)
 
 unsigned int IBHM::commitElement(const unsigned int elementSize)
 {
-    assert(_numberOfValidElements + 1 < _offset.size() - 1);
+    assert(_numberOfValidElements + 1 < _offset.size());
 
     // Increment the number of elements.
     _numberOfValidElements++;
@@ -279,7 +286,7 @@ unsigned int IBHM::commitElement(const unsigned int elementSize)
 
 void IBHM::setOpposite(const unsigned int halfEdge, const unsigned int oppositeHalfEdge)
 {
-    assert(halfEdge < _halfEdgeVertex.size());
+    assert(halfEdge < _oppositeHalfEdge.size());
 
     _oppositeHalfEdge[halfEdge] = oppositeHalfEdge;
     if (oppositeHalfEdge != BORDER && oppositeHalfEdge != COLLAPSED)

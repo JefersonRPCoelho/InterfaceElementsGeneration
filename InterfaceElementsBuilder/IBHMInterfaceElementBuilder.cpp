@@ -49,6 +49,12 @@ void IBHMInterfaceElementBuilder::insertInterfaceElements(const std::vector<unsi
             continue;
         }
 
+        if (_isInterfaceElement[_ibhm->heElement(a)] || _isInterfaceElement[_ibhm->heElement(b)])
+        {
+            printf("The edge represent by the half-edge [%u]is not valid because it is on an interface element\n", a);
+            continue;
+        }
+
         // Create a new element. All new interface elements will follow the template below. All the operators should
         // take it into consideration. Some key points:
         //     1. The middle edges are always represented by the half-edges h0 and h2.
@@ -68,6 +74,9 @@ void IBHMInterfaceElementBuilder::insertInterfaceElements(const std::vector<unsi
         const unsigned int h1 = h0 + 1;
         const unsigned int h2 = h0 + 2;
         const unsigned int h3 = h0 + 3;
+
+        // Validate the new inserted element. @todo check for a better name.
+        const unsigned int newElement = _ibhm->commitElement(4);
 
         // Variable used to determine the available vertex half-edge index for the SPLIT_ELEMENT operator.
         unsigned int availableVertexHE = IBHM::BORDER, sharedElementHE = IBHM::BORDER;
@@ -115,9 +124,6 @@ void IBHMInterfaceElementBuilder::insertInterfaceElements(const std::vector<unsi
         // Update the opposites for the middle edges.
         _ibhm->setOpposite(h0, b);
         _ibhm->setOpposite(h2, a);
-
-        // Validate the new inserted element.
-        const unsigned int newElement = _ibhm->commitElement(4);
 
         // Label the element as interface element.
         _isInterfaceElement[newElement] = true;
@@ -257,7 +263,6 @@ bool IBHMInterfaceElementBuilder::expandEdge(const unsigned int he, const unsign
     // Update the new interface element.
     _ibhm->setElementVertex(elementHE, v);
     _ibhm->setElementVertex(_ibhm->heNext(elementHE), newVertex);
-
 
     // Label the vertex as part of an interface element.
     _inInterfaceElement[newVertex] = true;
