@@ -171,6 +171,13 @@ public:
     [[nodiscard]] unsigned int numberOfElements() const;
 
     /**
+     * Given an element index, get the first element half-edge.
+     * @param elementIndex The element index.
+     * @return The first element half-edge.
+     */
+    [[nodiscard]] unsigned int firstElementHE(unsigned int elementIndex) const;
+
+    /**
      * Determine if a vertex is on the mesh border or not.
      * @param he A half-edge in the vertex that should be tested if it is on the border or not.
      * @return True if the vertex is on the border and false otherwise.

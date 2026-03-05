@@ -11,6 +11,7 @@ add_executable(InterfaceElementsPrototype
         ${CMAKE_CURRENT_SOURCE_DIR}/TopologyDataStructures/CHE.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/TopologyDataStructures/IBHM.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/InterfaceElementsBuilder/CHEInterfaceElementBuilder.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/InterfaceElementsBuilder/IBHMInterfaceElementBuilder.cpp
 )
 
 target_include_directories(InterfaceElementsPrototype

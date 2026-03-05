@@ -121,15 +121,6 @@ unsigned int IBHM::heVertexIndex(const unsigned int halfEdge) const
 
 
 
-unsigned int IBHM::heOpposite(const unsigned int halfEdge) const
-{
-    assert(halfEdge < _halfEdgeVertex.size());
-
-    return _oppositeHalfEdge[halfEdge];
-}
-
-
-
 void IBHM::print() const
 {
     printf("Coordinates:\n");
@@ -179,11 +170,19 @@ void IBHM::reserveSpaceForNodes(const unsigned int numberNodes)
 std::vector<unsigned int>::const_iterator IBHM::offsetIterator(const unsigned int he) const
 {
     auto it = std::upper_bound(_offset.begin(), _offset.begin() + _numberOfValidElements + 1, he);
-
     if (it != _offset.begin())
         --it;
 
     return it;
+}
+
+
+
+unsigned int IBHM::heOpposite(const unsigned int halfEdge) const
+{
+    assert(halfEdge < _halfEdgeVertex.size());
+
+    return _oppositeHalfEdge[halfEdge];
 }
 
 
@@ -204,11 +203,12 @@ unsigned int IBHM::heNext(const unsigned int halfEdge) const
     // Get the element size.
     const size_t position = it - _offset.begin();
     const size_t elementSize = _offset[position + 1] - _offset[position];
+    const unsigned int firstHE = (*it);
 
     assert(position < _offset.size() - 1);
 
     // Compute the next half-edge.
-    return (*it) + (halfEdge + 1) % elementSize;
+    return firstHE + (halfEdge - firstHE + 1) % elementSize;
 }
 
 
@@ -222,11 +222,12 @@ unsigned int IBHM::hePrevious(const unsigned int halfEdge) const
     // Get the element size.
     const size_t position = it - _offset.begin();
     const size_t elementSize = _offset[position + 1] - _offset[position];
+    const unsigned int firstHE = (*it);
 
     assert(position < _offset.size() - 1);
 
     // Compute the previous half-edge.
-    return (*it) + (halfEdge + 1) % elementSize;
+    return firstHE + ((halfEdge - firstHE) + (elementSize - 1)) % elementSize;
 }
 
 
@@ -301,6 +302,14 @@ void IBHM::setElementVertex(const unsigned int he, const unsigned int vertex)
 unsigned int IBHM::numberOfElements() const
 {
     return _numberOfValidElements;
+}
+
+
+
+unsigned int IBHM::firstElementHE(const unsigned int elementIndex) const
+{
+    assert(elementIndex < _numberOfValidElements + 1);
+    return _offset[elementIndex];
 }
 
 
