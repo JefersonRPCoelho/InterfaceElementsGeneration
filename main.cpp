@@ -10,11 +10,13 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <QApplication>
 
 #include "IBHMInterfaceElementBuilder.h"
 #include "TopologyDataStructures/CHE.h"
 #include "TopologyDataStructures/IBHM.h"
 #include "InterfaceElementsBuilder/CHEInterfaceElementBuilder.h"
+#include "UI/MainWindow.h"
 
 
 
@@ -223,17 +225,31 @@ void insertInterfaceElementsIBHM(IBHM *ibhm)
 
 
 
-int main(int argc, char **argv)
+//
+//
+// int main(int argc, char **argv)
+// {
+//     // CHE *che = readMesh("../malha2.txt");
+//     // insertInterfaceElementsCHE(che);
+//     // delete che;
+//
+//
+//     IBHM *ibhm = readHybridMesh("../malha2Hyb.txt");
+//     insertInterfaceElementsIBHM(ibhm);
+//     delete ibhm;
+//
+//     return 0;
+// }
+
+
+int main(int argc, char *argv[])
 {
-    // CHE *che = readMesh("../malha2.txt");
-    // insertInterfaceElementsCHE(che);
-    // delete che;
+    QApplication app(argc, argv);
 
+    QCoreApplication::setOrganizationName("MeshResearch");
+    QCoreApplication::setApplicationName("InterfaceElementsGeneration");
 
-    IBHM *ibhm = readHybridMesh("../malha2Hyb.txt");
-    insertInterfaceElementsIBHM(ibhm);
-    delete ibhm;
-
-    return 0;
+    MainWindow w;
+    w.show();
+    return app.exec();
 }
-
