@@ -10,9 +10,9 @@
 #include <iostream>
 #include <string>
 #include <fstream>
-#include "CHE.h"
-#include "IBHM.h"
-#include "CHEInterfaceElementBuilder.h"
+#include "TopologyDataStructures/CHE.h"
+#include "TopologyDataStructures/IBHM.h"
+#include "InterfaceElementsBuilder/CHEInterfaceElementBuilder.h"
 
 
 

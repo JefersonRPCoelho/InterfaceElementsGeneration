@@ -8,12 +8,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(InterfaceElementsPrototype
         main.cpp
-        CHE.cpp
-        IBHM.cpp
-        CHEInterfaceElementBuilder.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/TopologyDataStructures/CHE.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/TopologyDataStructures/IBHM.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/InterfaceElementsBuilder/CHEInterfaceElementBuilder.cpp
 )
 
 target_include_directories(InterfaceElementsPrototype
         PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/TopologyDataStructures
+        ${CMAKE_CURRENT_SOURCE_DIR}/InterfaceElementsBuilder
 )
