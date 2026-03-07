@@ -241,9 +241,27 @@ void insertInterfaceElementsIBHM(IBHM *ibhm)
 //     return 0;
 // }
 
+#ifdef _WIN32
+#include <Windows.h>
+
+
+
+void enableANSIColors()
+{
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD dwMode = 0;
+    GetConsoleMode(hOut, &dwMode);
+    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    SetConsoleMode(hOut, dwMode);
+}
+#endif
 
 int main(int argc, char *argv[])
 {
+#ifdef _WIN32
+    enableANSIColors();
+#endif
+
     QApplication app(argc, argv);
 
     QCoreApplication::setOrganizationName("MeshResearch");

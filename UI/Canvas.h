@@ -21,8 +21,6 @@ public:
 
     ~Canvas() override;
 
-    void setMesh(QuadMesh *mesh);
-
     void initializeGL() override;
 
     void paintGL() override;
@@ -99,9 +97,6 @@ private:
      * Check OpenGL errors.
      */
     void checkRenderingError();
-
-private:
-    std::vector<std::vector<std::pair<int, int> > > _constrainedPoints;
 
 private:
     /**

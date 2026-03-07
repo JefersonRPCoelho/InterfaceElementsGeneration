@@ -20,13 +20,15 @@ endif()
 add_executable(${PROJECT_NAME}
         main.cpp
         ${APP_ICON_RESOURCE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/UI/Resources/resources.qrc
+        ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/UI/Canvas.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/UI/Utilities.cpp
+
         ${CMAKE_CURRENT_SOURCE_DIR}/TopologyDataStructures/CHE.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/TopologyDataStructures/IBHM.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/InterfaceElementsBuilder/CHEInterfaceElementBuilder.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/InterfaceElementsBuilder/IBHMInterfaceElementBuilder.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/UI/MainWindow.cpp
-        #        ${CMAKE_CURRENT_SOURCE_DIR}/UI/Canvas.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/UI/Utilities.cpp
 )
 
 target_include_directories(${PROJECT_NAME}

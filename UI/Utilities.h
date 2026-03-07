@@ -8,9 +8,15 @@
 
 class QOpenGLShaderProgram;
 
+#ifdef _WIN32
 #define RESET_COLOR "\033[0m"
 #define RED_COLOR   "\033[31m"
 #define GREEN_COLOR "\033[32m"
+#else
+#define RESET_COLOR
+#define RED_COLOR
+#define GREEN_COLOR
+#endif
 
 namespace Utilities
 {

@@ -30,4 +30,6 @@ private:
 
 private:
     IBHM *_ibhm = nullptr;
+
+    Canvas *_glCanvas = nullptr;
 };

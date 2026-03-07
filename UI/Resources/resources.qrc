@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/shaders">
+        <file alias="mesh.vert">Shaders/mesh.vert</file>
+        <file alias="mesh.geom">Shaders/mesh.geom</file>
+        <file alias="mesh.frag">Shaders/mesh.frag</file>
+        <file alias="points.vert">Shaders/points.vert</file>
+        <file alias="points.frag">Shaders/points.frag</file>
+    </qresource>
+</RCC>

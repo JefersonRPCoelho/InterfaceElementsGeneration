@@ -15,7 +15,6 @@
 
 Canvas::Canvas(QWidget *parent): QOpenGLWidget(parent)
 {
-    _polylines.emplace_back();
 }
 
 
@@ -45,8 +44,6 @@ Canvas::~Canvas()
 
     doneCurrent();
 }
-
-
 
 
 
@@ -112,39 +109,6 @@ void Canvas::adjustCanvas(const float factorW, const float factorH)
 
 
 
-void Canvas::setMesh(QuadMesh *mesh)
-{
-    _mesh = mesh;
-
-    // Get the AABB.
-    float xMin = 1e10, xMax = -1e10, yMin = 1e10, yMax = -1e10;
-
-    const auto grid = mesh->getGrid();
-    for (int j = 0; j < grid->Nj(); j++)
-    {
-        for (int i = 0; i < grid->Ni(); i++)
-        {
-            const Point2Df &p = grid->Get(i, j);
-            xMin = std::min(xMin, p[0]);
-            xMax = std::max(xMax, p[0]);
-            yMin = std::min(yMin, p[1]);
-            yMax = std::max(yMax, p[1]);
-        }
-    }
-
-    _min.setX(xMin);
-    _min.setX(yMin);
-    _max.setX(xMax);
-    _max.setY(yMax);
-
-    // Adjust the view.
-    fitViewToBoundingBox(_min[0], _min[1], _max[0], _max[1]);
-
-
-}
-
-
-
 void Canvas::initializeGL()
 {
     QOpenGLWidget::initializeGL();
@@ -162,16 +126,13 @@ void Canvas::initializeGL()
     createMeshProgram();
     createPointsProgram();
     createLinesProgram();
-
-    // Initialize the mesh buffers.
-    updateMeshPoints();
 }
 
 
 
 void Canvas::paintGL()
 {
-    glClearColor(1, 1, 1, 1);
+    glClearColor(0.5, 0.5, 0.5, 1);
     glClear(GL_COLOR_BUFFER_BIT);
 
     _meshProgram->bind();
@@ -180,28 +141,12 @@ void Canvas::paintGL()
     glBindTexture(GL_TEXTURE_2D, _wireframeTexture);
     _meshProgram->setUniformValue("transformMatrix", proj * view);
 
-    if (_mesh)
-    {
-        const auto numIndexes = static_cast<GLsizei>(_mesh->getTriangles().size());
-        glDrawElements(GL_TRIANGLES, numIndexes, GL_UNSIGNED_INT, nullptr);
-    }
-
     _meshProgram->release();
 
     _linesProgram->bind();
     glBindVertexArray(_linesVAO);
     _linesProgram->setUniformValue("transformMatrix", proj * view);
 
-    GLint startingPoint = 0;
-    for (auto &polyline: _polylines)
-    {
-        if (polyline.size() > 1)
-        {
-            glDrawArrays(GL_LINE_STRIP, startingPoint, static_cast<GLsizei>(polyline.size()));
-        }
-
-        startingPoint += static_cast<GLsizei>(polyline.size());
-    }
     _linesProgram->release();
 
     if (_numPolyPoints > 0)
@@ -219,20 +164,6 @@ void Canvas::paintGL()
         _pointsProgram->release();
     }
 
-    if (_mesh != nullptr)
-    {
-        _pointsProgram->bind();
-        glBindVertexArray(_meshVAO);
-
-        _pointsProgram->setUniformValue("transformMatrix", proj * view);
-        _pointsProgram->setUniformValue("color", 1.0f, 0.5f, 0.0f);
-
-        glPointSize(6.0f);
-        glDrawArrays(GL_POINTS, 0, _mesh->getGrid()->Size());
-
-        glBindVertexArray(0);
-        _pointsProgram->release();
-    }
 
     checkRenderingError();
 }
@@ -309,17 +240,6 @@ void Canvas::mouseMoveEvent(QMouseEvent *event)
 
     else if (event->buttons() & Qt::LeftButton)
     {
-        if (_canvasMode == Mode::PointEdition)
-        {
-            const auto world = convertFromScreenToWorld(Point2Df(static_cast<float>(event->localPos().x()),
-                                                                 static_cast<float>(event->localPos().y())));
-
-            if (_selectedPointIndex.first >= 0 && _selectedPointIndex.second >= 0)
-            {
-                _mesh->getGrid()->Set(_selectedPointIndex.first, _selectedPointIndex.second, world);
-                updateMeshPoints();
-            }
-        }
     }
 
     // Redraw.
@@ -510,60 +430,9 @@ void Canvas::mousePressEvent(QMouseEvent *event)
     {
         const auto world = convertFromScreenToWorld(Point2Df(static_cast<float>(event->localPos().x()),
                                                              static_cast<float>(event->localPos().y())));
-        if (_canvasMode == Mode::PolylineCreation)
-        {
-            _polylines.back().push_back(world);
-            _numPolyPoints++;
-
-            // Flatten points to render.
-            std::vector<Point2Df> flattenPoints;
-            for (const auto &row: _polylines)
-            {
-                flattenPoints.insert(flattenPoints.end(), row.begin(), row.end());
-            }
-
-            // Set the new point set to be rendered.
-            setupPointsToRender(flattenPoints);
-
-            // Set the new point to render polylines.
-            setupPolylinesToRender(flattenPoints);
-
-            // Update the canvas.
-            update();
-        }
-        if (_canvasMode == Mode::PointEdition)
-        {
-            double minDist = 1e10;
-            std::pair<int, int> minIndex;
-
-            for (int j = 0; j < _mesh->getGrid()->Nj(); j++)
-            {
-                for (int i = 0; i < _mesh->getGrid()->Ni(); i++)
-                {
-                    const Point2Df &p = _mesh->getGrid()->Get(i, j);
-                    const auto dist = (world - p) * (world - p);
-                    if (dist < minDist)
-                    {
-                        minDist = dist;
-                        minIndex = std::make_pair(i, j);
-                    }
-                }
-            }
-
-            if (minDist < 0.1)
-            {
-                _selectedPointIndex = minIndex;
-                std::cout << "Point at: " << minIndex.first << ", " << minIndex.second << std::endl;
-            }
-        }
     }
     else if (event->button() == Qt::RightButton)
     {
-        if (_canvasMode == Mode::PolylineCreation)
-        {
-            _polylines.emplace_back();
-            std::cout << "Number of polylines: " << _polylines.size() << std::endl;
-        }
     }
 }
 
@@ -604,47 +473,6 @@ void Canvas::mouseReleaseEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton)
     {
-        if (_canvasMode == Mode::PointEdition)
-        {
-            _selectedPointIndex = std::make_pair(-1, -1);
-        }
     }
 }
 
-
-
-void Canvas::setCanvasState(const Mode state)
-{
-    _canvasMode = state;
-}
-
-
-
-void Canvas::projectFaults()
-{
-    if (_mesh == nullptr)
-    {
-        printf(RED_COLOR "Mesh is not set!\n" RESET_COLOR);
-        return;
-    }
-
-    for (auto &polyline: _polylines)
-    {
-        if (polyline.size() > 1)
-        {
-            _constrainedPoints = FixGridPoints::SelectPoints(_mesh, polyline);
-        }
-    }
-
-    updateMeshPoints();
-    update();
-}
-
-
-
-void Canvas::optimizeMesh(const unsigned int maxIterations, const double eps)
-{
-    _mesh->optimizeMesh(eps, maxIterations, _constrainedPoints);
-    updateMeshPoints();
-    update();
-}
