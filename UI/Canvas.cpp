@@ -7,7 +7,7 @@
 #include <QOpenGLShaderProgram>
 #include <filesystem>
 #include <QtEvents>
-
+#include <IBHM.h>
 #include "Utilities.h"
 #include "Canvas.h"
 
@@ -419,6 +419,66 @@ void Canvas::checkRenderingError()
                 break;
         }
     }
+}
+
+
+
+void Canvas::updateMeshRender()
+{
+    if (_mesh == nullptr)
+    {
+        return;
+    }
+
+    makeCurrent();
+
+    if (_meshVAO == 0)
+    {
+        // Create OpenGL resources
+        glGenVertexArrays(1, &_meshVAO);
+        glGenBuffers(1, &_meshVBO);
+        glGenBuffers(1, &_meshEBO);
+
+        glBindVertexArray(_meshVAO);
+
+        // Configure vertex layout once
+        glBindBuffer(GL_ARRAY_BUFFER, _meshVBO);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
+        glEnableVertexAttribArray(0);
+
+        // Bind an element buffer once (VAO stores this binding)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _meshEBO);
+
+        glBindVertexArray(0);
+    }
+
+    const std::vector<float> &points = _mesh->points();
+    const std::vector<unsigned int> &triangles = _mesh->elementsList();
+
+    glBindVertexArray(_meshVAO);
+
+    // Update vertex buffer (geometry)
+    const GLsizeiptr vertexSize = static_cast<GLsizeiptr>(points.size() * sizeof(float));
+
+    glBindBuffer(GL_ARRAY_BUFFER, _meshVBO);
+    glBufferData(GL_ARRAY_BUFFER, vertexSize, points.data(), GL_DYNAMIC_DRAW);
+
+    // Update element buffer (topology)
+    const GLsizeiptr elementSize = static_cast<GLsizeiptr>(triangles.size() * sizeof(unsigned int));
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _meshEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, elementSize, triangles.data(), GL_STATIC_DRAW);
+
+    glBindVertexArray(0);
+}
+
+
+
+void Canvas::setMesh(IBHM *mesh)
+{
+    _mesh = mesh;
+
+    updateMeshRender();
 }
 
 

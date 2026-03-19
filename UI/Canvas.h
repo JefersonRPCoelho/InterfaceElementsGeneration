@@ -12,7 +12,7 @@
 #include "Vector2D.h"
 class QuadMesh;
 class QOpenGLShaderProgram;
-
+class IBHM;
 
 class Canvas final : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core
 {
@@ -36,6 +36,12 @@ public:
     void keyPressEvent(QKeyEvent *event) override;
 
     void mouseReleaseEvent(QMouseEvent *event) override;
+
+    /**
+    * Define a new mesh to be rendered and edited.
+    * @param mesh The new mesh to be edited and rendered.
+    */
+    void setMesh(IBHM *mesh);
 
 private:
     /**
@@ -98,6 +104,13 @@ private:
      */
     void checkRenderingError();
 
+    /**
+     * Update the render attributes from the mesh.
+     *
+     * Whenever the mesh changes, it is required to update the mesh render.
+     */
+    void updateMeshRender();
+
 private:
     /**
      * Render the mesh.
@@ -149,5 +162,9 @@ private:
     std::pair<int, int> _selectedPointIndex = {-1, -1};
 
 private:
+    /**
+     * The mesh being rendered.
+     */
+    IBHM *_mesh = nullptr;
 };
 

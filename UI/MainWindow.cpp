@@ -65,7 +65,6 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
-    delete _ibhm;
 }
 
 
@@ -101,7 +100,7 @@ void MainWindow::openMesh()
     }
 
     // Mesh data.
-    std::vector<double> coordinates;
+    std::vector<float> coordinates;
     std::vector<unsigned int> elements;
     std::vector<unsigned int> offset;
 
@@ -132,8 +131,8 @@ void MainWindow::openMesh()
         }
     }
 
-    delete _ibhm;
-    _ibhm = new IBHM(coordinates, elements, offset, 2);
-    _ibhm->print();
+    auto *ibhm = new IBHM(coordinates, elements, offset, 2);
+    ibhm->print();
+    _glCanvas->setMesh(ibhm);
 }
 

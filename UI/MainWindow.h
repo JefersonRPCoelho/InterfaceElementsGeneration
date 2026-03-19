@@ -29,7 +29,5 @@ private:
     void openMesh();
 
 private:
-    IBHM *_ibhm = nullptr;
-
     Canvas *_glCanvas = nullptr;
 };

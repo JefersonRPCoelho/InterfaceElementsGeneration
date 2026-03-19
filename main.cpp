@@ -78,7 +78,7 @@ IBHM *readHybridMesh(const std::string &filename)
     }
 
     // Mesh data.
-    std::vector<double> coordinates;
+    std::vector<float> coordinates;
     std::vector<unsigned int> elements;
     std::vector<unsigned int> offset;
 
