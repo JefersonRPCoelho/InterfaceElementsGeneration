@@ -30,7 +30,7 @@ public:
      * @param numberCoordinates The number of coordinates per point. That is, 2 for 2D, 3 for 3D, 6 for xyz and normals
      * nx ny nz, and so on.
      */
-    IBHM(const std::vector<double> &coordinates, const std::vector<unsigned int> &elementsList,
+    IBHM(const std::vector<float> &coordinates, const std::vector<unsigned int> &elementsList,
          const std::vector<unsigned int> &offset, unsigned int numberCoordinates);
 
     /**
@@ -45,12 +45,6 @@ public:
      * @return The elements list.
      */
     const std::vector<unsigned int> &elementsList();
-
-    /**
-     * @brief Get the coordinate's vector.
-     * @return The coordinate's vector.
-     */
-    std::vector<double> &coordinates();
 
     /**
      * @brief Given a half-edge, return the element that contains the provided half-edge.
@@ -86,13 +80,19 @@ public:
     [[nodiscard]] unsigned int numberPoints() const;
 
     /**
+     * Get the vector with the points' data.
+     * @return The mesh points data.
+     */
+    [[nodiscard]] const std::vector<float> &points() const;
+
+    /**
      * @brief Add a new point to the mesh geometry.
      *
      * The function supposes that the required space is already allocated.
      * @param coordinates - The coordinates for the new point. If it is nullptr the origin point will be used.
      * @return The index for the new vertex.
      */
-    unsigned int addPoint(const double *coordinates = nullptr);
+    unsigned int addPoint(const float *coordinates = nullptr);
 
     /**
      * Mark the next element index as valid.
@@ -228,7 +228,7 @@ private:
      *
      * For each _numberCoordinatesPerVertex vector value, a vertice coordinate is represented.
      */
-    std::vector<double> _coordinates;
+    std::vector<float> _coordinates;
 
     /**
      * @brief Stores the element's list.

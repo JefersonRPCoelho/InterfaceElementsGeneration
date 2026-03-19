@@ -12,7 +12,7 @@
 
 
 IBHM::IBHM(
-    const std::vector<double> &coordinates,
+    const std::vector<float> &coordinates,
     const std::vector<unsigned int> &elementsList,
     const std::vector<unsigned int> &offset,
     const unsigned int numberCoordinates): _coordinates(coordinates)
@@ -101,13 +101,6 @@ void IBHM::buildOppositesLinear()
 const std::vector<unsigned int> &IBHM::elementsList()
 {
     return _halfEdgeVertex;
-}
-
-
-
-std::vector<double> &IBHM::coordinates()
-{
-    return _coordinates;
 }
 
 
@@ -246,7 +239,14 @@ unsigned int IBHM::numberPoints() const
 
 
 
-unsigned int IBHM::addPoint(const double *coordinates)
+const std::vector<float> &IBHM::points() const
+{
+    return _coordinates;
+}
+
+
+
+unsigned int IBHM::addPoint(const float *coordinates)
 {
     if (coordinates == nullptr)
     {
