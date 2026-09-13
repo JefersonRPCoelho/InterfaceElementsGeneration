@@ -107,64 +107,7 @@ IBHM *readHybridMesh(const std::string &filename)
     auto *ibhm = new IBHM(coordinates, elements, offset, 2);
     ibhm->print();
     std::cout << std::endl;
-    // for (unsigned int i = 0; i < elements.size(); i++)
-    // {
-    //     printf("%u: %u\n", i, elements[i]);
-    // }
-    // std::cout << std::endl;
-    //
-    // // Print the mesh.
-    // for (unsigned int i = 0; i < numberElements; i++)
-    // {
-    //     printf("%u: ", i);
-    //     for (unsigned int j = offset[i]; j < offset[i + 1]; j++)
-    //     {
-    //         printf("%u ", elements[j]);
-    //     }
-    //     std::cout << std::endl;
-    // }
-    //
-    // printf("Testing next:\n");
-    // for (unsigned int i = 0; i < ibhm->numberOfElements(); i++)
-    // {
-    //     for (unsigned int he = ibhm->firstElementHE(i); he < ibhm->firstElementHE(i + 1); he++)
-    //     {
-    //         printf("%u: %u\n", he, ibhm->heNext(he));
-    //     }
-    //     printf("\n");
-    // }
-    //
-    // std::cout << std::endl;
-    // printf("Testing previous:\n");
-    // for (unsigned int i = 0; i < ibhm->numberOfElements(); i++)
-    // {
-    //     for (unsigned int he = ibhm->firstElementHE(i); he < ibhm->firstElementHE(i + 1); he++)
-    //     {
-    //         printf("%u: %u\n", he, ibhm->hePrevious(he));
-    //     }
-    //     printf("\n");
-    // }
-    // std::cout << std::endl;
-    // printf("Testing opposite:\n");
-    // for (unsigned int i = 0; i < ibhm->numberOfElements(); i++)
-    // {
-    //     for (unsigned int he = ibhm->firstElementHE(i); he < ibhm->firstElementHE(i + 1); he++)
-    //     {
-    //         printf("%u: %u\n", he, ibhm->heOpposite(he));
-    //     }
-    //     printf("\n");
-    // }
-    // std::cout << std::endl;
-    // printf("Testing Element:\n");
-    // for (unsigned int i = 0; i < ibhm->numberOfElements(); i++)
-    // {
-    //     for (unsigned int he = ibhm->firstElementHE(i); he < ibhm->firstElementHE(i + 1); he++)
-    //     {
-    //         printf("%u: %u\n", he, ibhm->heElement(he));
-    //     }
-    //     printf("\n");
-    // }
-    // std::cout << std::endl;
+
     return ibhm;
 }
 
@@ -202,7 +145,6 @@ void insertInterfaceElementsIBHM(IBHM *ibhm)
         return;
     }
 
-    // const std::vector<unsigned int> edges = {28, 29, 32, 19, 36, 23, 11, 40, 27, 43};
     const std::vector<unsigned int> edges = {30, 31, 34, 19, 38, 23, 11, 42, 26, 47, 29, 45};
     IBHMInterfaceElementBuilder op(ibhm);
     unsigned int count = 0;
@@ -222,12 +164,6 @@ void insertInterfaceElementsIBHM(IBHM *ibhm)
 
 int main(int argc, char **argv)
 {
-
-
-    // CHE *che = readMesh("../malha2.txt");
-    // insertInterfaceElementsCHE(che);
-    // delete che;
-
     IBHM *ibhm = readHybridMesh("../malha2Hyb.txt");
     insertInterfaceElementsIBHM(ibhm);
     delete ibhm;
@@ -235,42 +171,3 @@ int main(int argc, char **argv)
     return 0;
 }
 
-#ifdef _WIN32
-#include <Windows.h>
-
-
-
-void enableANSIColors()
-{
-    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD dwMode = 0;
-    GetConsoleMode(hOut, &dwMode);
-    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-    SetConsoleMode(hOut, dwMode);
-}
-#endif
-//
-// int main(int argc, char *argv[])
-// {
-// #ifdef _WIN32
-//     enableANSIColors();
-// #endif
-//
-// #ifdef __APPLE__
-//     // Configure the OpenGL profile for macOS.
-//     QSurfaceFormat format;
-//     format.setRenderableType(QSurfaceFormat::OpenGL);
-//     format.setVersion(4, 1); // Max allowed for macOS.
-//     format.setProfile(QSurfaceFormat::CoreProfile);
-//     format.setDepthBufferSize(24);
-//     QSurfaceFormat::setDefaultFormat(format);
-// #endif
-//     QApplication app(argc, argv);
-//
-//     QCoreApplication::setOrganizationName("MeshResearch");
-//     QCoreApplication::setApplicationName("InterfaceElementsGeneration");
-//
-//     MainWindow w;
-//     w.show();
-//     return app.exec();
-// }
