@@ -6,18 +6,13 @@
  */
 
 #include <vector>
-#include <cstdio>
 #include <iostream>
 #include <string>
 #include <fstream>
-#include <QApplication>
-
 #include "IBHMInterfaceElementBuilder.h"
-#include "TopologyDataStructures/CHE.h"
-#include "TopologyDataStructures/IBHM.h"
-#include "InterfaceElementsBuilder/CHEInterfaceElementBuilder.h"
-#include "UI/MainWindow.h"
-
+#include "core/TopologyDataStructures/CHE.h"
+#include "core/TopologyDataStructures/IBHM.h"
+#include "core/InterfaceElementsBuilder/CHEInterfaceElementBuilder.h"
 
 
 CHE *readMesh(const std::string &filename)
@@ -100,6 +95,7 @@ IBHM *readHybridMesh(const std::string &filename)
         unsigned int elementSize = 0;
         in >> elementSize;
         offset[i + 1] = offset[i] + elementSize;
+        std::cout << offset[i + 1] << std::endl;
 
         for (unsigned int j = 0; j < elementSize; j++)
         {
@@ -224,22 +220,20 @@ void insertInterfaceElementsIBHM(IBHM *ibhm)
 }
 
 
+int main(int argc, char **argv)
+{
 
-//
-//
-// int main(int argc, char **argv)
-// {
-//     // CHE *che = readMesh("../malha2.txt");
-//     // insertInterfaceElementsCHE(che);
-//     // delete che;
-//
-//
-//     IBHM *ibhm = readHybridMesh("../malha2Hyb.txt");
-//     insertInterfaceElementsIBHM(ibhm);
-//     delete ibhm;
-//
-//     return 0;
-// }
+
+    // CHE *che = readMesh("../malha2.txt");
+    // insertInterfaceElementsCHE(che);
+    // delete che;
+
+    IBHM *ibhm = readHybridMesh("../malha2Hyb.txt");
+    insertInterfaceElementsIBHM(ibhm);
+    delete ibhm;
+
+    return 0;
+}
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -255,19 +249,28 @@ void enableANSIColors()
     SetConsoleMode(hOut, dwMode);
 }
 #endif
-
-int main(int argc, char *argv[])
-{
-#ifdef _WIN32
-    enableANSIColors();
-#endif
-
-    QApplication app(argc, argv);
-
-    QCoreApplication::setOrganizationName("MeshResearch");
-    QCoreApplication::setApplicationName("InterfaceElementsGeneration");
-
-    MainWindow w;
-    w.show();
-    return app.exec();
-}
+//
+// int main(int argc, char *argv[])
+// {
+// #ifdef _WIN32
+//     enableANSIColors();
+// #endif
+//
+// #ifdef __APPLE__
+//     // Configure the OpenGL profile for macOS.
+//     QSurfaceFormat format;
+//     format.setRenderableType(QSurfaceFormat::OpenGL);
+//     format.setVersion(4, 1); // Max allowed for macOS.
+//     format.setProfile(QSurfaceFormat::CoreProfile);
+//     format.setDepthBufferSize(24);
+//     QSurfaceFormat::setDefaultFormat(format);
+// #endif
+//     QApplication app(argc, argv);
+//
+//     QCoreApplication::setOrganizationName("MeshResearch");
+//     QCoreApplication::setApplicationName("InterfaceElementsGeneration");
+//
+//     MainWindow w;
+//     w.show();
+//     return app.exec();
+// }
