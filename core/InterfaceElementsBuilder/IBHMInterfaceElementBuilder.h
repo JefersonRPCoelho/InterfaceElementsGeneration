@@ -8,6 +8,19 @@
 class IBHM;
 
 
+/**
+ * @brief Insert interface elements in an IBHM mesh.
+ *
+ * An interface element is a zero-thickness element created by opening an edge of the mesh. The
+ * builder receives the mesh it should modify and, for each selected edge, creates the new
+ * element and repairs the topology around both of its vertices by applying one of four
+ * operators: canonical, split element, expand edge or open hole.
+ *
+ * The builder keeps its own bookkeeping about which vertices and elements already belong to an
+ * interface element, so a single builder instance must be used for the whole editing session of
+ * a mesh. Creating a second builder over a mesh that has already been edited loses that state
+ * and leads to the wrong operator being selected.
+ */
 class IBHMInterfaceElementBuilder
 {
 public:

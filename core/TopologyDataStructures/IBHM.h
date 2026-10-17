@@ -9,6 +9,18 @@
 
 #include <vector>
 
+/**
+ * @brief Index-Based Half-edge data structure for Hybrid Meshes.
+ *
+ * The mesh is described by three arrays: the vertex coordinates, the element list, that also
+ * plays the role of the half-edge to vertex table, and an offset table telling where each
+ * element starts in the element list. Storing the offset is what makes the structure hybrid: the
+ * elements do not need to share the same number of vertices.
+ *
+ * A half-edge is simply an index in the element list. Every topological query is therefore an
+ * array lookup, and the neighborhood is recovered from the opposite table built at construction
+ * time.
+ */
 class IBHM final
 {
 public:
