@@ -96,8 +96,9 @@ void IBHMInterfaceElementBuilder::insertInterfaceElements(const std::vector<unsi
             case OperatorType::OPEN_HOLE:
                 openHole(a, h3);
                 break;
-                printf("It was not possible to recognize the operator for the half-edge %d\n", a);
             case OperatorType::UNDEFINED:
+            default:
+                printf("It was not possible to recognize the operator for the half-edge %d\n", a);
                 break;
         }
 
@@ -117,6 +118,7 @@ void IBHMInterfaceElementBuilder::insertInterfaceElements(const std::vector<unsi
                 openHole(b, h1);
                 break;
             case OperatorType::UNDEFINED:
+            default:
                 printf("It was not possible to recognize the operator for the half-edge %d\n", a);
                 break;
         }
