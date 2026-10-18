@@ -22,7 +22,8 @@ class IBHM;
  * The main algorithm's strengths are:
  * 1. It is based on the operator. There is a traversal algorithm in the selected edges, and an operator is applied to
  * each edge vertex.
- * 2. There are only 4 operators to 3D.
+ * 2. There are only 4 operators in 2D: canonical, split element, expand edge, and open hole. They are topological only
+ * (no coordinates or angles are used), which is meant to ease the future extension to 3D.
  * 3. Although the algorithm is designed to insert elements on the mesh, the decision about what operator should be
  * applied is vertex-based. The vertex information is enough to build the whole decision, avoiding complex algorithms or
  * big combinations to treat all the cases.

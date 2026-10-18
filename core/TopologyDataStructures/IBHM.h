@@ -245,10 +245,12 @@ private:
     /**
      * @brief Stores the element's list.
      *
-     * It also represents, implicitly, the half-edge list. The index vector is also the half-edge index for that
-     * element.
+     * It also represents the half-edge list implicitly. The index vector is also the half-edge index for that element.
      *
-     * For each _numberVerticesByElement vector values, an element is represented.
+     * The elements are stored one after the other and may have different sizes. The element 'i' occupies the positions
+     * _offset[i] to _offset[i + 1] - 1, and the position _offset[i] + k stores the k-th vertex of the element, which is
+     * the origin of the corresponding half-edge. The vector may be larger than _offset[numberOfElements()] when space
+     * was reserved for new elements.
      */
     std::vector<unsigned int> _halfEdgeVertex;
 
