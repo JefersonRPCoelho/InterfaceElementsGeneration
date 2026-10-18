@@ -172,8 +172,8 @@ private:
      * The elementHE, as in the canonical operator, should represent the first edge-vertex being opened. First, in the
      * sense of orientation.
      *
-     * @param he A half-edge identifying the vertex where the operator should be applied. This vertex should be part of
-     * a collapsed edge.
+     * @param he A half-edge identifying the vertex where the operator should be applied. This vertex should already be
+     * part of an interface element and should not have a collapsed edge, i.e., it should not be in the _collapsed map.
      * @param elementHE The half-edge that identifies the edge being created in the vertice inside the new interface
      * element. The operator supposes that the element is already created and will only work on adjusting the neighbor
      * around the vertex.
