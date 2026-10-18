@@ -37,6 +37,7 @@ Concluídas e válidas (V1--V6) & 259 & \textbf{400}\\
 \quad por tipo & 100 / 37 / 56 / 66 & 100 / 100 / 100 / 100\\
 Abortadas & 141 & 0\\
 \quad das quais com vértice de borda com 2+ arestas & \textbf{141} & ---\\
+\quad asserção em \code{openHole} / em \code{heNext} & 72 / 69 & ---\\
 Ordens diferentes ou lote com resultado diferente & 0 & 0\\
 Contagem de vértices diferente da prevista & 0 & 0\\
 Operadores aplicados (Canônico / Split / Expand / Hole) & 3124 / 553 / 384 / 321 & 5130 / 791 / 708 / 535\\
@@ -44,7 +45,9 @@ Operadores aplicados (Canônico / Split / Expand / Hole) & 3124 / 553 / 384 / 32
 \end{tabularx}
 \caption{Teste com malhas aleatórias. Todas as falhas da rodada 1 são exatamente os casos em que algum vértice de borda
 recebe duas ou mais arestas. Nas malhas só de quadriláteros essa configuração não aparece (em uma grade, cada vértice de
-borda tem uma única aresta interna); nas de triângulos ela é frequente.}
+borda tem uma única aresta interna); nas de triângulos ela é frequente. As asserções que interrompem a execução são a
+do primeiro laço do \code{openHole} e a de \code{heNext}, chamada pelo segundo laço com \BORDER{}
+(\cref{sec:falha-borda}).}
 \label{tab:estresse}
 \end{table}
 
@@ -69,6 +72,9 @@ idêntica em todas.\\
 Mesma aresta duas vezes (em chamadas separadas ou no mesmo lote) & a segunda é rejeitada; a pré-contagem reserva 2
 vértices que não são usados.\\
 Aresta de borda na entrada & rejeitada.\\
+Reserva e inclusão de pontos (\code{tools/test\_coordinates.cpp}) & 10/10 verificações: a reserva muda só a capacidade, e
+exatamente o pedido; o ponto fica no índice devolvido; a cópia de um vértice da malha funciona; não há realocação dentro
+da reserva; vale também para 3 coordenadas.\\
 Half-edge de um elemento de interface na entrada & \textbf{laço infinito} em \code{isBorder}, dentro de
 \code{computeNumberOfNewVertices} (antes da rejeição).\\
 Índice de half-edge maior que o vetor & asserção em \code{heOpposite} (em \emph{release}, leitura fora do vetor).\\

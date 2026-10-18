@@ -89,7 +89,77 @@ $I$, e $x_3=\Op[\nxt(b)]$ é o lado longo de $I$ que \emph{chega} em $v$ logo an
 \end{itemize}
 Qual hipótese ocorre não depende de qual half-edge da aresta o usuário escolheu, e sim da posição da aresta nova em
 relação a $I$: em $S$, se a aresta nova vem depois da aresta de $I$ (no sentido anti-horário de $S$) vale $x_1$; se vem
-antes, vale $x_3$ (\cref{fig:split}).
+antes, vale $x_3$. A \cref{fig:hipoteses} mostra, em detalhe, as consultas feitas em cada caso e também o caso em que
+nenhuma das duas vale; a \cref{fig:split} mostra o resultado numa malha.
+
+% Base comum das três figuras: vértice v na origem, elemento de interface I à esquerda (colapsado em v) e quatro
+% elementos contínuos em volta. \hipS{x}{y} rotula o elemento compartilhado.
+\newcommand{\hipbase}[1]{%
+  \filldraw[cefill] (-2.8,0.6) -- (0,0) -- (0,2.4) -- (-2.8,2.4) -- cycle;
+  \filldraw[cefill] (-2.8,-2.4) -- (0,-2.4) -- (0,0) -- (-2.8,-0.6) -- cycle;
+  \filldraw[cefill] (0,0) -- (2.6,0) -- (2.6,2.4) -- (0,2.4) -- cycle;
+  \filldraw[cefill] (0,-2.4) -- (2.6,-2.4) -- (2.6,0) -- (0,0) -- cycle;
+  \filldraw[iefill] (-2.8,-0.6) -- (0,0) -- (-2.8,0.6) -- cycle;
+  \draw[white, line width=1.2pt] (-2.8,-0.55) -- (-2.8,0.55);
+  \draw[orange!55!black, dashed, line width=0.45pt] (-2.8,-0.6) -- (-2.8,0.6);
+  \node[font=\footnotesize\bfseries, text=orange!40!black] at (-2.35,0) {$I$};
+  #1
+  \node[vcol, minimum size=0.32cm] at (0,0) {};
+  \node[font=\scriptsize] at (0.28,-0.22) {$v$};
+}
+\newcommand{\hipc}[2]{% rótulo da aresta colapsada c, com uma linha até v
+  \draw[red!70!black, line width=0.4pt] (0.05,0.03*#2) -- (#1,0.5*#2);
+  \node[font=\scriptsize, text=red!70!black, anchor=west, align=left] at (#1,0.5*#2) {$c$ (colapsada,\\ de $v$ para $v$)};
+}
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}[b]{0.325\linewidth}\centering
+\begin{tikzpicture}[scale=0.88, every node/.style={font=\scriptsize}]
+  \hipbase{\draw[curedge] (0,0) -- (0,2.4);}
+  \node[elemlabel] at (-1.5,1.65) {S};
+  \draw[hearrow, red!70!black, line width=0.8pt] (-0.17,0.45) -- (-0.17,2.0) node[midway, left=0pt] {$he$};
+  \draw[hearrow, blue!70!black] (0.17,2.0) -- (0.17,0.45) node[midway, right=0pt] {$b$};
+  \draw[hearrow, violet, line width=0.8pt] (-2.4,0.68) -- (-0.5,0.28) node[pos=0.45, above=1pt, sloped] {$\prv(he)$};
+  \draw[hearrow, green!45!black, line width=0.8pt] (-0.9,0.07) -- (-2.5,0.42);
+  \node[text=green!45!black] at (-1.75,0.03) {$x_1$};
+  \hipc{0.75}{-1}
+\end{tikzpicture}
+\caption{Hipótese $x_1$: $S$ é o elemento de $he$.\\ $x_1=\Op[\prv(he)]$ e $\prv(x_1)=c$.}
+\end{subfigure}\hfill
+\begin{subfigure}[b]{0.325\linewidth}\centering
+\begin{tikzpicture}[scale=0.88, every node/.style={font=\scriptsize}]
+  \hipbase{\draw[curedge] (0,0) -- (0,-2.4);}
+  \node[elemlabel] at (-1.5,-1.65) {S};
+  \draw[hearrow, red!70!black, line width=0.8pt] (0.17,-0.45) -- (0.17,-2.0) node[midway, right=0pt] {$he$};
+  \draw[hearrow, blue!70!black] (-0.17,-2.0) -- (-0.17,-0.45) node[midway, left=0pt] {$b$};
+  \draw[hearrow, violet, line width=0.8pt] (-0.5,-0.28) -- (-2.4,-0.68) node[pos=0.55, below=1pt, sloped] {$\nxt(b)$};
+  \draw[hearrow, green!45!black, line width=0.8pt] (-2.5,-0.42) -- (-0.9,-0.07);
+  \node[text=green!45!black] at (-1.75,-0.03) {$x_3$};
+  \hipc{0.75}{1}
+\end{tikzpicture}
+\caption{Hipótese $x_3$: $S$ é o elemento de $b$.\\ $x_3=\Op[\nxt(b)]$ e $\nxt(x_3)=c$.}
+\end{subfigure}\hfill
+\begin{subfigure}[b]{0.325\linewidth}\centering
+\begin{tikzpicture}[scale=0.88, every node/.style={font=\scriptsize}]
+  \hipbase{\draw[curedge] (0,0) -- (2.6,0);}
+  \draw[hearrow, red!70!black, line width=0.8pt] (0.45,0.17) -- (2.2,0.17) node[midway, above=0pt] {$he$};
+  \draw[hearrow, blue!70!black] (2.2,-0.17) -- (0.45,-0.17) node[midway, below=0pt] {$b$};
+  \draw[hearrow, violet, line width=0.8pt] (0.17,2.0) -- (0.17,0.45) node[pos=0.3, right=0pt] {$\prv(he)$};
+  \draw[hearrow, black!50, dashed] (-0.17,0.45) -- (-0.17,2.0) node[pos=0.7, left=0pt, text=black!60] {$\Op[\prv(he)]$};
+  \draw[hearrow, violet, line width=0.8pt] (0.17,-0.45) -- (0.17,-2.0) node[pos=0.7, right=0pt] {$\nxt(b)$};
+  \draw[hearrow, black!50, dashed] (-0.17,-2.0) -- (-0.17,-0.45) node[pos=0.3, left=0pt, text=black!60] {$\Op[\nxt(b)]$};
+\end{tikzpicture}
+\caption{Nenhuma: os opostos caem fora de $I$.\\ $\Rightarrow$ Expand Edge.}
+\end{subfigure}
+\caption{As consultas de \code{retrieveAvailableVertex} em torno de um vértice $v$ que tem uma aresta colapsada $c$ (o
+elemento de interface $I$, à esquerda, termina em $v$; a aresta nova está em vermelho grosso). (a) A aresta nova sobe:
+o elemento de $he$ tem uma aresta, $\prv(he)$, colada ao lado longo de $I$ que sai de $v$ logo depois de $c$. (b) A
+aresta nova desce: agora é o elemento de $b$ que encosta em $I$, pela aresta $\nxt(b)$, colada ao lado longo de $I$ que
+chega em $v$ logo antes de $c$. (c) A aresta nova continua a trinca: os dois testes levam a elementos contínuos, e o
+operador escolhido é o Expand Edge. Em (a) e (b), o vértice novo vai para $S$.}
+\label{fig:hipoteses}
+\end{figure}
 
 \textbf{O que faz} (\cref{alg:split}): cria um vértice $n$ e o coloca ``dentro'' de $S$: só dois cantos mudam, o canto de
 $S$ em $v$ e o canto de $I$ adjacente a $S$. A antiga aresta colapsada $c$ deixa de ter comprimento zero (passa a ligar

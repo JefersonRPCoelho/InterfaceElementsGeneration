@@ -76,12 +76,12 @@
   top=4pt, bottom=4pt, fonttitle=\bfseries\small, title={#1}}
 
 % Versão do relatório: incrementar a cada nova versão e registrar em historico/ e na tabela de histórico.
-\newcommand{\versao}{0.2}
+\newcommand{\versao}{0.3}
 
 \title{\textbf{Inserção adaptativa de elementos de interface}\\ \textbf{em malhas 2D}\\[4pt]
   \large Operadores topológicos sobre estruturas de dados compactas baseadas em índices}
 \author{Jeferson Coelho\\ \small Tecgraf/PUC-Rio\thanks{Texto redigido com o auxílio do Claude Code a partir do
-  código do ramo \code{feature/edge-element-insertion} (commit \code{ce3461d}), da apresentação
+  código do ramo \code{feature/edge-element-insertion} (commit \code{066cbde}), da apresentação
   \code{doc/ppt/Operators\_Template} e do artigo da IBHM~\cite{ibhm}. As figuras de malha foram geradas executando o
   próprio código (\cref{app:repro}). As versões anteriores estão em \code{doc/report/historico/}.}}
 \date{Relatório técnico — versão \versao{} — outubro de 2026}
@@ -98,7 +98,7 @@ de seus dois vértices aplicando um entre quatro operadores --- \opname{Canônic
 Descrevemos o problema, a estrutura IBHM, a arquitetura do algoritmo, cada operador com seus detalhes de implementação e
 o algoritmo de travessia, tal como implementados na classe \code{IBHMInterfaceElementBuilder}, que é a base a ser
 evoluída. Cada caso é ilustrado com figuras produzidas pelo próprio código. Em seguida, confrontamos a implementação com
-a apresentação de projeto, com seus comentários e com o artigo da IBHM, apontando imprecisões. Uma verificação
+seus comentários e com o artigo da IBHM e listamos os defeitos em aberto. Uma verificação
 experimental com 800 malhas aleatórias (triângulos, quadriláteros, malhas híbridas e polígonos de seis lados) confirma, em
 todas as configurações suportadas, a validade topológica, a contagem exata de vértices novos e a independência da ordem
 de inserção (inclusive na inserção em lote). Ela também revela falhas que precisam ser corrigidas: vértices de borda com
@@ -115,10 +115,16 @@ Versão & Data & Mudanças\\
 baseada na CHE deixa de ser considerada (a teoria da CHE foi mantida). Nova figura com os vetores da IBHM antes e depois
 de uma inserção; verificação com 800 malhas de triângulos, quadriláteros, híbridas e com polígonos, inclusive inserção em
 lote; novos casos-limite (índices inválidos, malha com furo interno); lista de defeitos restrita à IBHM.\\
+0.3 & 18/10/2026 & Sai o confronto com a apresentação de projeto, que não será mais mantida. Nova figura com as
+hipóteses $x_1$ e $x_3$ do Split Element. Comentários do código corrigidos (B1--B9, B11--B14) e reserva exata de memória
+em \code{reserveSpaceForNodes} com \code{addPoint} recebendo um \code{std::vector} (B2, parte do I4); defeitos
+atualizados (seção~7.4, antiga 7.5). Ferramentas de teste documentadas e explicadas no apêndice, com um teste novo para
+as coordenadas.\\
 \bottomrule
 \end{tabular}
 \end{center}
 
+\newpage
 \tableofcontents
 \newpage
 

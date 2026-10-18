@@ -17,8 +17,9 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
 - **Legado (experimento inicial, não evoluir, ignorar em relatórios):** `CHE.{h,cpp}` e
   `CHEInterfaceElementBuilder.{h,cpp}`, e os arquivos `malha.txt` e `malha2.txt`. A *teoria* da CHE continua válida
   como base conceitual da IBHM.
-- `doc/ppt/Operators_Template.{pptx,pdf}` (mesmo conteúdo) foi feita **antes** da implementação e está parcialmente
-  desatualizada; em caso de conflito, vale o código. As divergências estão listadas no relatório (seção 7).
+- `doc/ppt/Operators_Template.{pptx,pdf}` (mesmo conteúdo) foi feita **antes** da implementação, cumpriu seu papel e
+  **não é mais mantida**: não apontar nem corrigir imprecisões dela. A documentação de referência é o relatório em
+  `doc/report/` (e, em caso de conflito, o código).
 
 ## Como o algoritmo funciona (resumo)
 
@@ -35,20 +36,27 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
   - colapsado, sem elemento comum → **Expand Edge** (rotação anti-horária de `c` até `he`);
   - em EI sem colapsada → **Open Hole** (abre/aumenta o buraco).
 - Split Element é um caso particular (otimização) do Expand Edge: trocar um pelo outro dá a mesma topologia.
+- **Princípio:** a arquitetura deve garantir que o operador escolhido sempre é aplicável; se não for, é bug. Uma
+  implementação com verificações prévias e `assert` foi testada e revertida por custo (B10 em aberto; detalhes em
+  `historico/HISTORICO.md`). Evitar verificações extras no caminho crítico sem combinar com o autor.
 - Invariante: cada vértice termina com tantas cópias quantos são os componentes da sua estrela cortada pelas arestas
   selecionadas (interno com 1 aresta: 1 cópia, colapsado; borda com k arestas: k+1). Por isso o resultado não depende
   da ordem de inserção nem de inserir em lote.
 - Na IBHM, `commitElement(4)` é chamado **antes** dos operadores (next/prev dependem de `_offset`), e posições
   reservadas de `O[]` começam com 0.
 
-## Defeitos conhecidos da IBHM (relatório v0.2, seção 7.5) — ainda não corrigidos
+## Defeitos conhecidos da IBHM (relatório v0.3, seção 7.4) — ainda não corrigidos
 
-- **I1 (alta)** `openHole` em vértice de borda (externa ou de furo) já aberto: asserção/escrita fora do vetor.
-  Comum em malhas de triângulos.
+- **I1 (alta)** `openHole` em vértice de borda (externa ou de furo) já aberto: asserção em debug, escrita fora do
+  vetor em release. Comum em malhas de triângulos. Precisa de tratamento próprio.
 - **I2 (alta)** `isBorder` entra em laço infinito se a entrada contém half-edge de elemento de interface (a rejeição
   vem depois de `computeNumberOfNewVertices`).
-- **I3** entrada sem validação de índice (índice no espaço reservado é aceito). **I4** `addPoint` usa `push_back` após
-  `reserveSpaceForNodes` usar `resize`. **I5–I10**: ver relatório.
+- **I3** entrada sem validação de índice (índice no espaço reservado é aceito). **I4 (parcial)** as cópias criadas
+  pelos operadores ainda nascem na origem; a parte de `addPoint`/`reserveSpaceForNodes` (B2) já foi corrigida.
+  **I5–I10**: ver relatório. Correções feitas desde a v0.2: `doc/report/historico/HISTORICO.md`.
+- **Memória é prioridade:** reservas devem ser exatas (sem crescimento geométrico); quem usa a IBHM pode reservar mais
+  espaço de uma vez. Não assumir número máximo fixo de coordenadas: `addPoint` recebe `const std::vector<float>&`
+  (vazio = origem), nunca ponteiro para o vetor interno.
 
 ## Build e testes
 
@@ -66,6 +74,8 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
   híbrida, polígonos), 3 ordens + lote. Referência v0.2: seed 21/400 → 259 ok e 141 abortos (todos I1); seed 22/400
   com `--skip-border-multi` → 400/400 ok. Após corrigir I1, a primeira rodada deve passar inteira.
 - `doc/report/tools/compare.py`: compara topologias (partição dos cantos dos elementos originais).
+- `doc/report/tools/test_coordinates.cpp`: teste de unidade de `reserveSpaceForNodes`/`addPoint`. As ferramentas
+  são explicadas no apêndice A do relatório.
 - Formato de malha (`malha2Hyb.txt`, `meshIBHM.txt`): `np ne`, `np` linhas `x y`, `ne` linhas `n v0 ... v(n-1)`.
   Obs.: em `malha2Hyb.txt` o vértice 18 deveria estar em (4,3), não (3,4) (só afeta geometria).
 
@@ -76,7 +86,7 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
 - Compilar com `tectonic -X compile relatorio.tex` (instalado via Homebrew) ou xelatex.
 - **Versionamento obrigatório:** nunca sobrescrever versões anteriores. A cada nova versão: incrementar `\versao` em
   `relatorio.tex`, acrescentar linha na tabela de histórico (após o resumo) e em `historico/HISTORICO.md`, compilar e
-  copiar o PDF para `historico/relatorio_vX.Y.pdf`. Versão atual: **0.2**.
+  copiar o PDF para `historico/relatorio_vX.Y.pdf`. Versão atual: **0.3**.
 - **Só gerar uma nova versão quando o autor pedir.** Os itens pedidos para a próxima versão ficam na seção
   "Pendências para a próxima versão" de `historico/HISTORICO.md`; consulte-a ao gerar o relatório.
 

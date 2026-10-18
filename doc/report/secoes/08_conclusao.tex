@@ -60,7 +60,9 @@ criação.
 mantendo o Split Element como otimização.
 \item \textbf{Manter o vetor $VH[\,]$} da IBHM, eliminando as rotações de \code{isBorder}, e reaproveitar o intervalo do
 elemento corrente nas rotações (I9).
-\item \textbf{Documentar} o algoritmo a partir deste relatório: atualizar a apresentação (A1--A10) e os comentários
-(B1--B14).
+\item \textbf{Política de memória} (I11): aplicar a reserva exata também aos vetores de elementos e aos vetores do
+construtor, como já é feito com as coordenadas.
+\item \textbf{Retomar o B10}: decidir como os operadores devem relatar que não puderam ser aplicados sem pesar no
+caminho crítico.
 \item \textbf{Integração com o GeMA} e, em seguida, a extensão 3D.
 \end{enumerate}

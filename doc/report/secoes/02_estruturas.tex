@@ -143,8 +143,10 @@ $Of[\,]$ (\code{offsetIterator}); $\nxt$ e $\prv$ também fazem essa busca\\
 Construção de $\Op$ & mapa indexado pelo par ordenado de vértices & para cada vértice, lista das half-edges que partem
 dele; procura-se a half-edge reversa (\code{buildOppositesLinear})\\
 Vetor $VH[\,]$ & sim & \textbf{não}; o teste de borda (\code{isBorder}) gira em torno do vértice\\
-Crescimento da malha & não previsto (``limitação'' declarada) & \code{reserveSpaceForElements/Nodes} reservam espaço,
-\code{addPoint} e \code{commitElement} validam novos itens; contadores de itens válidos separam o reservado do usado\\
+Crescimento da malha & não previsto (``limitação'' declarada) & \code{reserveSpaceForElements} aumenta os vetores de
+elementos (\code{resize}) e \code{commitElement} valida cada novo elemento; \code{reserveSpaceForNodes} reserva
+capacidade exata para os pontos (\code{reserve}) e \code{addPoint} os acrescenta, recebendo as coordenadas num
+\code{std::vector} (vazio = origem)\\
 \bottomrule
 \end{tabularx}
 \caption{Diferenças entre a IBHM do artigo e a classe \code{IBHM} do repositório.}
@@ -172,8 +174,8 @@ aberta. A aresta $4$--$7$ é compartilhada pelos triângulos que contêm as half
 o vértice 4 é interno e o vértice 7 está na borda.
 \begin{enumerate}
 \item \textbf{Reserva.} Antes de qualquer alteração, \code{reserveSpaceForElements(4, 1)} acrescenta 4 posições a
-$\V[\,]$ e a $\Op[\,]$ e uma entrada a $Of[\,]$, e \code{reserveSpaceForNodes(1)} reserva um vértice (a pré-contagem
-previu um vértice novo, para a borda).
+$\V[\,]$ e a $\Op[\,]$ e uma entrada a $Of[\,]$, e \code{reserveSpaceForNodes(1)} reserva capacidade exata para um
+vértice, sem mudar o tamanho do vetor de coordenadas (a pré-contagem previu um vértice novo, para a borda).
 \item \textbf{Validação antecipada.} \code{nextAvailableHE()} devolve $Of[n_c]=20$, a primeira half-edge livre, e
 \code{commitElement(4)} já declara o elemento 6 válido, gravando $Of[7]=24$. Na IBHM isso precisa acontecer \emph{antes}
 dos operadores, porque $\nxt$ e $\prv$ das half-edges 20--23 dependem do offset do elemento.

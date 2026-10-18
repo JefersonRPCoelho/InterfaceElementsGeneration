@@ -1,9 +1,39 @@
-// Test driver for IBHMInterfaceElementBuilder: inserts edges, logs the operator chosen for each vertex, validates the
-// resulting topology after every insertion, and dumps every intermediate state as JSON.
+// Test driver for IBHMInterfaceElementBuilder.
 //
-// Usage: driver [--batch] <meshfile> <out.json> <he0> <he1> ...
-//   meshfile: "np ne / x y (np lines) / n v0 ... v(n-1) (ne lines)" (the format of malha2Hyb.txt)
-//   --batch : insert all edges with a single insertInterfaceElements() call instead of one call per edge.
+// It reads a mesh, inserts interface elements in the given edges, prints the operator chosen for each vertex, checks
+// the topology after every insertion, and writes every intermediate state of the mesh to a JSON file (used by gen.py
+// to draw the figures and by stress.py / compare.py to compare runs).
+//
+// Usage:
+//     driver [--batch] <meshfile> <out.json> <he0> <he1> ...
+//   meshfile  "np ne", then np lines "x y", then ne lines "n v0 ... v(n-1)" (the format of malha2Hyb.txt).
+//   out.json  output file (format below).
+//   he0 ...   one half-edge index per edge to open (either half-edge of the edge).
+//   --batch   insert all edges with a single insertInterfaceElements() call instead of one call per edge.
+//
+// Console output: one line per call, e.g.
+//     step  2 edge he=34 (10-11)  A:SPLIT_ELEMENT B:CANONICAL     new=1 predicted=1 ok
+// with the half-edge, its two vertices, the operator chosen for each vertex, the number of vertices created and the
+// number predicted by computeNumberOfNewVertices(), and "ok" or "INVALID" (followed by the failed checks).
+//
+// Checks after every call (numbered as in the report):
+//   V1  opposites are symmetric: O[O[h]] = h for every valid opposite;
+//   V2  opposites agree on the vertices: V[h] = V[next(O[h])] and V[next(h)] = V[O[h]];
+//   V3  a COLLAPSED half-edge has zero length: V[h] = V[next(h)];
+//   V4  manifold: the corners of every vertex form a single fan, connected through h ~ O[prev(h)];
+//   V5  every vertex is used by some element;
+//   V6  the number of created vertices equals the prediction (printed and stored in the JSON; checked by stress.py).
+//
+// JSON: {"points": [[x, y], ...], "steps": [step 0 = input mesh, step k = after the k-th call]}, where each step has
+//   edge, A, B, opA, opB           the inserted half-edge, its vertices and the operators (empty in batch mode);
+//   predicted, created, errors, msgs, nPoints;
+//   elements, first, opp, isIE     the mesh: vertices of each element, first half-edge of each element (offsets),
+//                                  opposite of each half-edge (-1 = BORDER, -2 = COLLAPSED), interface element flags;
+//   root                           for each vertex, the original vertex it was copied from;
+//   collapsed                      the builder's _collapsed map flattened as [vertex, half-edge, vertex, ...].
+// The file is flushed after each step, so the steps already computed survive if a later step aborts.
+//
+// Exit code: 0 if every check passed, 2 if some check failed; an assertion in the library aborts the program.
 //
 // The original sources are compiled unchanged. To read the builder's private state, this translation unit (and only
 // this one) uses "#define private public".
@@ -26,6 +56,7 @@
 static const unsigned BORDER = 0xFFFFFFFFu, COLLAPSED = 0xFFFFFFFEu;
 
 // ---- Snapshot of the mesh -----------------------------------------------------------------------------------------
+// A copy of the mesh arrays taken through the IBHM interface, so the checks below do not depend on the code under test.
 struct View
 {
     std::vector<std::vector<unsigned>> elems; // vertices of each element
@@ -50,7 +81,8 @@ static View view(IBHM *m)
     return v;
 }
 
-// half-edge helpers on a View (independent from the structure being tested)
+// Half-edge queries on a View, recomputed here (independent from the IBHM class): element and local position of each
+// half-edge, next, previous and vertex.
 struct HE
 {
     const View &v;
@@ -66,6 +98,7 @@ struct HE
 };
 
 // ---- Validation (V1-V5 of the report; V6 is checked in run()) ------------------------------------------------------
+// Returns the number of problems found and appends one message per problem to msgs.
 static int validate(const View &v, std::vector<std::string> &msgs)
 {
     HE he(v);
@@ -86,7 +119,9 @@ static int validate(const View &v, std::vector<std::string> &msgs)
         if (he.vert(h) != he.vert(he.next(o)) || he.vert(he.next(h)) != he.vert(o))
             err("vertex mismatch across he " + std::to_string(h) + " / " + std::to_string(o));
     }
-    // Manifold fan check: the corners of every vertex must be connected through h ~ O[prev(h)].
+    // V4: the corners of every vertex must be connected through h ~ O[prev(h)] (union-find over the corners). A
+    // collapsed half-edge starts at the same vertex as the corner after it, so it links the two corners of the
+    // interface element at that vertex.
     std::map<unsigned, std::vector<unsigned>> corners;
     for (unsigned h = 0; h < nh; h++) corners[he.vert(h)].push_back(h);
     for (auto &[w, cs] : corners)
@@ -110,6 +145,7 @@ static int validate(const View &v, std::vector<std::string> &msgs)
     return errors;
 }
 
+// Name of an IBHMInterfaceElementBuilder::OperatorType value.
 static const char *opName(int op)
 {
     switch (op)
@@ -122,6 +158,7 @@ static const char *opName(int op)
     }
 }
 
+// JSON array of unsigned values. With signedOpp, BORDER and COLLAPSED are written as -1 and -2.
 static std::string jsonArr(const std::vector<unsigned> &a, bool signedOpp = false)
 {
     std::ostringstream s;
@@ -137,6 +174,8 @@ static std::string jsonArr(const std::vector<unsigned> &a, bool signedOpp = fals
     return s.str();
 }
 
+// Insert the edges (one call per edge, or a single call in batch mode), checking and dumping the mesh after each call.
+// Returns the total number of problems found by the checks.
 static int run(IBHM *m, const std::vector<double> &coords, const std::vector<unsigned> &edges, const std::string &out,
                bool batch)
 {
@@ -146,6 +185,7 @@ static int run(IBHM *m, const std::vector<double> &coords, const std::vector<uns
     for (size_t i = 0; i < coords.size() / 2; i++) js << (i ? "," : "") << "[" << coords[2 * i] << "," << coords[2 * i + 1] << "]";
     js << "],\"steps\":[";
 
+    // root[w] is the original vertex from which w was copied (an original vertex is its own root).
     View v0 = view(m);
     std::vector<unsigned> root(v0.nPoints);
     for (unsigned i = 0; i < v0.nPoints; i++) root[i] = i;
@@ -219,6 +259,7 @@ static int run(IBHM *m, const std::vector<double> &coords, const std::vector<uns
     return total;
 }
 
+// Parse the arguments, read the mesh (2D, any element sizes), build the IBHM and run the insertions.
 int main(int argc, char **argv)
 {
     int arg = 1;

@@ -1,42 +1,163 @@
-\section{Reprodução das figuras e dos testes}
+\section{Ferramentas de teste e geração das figuras}
 \label{app:repro}
 
-Os arquivos ficam em \code{doc/report/}:
-\begin{itemize}
-\item \code{tools/driver.cpp}: programa de teste da \code{IBHMInterfaceElementBuilder}. Compila \code{IBHM.cpp} e
-\code{IBHMInterfaceElementBuilder.cpp} sem alterações (para ler o estado privado do construtor, usa
-\code{\#define private public} \emph{apenas} nesta unidade de compilação), insere as arestas uma a uma ou em lote
-(\code{--batch}), aplica as verificações V1--V6 e grava todos os estados intermediários em JSON.
-\item \code{tools/gen.py}: monta as malhas pequenas, chama o \code{driver} e gera as figuras TikZ em \code{figs/}.
-\item \code{tools/stress.py} e \code{tools/compare.py}: teste com malhas aleatórias e comparação de topologias.
-\item \code{relatorio.tex}, \code{styles.tex} e \code{secoes/}: o texto. A versão fica na macro \code{\textbackslash
-versao} de \code{relatorio.tex}.
-\item \code{historico/}: o PDF de cada versão publicada (\code{relatorio\_vX.Y.pdf}), e \code{HISTORICO.md} com o
-resumo das mudanças.
-\end{itemize}
+As ferramentas ficam em \code{doc/report/tools/}. Todas usam o código do repositório sem alterações e podem ser rodadas
+a partir da raiz do repositório. Cada arquivo começa com um comentário que descreve seu uso; este apêndice explica o que
+cada uma faz e como os resultados do relatório foram obtidos.
 
-\noindent Comandos (a partir da raiz do repositório; \code{\$W} é um diretório de trabalho qualquer):
+\begin{center}\small
+\begin{tabularx}{\linewidth}{>{\ttfamily\small}p{4.0cm}X}
+\toprule
+\normalfont Arquivo & Papel\\
+\midrule
+driver.cpp & programa de teste da \code{IBHMInterfaceElementBuilder}: insere arestas, verifica a malha e grava cada estado
+em JSON;\\
+compare.py & compara a topologia final de execuções diferentes;\\
+stress.py & teste com malhas aleatórias, várias ordens e inserção em lote;\\
+gen.py & gera as figuras de malha do relatório (\code{doc/report/figs/});\\
+test\_coordinates.cpp & teste de unidade da reserva e da inclusão de pontos na \code{IBHM}.\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{Como compilar e rodar}
+
+Os comandos abaixo partem da raiz do repositório; \code{\$W} é um diretório de trabalho qualquer. O \code{driver} e o
+teste de coordenadas não precisam de Qt nem de CMake.
 \begin{lstlisting}[language=bash]
 c++ -std=c++17 -Icore/TopologyDataStructures -Icore/InterfaceElementsBuilder \
     doc/report/tools/driver.cpp core/TopologyDataStructures/IBHM.cpp \
     core/InterfaceElementsBuilder/IBHMInterfaceElementBuilder.cpp -o $W/driver
+c++ -std=c++17 -Icore/TopologyDataStructures doc/report/tools/test_coordinates.cpp \
+    core/TopologyDataStructures/IBHM.cpp -o $W/test_coordinates && $W/test_coordinates
 $W/driver malha2Hyb.txt $W/ex.json 31 34 11 26 47 38 23 19 30 42 29 45     # exemplo dos slides
-python3 doc/report/tools/gen.py $W/driver doc/report/figs $W/work
 python3 doc/report/tools/stress.py $W/driver 21 400 $W/s1                       # rodada 1
 python3 doc/report/tools/stress.py $W/driver 22 400 $W/s2 --skip-border-multi   # rodada 2
-cd doc/report && tectonic -X compile relatorio.tex                              # ou xelatex
+python3 doc/report/tools/gen.py $W/driver doc/report/figs $W/work                # figuras
+cd doc/report && tectonic -X compile relatorio.tex                              # relatório (ou xelatex)
 \end{lstlisting}
 
-\noindent Exemplo de saída do \code{driver} para o exemplo dos slides:
+\subsection{O programa de teste (\code{driver.cpp})}
+
+\textbf{Uso:} \code{driver [--batch] <malha> <saida.json> <he0> <he1> ...}. A malha está no formato de
+\code{malha2Hyb.txt}: o número de vértices e de elementos, as coordenadas e, para cada elemento, o número de vértices
+seguido dos índices. Cada \code{he} é uma half-edge da aresta a abrir (qualquer uma das duas). Sem \code{--batch}, cada
+aresta é inserida numa chamada de \code{insertInterfaceElements}; com \code{--batch}, todas vão numa única chamada.
+
+\textbf{O que faz em cada chamada:}
+\begin{enumerate}
+\item tira uma ``foto'' da malha (vértices de cada elemento, offsets e opostas), lida pela interface pública da
+\code{IBHM};
+\item se a aresta vai ser aceita, pergunta a \code{retrieveOperator} qual operador será usado em cada extremidade, só para
+registrá-lo (a decisão não muda nada na malha);
+\item chama \code{computeNumberOfNewVertices} e \code{insertInterfaceElements};
+\item descobre o vértice de origem de cada vértice novo: todo vértice novo substitui, em algum canto de um elemento que
+já existia, o vértice que estava lá antes; esse vértice antigo (ou a origem dele) é a origem do novo;
+\item aplica as verificações V1--V5 da \cref{sec:verificacao} e compara o número de vértices criados com o previsto
+(V6);
+\item imprime uma linha e grava o estado no JSON.
+\end{enumerate}
+As verificações são feitas sobre a ``foto'', com consultas $\nxt$/$\prv$ recalculadas pelo próprio \code{driver}, para não
+depender do código que está sendo testado. Para ler o estado privado do construtor (\code{\_collapsed},
+\code{\_isInterfaceElement}), o \code{driver} usa \code{\#define private public} apenas na sua unidade de compilação.
+
+\textbf{Saída no console:} uma linha por chamada, como
 \begin{lstlisting}[language={}]
-step  1 edge he=31 (10-15)  A:CANONICAL     B:CANONICAL     new=1 predicted=1 ok
 step  2 edge he=34 (10-11)  A:SPLIT_ELEMENT B:CANONICAL     new=1 predicted=1 ok
-...
-step 12 edge he=45 (32-18)  A:OPEN_HOLE     B:CANONICAL     new=2 predicted=2 ok
-TOTAL ERRORS: 0
 \end{lstlisting}
+com a half-edge, os dois vértices da aresta, o operador de cada extremidade, os vértices criados e previstos e o
+resultado (\code{ok} ou \code{INVALID}, seguido das verificações que falharam). O código de saída é 0 se tudo passou e
+2 se alguma verificação falhou; uma asserção da biblioteca interrompe o programa.
 
-As posições dos vértices nas figuras são calculadas apenas para visualização: cada cópia de um vértice é deslocada de
-uma pequena distância na direção média dos centróides dos elementos contínuos que a usam, e os cantos de um elemento de
-interface sobre uma aresta colapsada são afastados na direção do elemento vizinho, para que a aresta de comprimento zero
-fique visível.
+\textbf{JSON:} um objeto com \code{points} (coordenadas originais) e \code{steps}, uma lista em que o passo 0 é a malha de
+entrada e o passo $k$ é o estado depois da $k$-ésima chamada. Cada passo tem:
+
+\begin{center}\small
+\begin{tabularx}{\linewidth}{>{\ttfamily\small}p{3.6cm}X}
+\toprule
+\normalfont Campo & Conteúdo\\
+\midrule
+edge, A, B & a half-edge inserida e os vértices da sua aresta\\
+opA, opB & o operador de cada extremidade (vazio no modo em lote ou para arestas rejeitadas)\\
+predicted, created & vértices previstos por \code{computeNumberOfNewVertices} e vértices criados\\
+errors, msgs & número de problemas e mensagens das verificações\\
+elements, first & os vértices de cada elemento e a primeira half-edge de cada elemento (os offsets)\\
+opp & a oposta de cada half-edge; $-1$ é \BORDER{} e $-2$ é \COLLAPSED\\
+isIE & 1 para os elementos de interface\\
+root & para cada vértice, o vértice original de que ele é cópia\\
+collapsed & o mapa \code{\_collapsed} do construtor, como pares (vértice, half-edge)\\
+\bottomrule
+\end{tabularx}
+\end{center}
+O arquivo é gravado e esvaziado (\emph{flush}) a cada passo; se um passo posterior aborta, os anteriores continuam
+legíveis (o \code{gen.py} usa isso para desenhar o caso de borda que falha).
+
+\subsection{Comparação de topologias (\code{compare.py})}
+
+Duas execuções que inserem as mesmas arestas em ordens diferentes criam os vértices novos em ordens diferentes, então os
+índices não servem para comparar. O \code{compare.py} olha só para os elementos que já existiam na malha de entrada
+(eles mantêm seus índices) e agrupa os cantos desses elementos pelo vértice que usam. O conjunto de grupos é uma partição
+dos cantos; duas execuções têm a mesma topologia, a menos de renumeração, se e somente se as partições são iguais. Os
+elementos de interface ficam determinados pelos elementos contínuos em volta e não precisam entrar na comparação. Pela
+linha de comando, \code{python3 compare.py a.json b.json ...} diz, para cada arquivo, se a partição é igual à do
+primeiro.
+
+\subsection{Teste com malhas aleatórias (\code{stress.py})}
+
+\textbf{Uso:} \code{stress.py <driver> <semente> <casos> <diretório> [--skip-border-multi]}. Cada caso:
+\begin{enumerate}
+\item gera uma malha numa grade de $3$ a $7$ por $3$ a $7$ células, alternando quatro tipos (\cref{fig:estresse-malhas}):
+só quadriláteros, só triângulos (cada célula dividida por uma das diagonais, ao acaso), híbrida (60\% das células viram
+triângulos) e com polígonos (como a híbrida, mas 25\% das vezes duas células vizinhas viram um hexágono);
+\item sorteia até metade das arestas internas;
+\item insere o mesmo conjunto quatro vezes com o \code{driver}: três vezes uma aresta por chamada, em ordens aleatórias e
+com a half-edge de cada aresta escolhida ao acaso, e uma vez em lote;
+\item exige que as quatro execuções sejam válidas, que a contagem de vértices seja sempre a prevista e que as quatro
+partições sejam iguais.
+\end{enumerate}
+Um caso é marcado como ``vértice de borda com 2+ arestas'' quando a seleção tem um vértice de borda tocado por duas ou
+mais arestas (a configuração do defeito I1). Com \code{--skip-border-multi}, essas seleções são sorteadas de novo. No
+fim, o script imprime os contadores (casos válidos, inválidos e abortados, quantos abortados tinham a configuração do I1,
+casos dependentes da ordem, casos em que o lote difere, contagens erradas, operadores aplicados), a asserção que causou
+cada aborto e o número de casos válidos por tipo de malha. A semente fixa o gerador aleatório: a mesma semente sempre
+gera as mesmas malhas, seleções e ordens (o relatório usa as sementes 21 e 22, com 400 casos cada).
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}[b]{0.24\linewidth}\centering\resizebox{\linewidth}{!}{\input{figs/stress_quad.tex}}\caption{quad}\end{subfigure}\hfill
+\begin{subfigure}[b]{0.24\linewidth}\centering\resizebox{\linewidth}{!}{\input{figs/stress_tri.tex}}\caption{tri}\end{subfigure}\hfill
+\begin{subfigure}[b]{0.24\linewidth}\centering\resizebox{\linewidth}{!}{\input{figs/stress_hybrid.tex}}\caption{hybrid}\end{subfigure}\hfill
+\begin{subfigure}[b]{0.24\linewidth}\centering\resizebox{\linewidth}{!}{\input{figs/stress_poly.tex}}\caption{poly}\end{subfigure}
+\caption{Um exemplo de cada tipo de malha gerada pelo \code{stress.py} (grade de $6\times4$ células), com uma seleção
+de arestas em vermelho. As malhas e as seleções do teste usam o mesmo gerador, com tamanhos e sementes variados.}
+\label{fig:estresse-malhas}
+\end{figure}
+
+\subsection{Geração das figuras (\code{gen.py})}
+
+\textbf{Uso:} \code{gen.py <driver> <diretório-das-figuras> <diretório-de-trabalho>}. Para cada figura, o script monta
+uma malha pequena (ou lê uma do repositório), roda o \code{driver}, carrega o estado desejado e o converte num
+\code{tikzpicture}, gravado em \code{figs/<nome>.tex}. Assim, toda figura de malha mostra o que o código realmente
+produz; as figuras não devem ser editadas à mão, e sim regeneradas. Três detalhes do desenho:
+\begin{itemize}
+\item \textbf{Vista explodida.} O código cria os vértices novos na origem, e as cópias de um vértice coincidem por
+definição. Para a topologia ficar visível, cada cópia de um vértice dividido é desenhada um pouco afastada da posição
+original, na direção média dos centróides dos elementos contínuos que a usam; como cada cópia é usada pelos elementos
+de um setor, as cópias se afastam, cada uma para o seu setor.
+\item \textbf{Arestas colapsadas.} Os dois cantos de um elemento de interface sobre uma aresta colapsada são afastados na
+direção do elemento vizinho, e a aresta é desenhada como um pequeno segmento vermelho com espessura apenas visual.
+\item \textbf{Buracos.} As half-edges de borda formam laços; um laço percorrido no sentido horário (área com sinal
+negativa) é um buraco e é hachurado.
+\end{itemize}
+Os nomes dos vértices seguem a regra das figuras: o vértice original mantém o nome e suas cópias recebem índices
+($K$, $K_1$, $K_2$, \dots) na ordem de criação. As figuras desenhadas à mão (gabarito, árvore de decisão, estados,
+hipóteses $x_1$/$x_3$) ficam no próprio texto, em TikZ, e usam os estilos de \code{styles.tex}.
+
+\subsection{Teste das coordenadas (\code{test\_coordinates.cpp})}
+
+Teste de unidade da \code{IBHM}, sem o construtor de elementos de interface. Verifica que \code{reserveSpaceForNodes}
+muda só a capacidade do vetor de coordenadas, e exatamente o pedido; que \code{addPoint} grava as coordenadas no índice
+que devolve; que é possível criar a cópia de um vértice a partir das coordenadas da própria malha; que o ponto padrão é
+a origem; que não há realocação dentro do espaço reservado; que o tamanho do vetor acompanha \code{numberPoints()}; que é
+possível passar da reserva; e que o número de coordenadas não é fixo (uma malha 3D com 3 coordenadas). Imprime uma linha
+por verificação e \code{ALL OK}; o código de saída é o número de verificações que falharam.

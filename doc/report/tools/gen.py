@@ -1,11 +1,51 @@
-"""Generate the report figures (TikZ) by running IBHMInterfaceElementBuilder through the test driver.
+"""Generate the mesh figures of the report (TikZ files in doc/report/figs/).
 
-Every mesh picture in the report comes from a state dumped by `driver` (see driver.cpp), so the figures show what the
-C++ implementation actually produces. New vertices have no geometry in the implementation (addPoint() stores the
-origin), so for drawing purposes each copy of a vertex is pushed a little towards the continuum elements that use it
-("exploded view"). Coincident copies therefore appear slightly apart, exactly like the hand-made slides.
+How it works
+------------
+Every mesh picture in the report is a state produced by the real C++ code. For each figure this script:
 
-Usage: python3 gen.py <driver-binary> <output-figs-dir> <work-dir>
+1. builds a small mesh (or reads one of the repository meshes) and writes it in the text format read by the driver;
+2. runs the test driver (`driver.cpp`), which inserts the requested edges with IBHMInterfaceElementBuilder and writes
+   one JSON snapshot of the mesh after every insertion (see the format below);
+3. loads a snapshot into a `State` object and calls `draw()`, which converts it into a `tikzpicture`;
+4. saves the picture in `figs/<name>.tex`, which the report includes with `\\input`.
+
+Figures produced (name in figs/ -> what it shows): example_* (the 12-edge example of the slides), canon_* (canonical
+operator), split_x1_* / split_x3_* (split element, both hypotheses), expand_* (expand edge), hole_step* (open hole),
+border_fail (the failing border case), ibhm_example / ibhm_arrays (IBHM arrays of meshIBHM.txt), insert_* (arrays
+before and after one insertion), stress_* (one mesh of each kind used by stress.py).
+
+The figures must not be edited by hand: change this script and run it again.
+
+Usage
+-----
+    python3 gen.py <driver-binary> <output-figs-dir> <work-dir>
+
+`<work-dir>` receives the meshes written by this script and the JSON files written by the driver.
+
+JSON written by the driver
+--------------------------
+    {"points": [[x, y], ...],                 original coordinates (new vertices have no geometry in the code)
+     "steps": [                               step 0 is the input mesh; step k is the state after the k-th call
+        {"step": k, "edge": he, "A": vA, "B": vB,     inserted half-edge and the vertices of its edge
+         "opA": "CANONICAL", "opB": "...",           operator chosen for A and B (empty in batch mode)
+         "predicted": n, "created": m,               computeNumberOfNewVertices() and vertices actually created
+         "errors": e, "msgs": [...],                 result of the validation checks V1-V5
+         "nPoints": n,
+         "elements": [[v0, v1, ...], ...],           vertices of each element (the IBHM element list)
+         "first": [...],                             first half-edge of each element (the IBHM offsets)
+         "opp": [...],                               opposite of each half-edge; -1 = BORDER, -2 = COLLAPSED
+         "isIE": [0/1, ...],                         1 for interface elements
+         "root": [...],                              original vertex from which each vertex was copied
+         "collapsed": [v, he, v, he, ...]}           the builder's _collapsed map (vertex, collapsed half-edge)
+     ]}
+
+Exploded view
+-------------
+New vertices are created at the origin by the code, and copies of a vertex are coincident by definition. To make the
+topology visible, every copy of a vertex that was split is drawn slightly away from the original position, towards the
+continuum elements that use that copy (`State.positions`). Interface element corners on a collapsed edge are also
+pushed apart (`corner_positions`), so the zero-length edge is visible. These positions are only for drawing.
 """
 import json
 import math
@@ -23,6 +63,11 @@ REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')
 # Meshes and driver
 # ----------------------------------------------------------------------------------------------------------------------
 def grid(nx, ny):
+    """Build a grid of nx x ny unit quads.
+
+    Returns (points, elements, vid): the list of (x, y) points, the list of quads (4 vertex indices in counterclockwise
+    order) and a dictionary that maps the grid position (i, j) to the vertex index. Element (i, j) has index i + nx * j.
+    """
     pts = [(i, j) for j in range(ny + 1) for i in range(nx + 1)]
     vid = {(i, j): j * (nx + 1) + i for j in range(ny + 1) for i in range(nx + 1)}
     elems = [[vid[(i, j)], vid[(i + 1, j)], vid[(i + 1, j + 1)], vid[(i, j + 1)]] for j in range(ny) for i in range(nx)]
@@ -30,6 +75,8 @@ def grid(nx, ny):
 
 
 def write_mesh(fn, pts, elems):
+    """Write a mesh in the format read by the driver (the format of malha2Hyb.txt):
+    'np ne', then np lines 'x y', then ne lines 'n v0 ... v(n-1)'."""
     with open(fn, 'w') as f:
         f.write(f'{len(pts)} {len(elems)}\n')
         for p in pts:
@@ -39,7 +86,11 @@ def write_mesh(fn, pts, elems):
 
 
 def he_index(elems, u, w):
-    """Half-edge u->w in the input element list (same numbering as the IBHM class)."""
+    """Index of the half-edge u->w in the input element list.
+
+    The numbering is the one used by the IBHM class: the elements are stored one after the other, so the k-th
+    half-edge of an element is (number of half-edges of the previous elements) + k.
+    """
     h = 0
     for e in elems:
         for k in range(len(e)):
@@ -50,6 +101,12 @@ def he_index(elems, u, w):
 
 
 def run(mesh, edges, tag):
+    """Run the driver on `mesh`, inserting `edges` (half-edge indices) one per call, and return the loaded JSON.
+
+    The JSON is saved as <work-dir>/<tag>.json. If the driver aborts on an assertion (exit codes 134 / -6, used on
+    purpose for the figure of the failing border case), the steps written before the abort are kept: the driver
+    flushes the file after each step, so the JSON only needs to be closed.
+    """
     out = os.path.join(WORK, tag + '.json')
     r = subprocess.run([DRIVER, mesh, out] + [str(e) for e in edges], capture_output=True, text=True)
     print(f'--- {tag}\n{r.stdout.strip()}')
@@ -67,12 +124,19 @@ def run(mesh, edges, tag):
 # State helpers
 # ----------------------------------------------------------------------------------------------------------------------
 class State:
+    """One snapshot of the mesh (one entry of "steps" in the driver JSON) with the half-edge queries.
+
+    The queries are recomputed here from the snapshot, independently of the C++ code: vert(h) is V[h], nxt/prv are
+    next/prev inside the element, and self.opp is the opposite table (-1 = BORDER, -2 = COLLAPSED).
+    """
+
     def __init__(self, data, k):
         st = data['steps'][k]
         self.pts = data['points']
         self.st = st
         self.elems, self.first, self.opp = st['elements'], st['first'], st['opp']
         self.isIE, self.root, self.n = st['isIE'], st['root'], st['nPoints']
+        # element and local position of every half-edge
         self.he_elem, self.he_loc = [], []
         for e, el in enumerate(self.elems):
             for j in range(len(el)):
@@ -82,21 +146,32 @@ class State:
         self.collapsed = dict(zip(c[0::2], c[1::2]))
 
     def vert(self, h):
+        """Vertex where the half-edge h starts (V[h])."""
         return self.elems[self.he_elem[h]][self.he_loc[h]]
 
     def nxt(self, h):
+        """Next half-edge in the same element."""
         e = self.he_elem[h]
         return self.first[e] + (self.he_loc[h] + 1) % len(self.elems[e])
 
     def prv(self, h):
+        """Previous half-edge in the same element."""
         e = self.he_elem[h]
         n = len(self.elems[e])
         return self.first[e] + (self.he_loc[h] + n - 1) % n
 
     def in_ie(self, w):
+        """True if the vertex w is used by some interface element."""
         return any(self.isIE[e] and w in el for e, el in enumerate(self.elems))
 
     def positions(self, delta):
+        """Drawing position of every vertex (the "exploded view").
+
+        A vertex whose original vertex was not split is drawn at the original position. Otherwise, each copy w is
+        moved by `delta` in the direction of the average of the unit vectors from the original position to the
+        centroids of the continuum elements that use w. As each copy is used by the elements of one sector around the
+        original vertex, the copies move apart, each one into its own sector.
+        """
         copies = {}
         used = set(v for el in self.elems for v in el)
         for w in used:
@@ -122,7 +197,12 @@ class State:
         return P
 
     def border_loops(self):
-        """Loops of BORDER half-edges (outer boundary and holes)."""
+        """Loops of BORDER half-edges (the outer boundary and the holes).
+
+        Starting at a border half-edge u->w, the next one in the loop is the border half-edge that starts at w. A loop
+        whose polygon has negative signed area runs clockwise, i.e., it is a hole (the outer boundary is
+        counterclockwise, because the elements are on the left of their half-edges).
+        """
         border = [h for h in range(len(self.opp)) if self.opp[h] == -1]
         start = {}
         for h in border:
@@ -148,15 +228,21 @@ class State:
 # TikZ drawing
 # ----------------------------------------------------------------------------------------------------------------------
 def fmt(p):
+    """TikZ coordinate."""
     return f'({p[0]:.3f},{p[1]:.3f})'
 
 
 def prime_name(base, k):
+    """Name of the k-th copy of a vertex called `base`: base, base_1, base_2, ..."""
     return base if k == 0 else '%s_{%d}' % (base, k)
 
 
 def vertex_names(s, names):
-    """Name every vertex: original name for the root vertex, primes for its copies in creation order."""
+    """Name every vertex of the state `s`.
+
+    `names` maps original vertices to names. The original vertex keeps its name and its copies get subscripts in the
+    order they were created (K, K_1, K_2, ...). A copy can also receive an explicit name if its own index is in `names`.
+    """
     out = {}
     count = {}
     for w in range(s.n):
@@ -173,8 +259,12 @@ def vertex_names(s, names):
 
 
 def corner_positions(s, P, vthick):
-    """Position of the start corner of every half-edge. Corners of an interface element that sit on a collapsed vertex
-    are pushed towards the continuum element across the adjacent long edge, so the zero-length edge becomes visible."""
+    """Drawing position of the start corner of every half-edge.
+
+    Usually it is the position of the vertex, P[V[h]]. The exception are the two corners of an interface element on a
+    collapsed edge (an edge from a vertex to itself): each one is pushed by `vthick` towards the continuum element
+    across the long edge that touches that corner, so the collapsed edge is drawn with a small, purely visual length.
+    """
     CP = {}
     for h in range(len(s.opp)):
         w = s.vert(h)
@@ -184,6 +274,7 @@ def corner_positions(s, P, vthick):
             continue
         if s.vert(s.nxt(h)) != w and s.vert(s.prv(h)) != w:
             continue  # this corner is not on a collapsed edge
+        # the long edge of the interface element at this corner: h itself or the previous half-edge
         long_he = h if s.opp[h] >= 0 and s.vert(s.nxt(h)) != w else s.prv(h)
         o = s.opp[long_he]
         if o < 0:
@@ -198,6 +289,29 @@ def corner_positions(s, P, vthick):
 def draw(s, *, delta=0.12, scale=1.0, names=None, label_all=True, label_set=None, pending=(), current=None,
          arrows=(), he_labels=(), vsize=0.15, font=r'\scriptsize', arrow_shift=0.14, show_numbers=True,
          extra='', clip=None, mark_vertices=None, hole_label=None, elem_labels=None, vthick=None, vlabel_font=None):
+    """Convert the state `s` into a tikzpicture (returned as a string).
+
+    Drawing order: holes (hatched), continuum elements (blue), interface elements (orange), collapsed edges (red),
+    element labels, edges still to be inserted (red), half-edge arrows, vertices.
+
+    Main parameters:
+      delta        distance used to separate the copies of a split vertex (exploded view);
+      vthick       visual half-length of collapsed edges (default 0.4 * delta);
+      scale, font  TikZ scale and default font;
+      names        names of the original vertices (see vertex_names); label_all / label_set choose which are labeled;
+      pending      list of (number, (u, w)) original edges still to be inserted, drawn in red with their number;
+      current      number of the next edge, drawn thicker;
+      arrows       list of (he, label, color) half-edge arrows; he_labels is the same list, used for labeled arrows.
+                   An optional 4th item is a dict: 'shift' (distance from the edge towards the element centroid),
+                   'shrink' (fraction cut at each end), 'normal' (explicit offset vector), 'lab' (label distance
+                   factor), 'at' (label position along the arrow) and 'labdir' (explicit label offset direction);
+      clip         ((x0, y0), (x1, y1)) rectangle used to zoom on part of the mesh;
+      elem_labels  {element index: text} drawn at the element centroid;
+      hole_label   text written inside holes (None for no text);
+      extra        raw TikZ code appended at the end.
+    The TikZ styles (cefill, iefill, holefill, seledge, curedge, hearrow, vreg, vie, vcol, ...) are defined in
+    doc/report/styles.tex.
+    """
     P = s.positions(delta)
     CP = corner_positions(s, P, 0.4 * delta if vthick is None else vthick)
     names = names or {}
@@ -210,7 +324,7 @@ def draw(s, *, delta=0.12, scale=1.0, names=None, label_all=True, label_set=None
         el = range(s.first[e], s.first[e] + len(s.elems[e]))
         return (sum(CP[h][0] for h in el) / len(el), sum(CP[h][1] for h in el) / len(el))
 
-    # holes (loops of border half-edges with negative area)
+    # holes: loops of border half-edges with negative signed area
     for loop in s.border_loops():
         poly = [CP[h] for h in loop]
         area = sum(poly[i][0] * poly[(i + 1) % len(poly)][1] - poly[(i + 1) % len(poly)][0] * poly[i][1]
@@ -220,6 +334,7 @@ def draw(s, *, delta=0.12, scale=1.0, names=None, label_all=True, label_set=None
             if hole_label:
                 c = (sum(p[0] for p in poly) / len(poly), sum(p[1] for p in poly) / len(poly))
                 L.append(r'\node[font=\tiny\itshape] at %s {%s};' % (fmt(c), hole_label))
+    # elements: continuum first, interface elements on top
     for ie_pass in (False, True):
         for e, el in enumerate(s.elems):
             if bool(s.isIE[e]) != ie_pass:
@@ -234,7 +349,7 @@ def draw(s, *, delta=0.12, scale=1.0, names=None, label_all=True, label_set=None
     if elem_labels:
         for e, txt in elem_labels.items():
             L.append(r'\node[elemlabel] at %s {%s};' % (fmt(centroid(e)), txt))
-    # pending selected edges
+    # edges still to be inserted: found by their original vertices in a continuum element
     for num, (u, w) in pending:
         for h in range(len(s.opp)):
             if s.isIE[s.he_elem[h]]:
@@ -250,7 +365,7 @@ def draw(s, *, delta=0.12, scale=1.0, names=None, label_all=True, label_set=None
                     n = (-d[1] / l * 0.16, d[0] / l * 0.16)
                     L.append(r'\node[edgenum] at %s {%s};' % (fmt((m[0] + n[0], m[1] + n[1])), num))
                 break
-    # half-edge arrows
+    # half-edge arrows: drawn parallel to the edge, shifted towards the centroid of their element
     for item in list(arrows) + list(he_labels):
         h, lab, col = item[0], item[1], item[2]
         opts = item[3] if len(item) > 3 else {}
@@ -274,7 +389,7 @@ def draw(s, *, delta=0.12, scale=1.0, names=None, label_all=True, label_set=None
             lu = opts.get('labdir', u)
             lp = (a[0] + (b[0] - a[0]) * pos + lu[0] * (ls - 1), a[1] + (b[1] - a[1]) * pos + lu[1] * (ls - 1))
             L.append(r'\node[helabel, text=%s] at %s {$%s$};' % (col, fmt(lp), lab))
-    # vertices
+    # vertices: red ring = has a collapsed edge; orange label = belongs to an interface element
     for w in sorted(P):
         p = P[w]
         r = s.root[w]
@@ -296,12 +411,14 @@ def draw(s, *, delta=0.12, scale=1.0, names=None, label_all=True, label_set=None
 
 
 def save(name, txt):
+    """Write figs/<name>.tex."""
     with open(os.path.join(FIGS, name + '.tex'), 'w') as f:
         f.write(txt + '\n')
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-# 1. Full example (the mesh of the slides, IBHM, edges in the slide order)
+# 1. Full example (the mesh of the slides, edges in the slide order)
+#    Figures: example_initial, example_final, example_final_small, example_step00..12; table: example_table.
 # ----------------------------------------------------------------------------------------------------------------------
 EX_NAMES = dict(enumerate('A B C D E F G H I J K L M N P Q R S T'.split()))
 ex_mesh = os.path.join(REPO, 'malha2Hyb.txt')
@@ -310,7 +427,7 @@ ex_mesh = os.path.join(REPO, 'malha2Hyb.txt')
 ex_slide_order = [31, 34, 11, 26, 47, 38, 23, 19, 30, 42, 29, 45]
 ex = run(ex_mesh, ex_slide_order, 'example')
 ex['points'][18] = [4, 3]
-ex_edges = []  # (number, (u, w)) in root vertices
+ex_edges = []  # (number, (u, w)) in original vertices
 s0 = State(ex, 0)
 for i, h in enumerate(ex_slide_order):
     ex_edges.append((i + 1, (s0.vert(h), s0.vert(s0.nxt(h)))))
@@ -326,14 +443,11 @@ steps_tbl = []
 for k in range(0, 13):
     s = State(ex, k)
     pend = [(n, e) for n, e in ex_edges if n > k]
-    cur = None
-    if k < 12:
-        cur = k + 1
+    cur = k + 1 if k < 12 else None
     save(f'example_step{k:02d}', draw(s, names=EX_NAMES, pending=pend, current=cur, scale=1.05, delta=0.14,
                                       label_all=False, vsize=0.09, show_numbers=True, font=r'\tiny'))
     if k > 0:
         st = ex['steps'][k]
-        sp = State(ex, k - 1)
         vn = vertex_names(State(ex, k), EX_NAMES)
         steps_tbl.append((k, vn.get(st['A'], st['A']), vn.get(st['B'], st['B']), OPS[st['opA']], OPS[st['opB']],
                           st['created']))
@@ -345,7 +459,8 @@ with open(os.path.join(FIGS, 'example_table.tex'), 'w') as f:
     f.write('\\midrule\n\\multicolumn{4}{r}{total} & %d\\\\\n\\bottomrule\n\\end{tabular}\n' % sum(t[-1] for t in steps_tbl))
 
 # ----------------------------------------------------------------------------------------------------------------------
-# 2. Canonical operator
+# 2. Canonical operator: internal edge (3x2 grid) and edge that reaches the border (2x2 grid)
+#    Figures: canon_int_before/after, canon_border_before/after.
 # ----------------------------------------------------------------------------------------------------------------------
 pts, el, vid = grid(3, 2)
 mesh = os.path.join(WORK, 'g32.txt')
@@ -377,8 +492,6 @@ d = run(mesh, [a], 'canon_border')
 names = {A: 'A', B: 'B'}
 s0, s1 = State(d, 0), State(d, 1)
 b = s0.opp[a]
-ie = len(s1.elems) - 1
-h0 = s1.first[ie]
 save('canon_border_before', draw(s0, names=names, scale=1.4, delta=0.0, label_set={A, B}, pending=[(1, (A, B))],
                                  show_numbers=False, he_labels=[(a, 'a', 'red!70!black'), (b, 'b', 'blue!70!black')],
                                  vsize=0.13))
@@ -387,7 +500,9 @@ save('canon_border_after', draw(s1, names=names, scale=1.4, delta=0.22, label_se
                                 vsize=0.13))
 
 # ----------------------------------------------------------------------------------------------------------------------
-# 3. Split element (two hypotheses) and expand edge
+# 3. Split element (both hypotheses, 3x4 grid) and expand edge (4x2 grid)
+#    The first edge A-B is opened (both ends collapsed); the second edge leaves B going up (hypothesis x1) or down
+#    (hypothesis x3). Figures: split_x1_before/after, split_x3_before/after, expand_before/rotation/after.
 # ----------------------------------------------------------------------------------------------------------------------
 pts, el, vid = grid(3, 4)
 mesh = os.path.join(WORK, 'g34.txt')
@@ -431,7 +546,7 @@ save('expand_before', draw(s1, names=names, scale=1.7, delta=0.2, clip=((0.45, 0
                            show_numbers=False, vsize=0.12,
                            he_labels=[(e2, 'he', 'red!70!black'), (c, 'c', 'orange!80!black'),
                                       (s1.opp[e2], 'b', 'blue!70!black')]))
-# corners visited by reindexElementsCCW(c, a, B'): c, then opposite(prev(.)) until a
+# corners visited by reindexElementsCCW(c, he, B_1): c, then opposite(prev(.)) until he
 visit, h = [], c
 while h != e2:
     visit.append(h)
@@ -443,7 +558,7 @@ save('expand_rotation', draw(s1, names=names, scale=1.7, delta=0.2, clip=((0.45,
 save('expand_after', draw(s2, names=names, scale=1.7, delta=0.2, clip=((0.45, 0.3), (3.55, 1.7)), label_set={A, B, C}, vsize=0.12))
 
 # ----------------------------------------------------------------------------------------------------------------------
-# 4. Open hole
+# 4. Open hole: four edges arriving at the center V of a 4x4 grid. Figures: hole_step0..4 (zoom on the center).
 # ----------------------------------------------------------------------------------------------------------------------
 pts, el, vid = grid(4, 4)
 mesh = os.path.join(WORK, 'g44.txt')
@@ -461,7 +576,8 @@ for k in range(5):
                                vlabel_font=r'\tiny\bfseries'))
 
 # ----------------------------------------------------------------------------------------------------------------------
-# 5. Border vertex with two selected edges (the case that fails)
+# 5. Border vertex with two selected edges (the case that fails, defect I1). The driver aborts on the second edge, so
+#    the figure shows the state after the first one. Figure: border_fail.
 # ----------------------------------------------------------------------------------------------------------------------
 fan = os.path.join(WORK, 'fan.txt')
 fan_pts = [(0, 0), (1, 0), (0.5, 0.866), (-0.5, 0.866), (-1, 0), (1.2, 0.7), (0, 1.4), (-1.2, 0.7)]
@@ -474,10 +590,11 @@ save('border_fail', draw(s1, names={0: 'Q', 2: 'R', 3: 'P'}, scale=2.2, delta=0.
                          he_labels=[(he_index(fan_el, 0, 3), 'a', 'red!70!black')]))
 
 # ----------------------------------------------------------------------------------------------------------------------
-# 6. IBHM arrays example (meshIBHM.txt) and half-edge basics
+# 6. IBHM arrays of meshIBHM.txt (no insertion: the arrays built by the IBHM class). Figure: ibhm_example; table:
+#    ibhm_arrays.
 # ----------------------------------------------------------------------------------------------------------------------
 ib_mesh = os.path.join(REPO, 'meshIBHM.txt')
-d = run(ib_mesh, [], 'ibhm_arrays')          # no insertion: just the arrays built by the IBHM class
+d = run(ib_mesh, [], 'ibhm_arrays')
 s = State(d, 0)
 V = [s.vert(h) for h in range(len(s.opp))]
 O = s.opp
@@ -496,7 +613,8 @@ with open(os.path.join(FIGS, 'ibhm_arrays.tex'), 'w') as f:
     f.write(r'\par\medskip $Of[\,] = [' + ',\\,'.join(str(x) for x in first) + ']$\n')
 
 # ----------------------------------------------------------------------------------------------------------------------
-# 7. The IBHM arrays before and after one insertion (small hybrid mesh)
+# 7. The IBHM arrays before and after one insertion (small hybrid mesh, edge 4-7).
+#    Figures: insert_before, insert_after; table: insert_arrays (changed values highlighted).
 # ----------------------------------------------------------------------------------------------------------------------
 sm_pts = [(i, j) for j in range(3) for i in range(3)]
 sm_el = [[0, 1, 4, 3], [1, 2, 5, 4], [3, 4, 7], [3, 7, 6], [4, 5, 8], [4, 8, 7]]
@@ -509,19 +627,22 @@ sm_names = {i: str(i) for i in range(9)}
 save('insert_before', draw(s0, names=sm_names, scale=2.1, delta=0.0, vsize=0.11, pending=[(1, (4, 7))],
                            show_numbers=False,
                            he_labels=[(h, str(h), 'red!70!black' if h in (a, s0.opp[a]) else 'black!70',
-                                       {'lab': 1.8, 'shift': 0.11, 'shrink': 0.25}) for h in range(len(s0.opp))],
-                           ))
+                                       {'lab': 1.8, 'shift': 0.11, 'shrink': 0.25}) for h in range(len(s0.opp))]))
 ie = len(s1.elems) - 1
 ie_he = list(range(s1.first[ie], s1.first[ie] + 4))
 save('insert_after', draw(s1, names={**sm_names, 9: '9'}, scale=2.1, delta=0.2, vsize=0.11, vthick=0.1,
                           he_labels=[(h, str(h), 'black!70', {'lab': 1.8, 'shift': 0.11, 'shrink': 0.25})
                                      for h in range(len(s1.opp)) if h not in ie_he] +
                                     [(ie_he[0], str(ie_he[0]), 'orange!50!black', {'normal': (0.06, 0), 'lab': 2.0, 'labdir': (0.18, -0.25)}),
-                                     (ie_he[2], str(ie_he[2]), 'orange!50!black', {'normal': (-0.06, 0), 'lab': 2.0, 'labdir': (-0.2, 0.25)})],
-                          ))
+                                     (ie_he[2], str(ie_he[2]), 'orange!50!black', {'normal': (-0.06, 0), 'lab': 2.0, 'labdir': (-0.2, 0.25)})]))
 
 
 def arrays_table(s_before, s_after):
+    """LaTeX table with V[] and O[] before and after an insertion, plus the offsets.
+
+    Old positions whose value changed are shown in red; the positions of the new element, in orange. In O[], '--' is
+    BORDER and 'C' (small caps) is COLLAPSED.
+    """
     nb, na = len(s_before.opp), len(s_after.opp)
     fmt_o = lambda o: '--' if o == -1 else (r'\textsc{c}' if o == -2 else str(o))
     rows = []
@@ -545,4 +666,23 @@ def arrays_table(s_before, s_after):
 
 with open(os.path.join(FIGS, 'insert_arrays.tex'), 'w') as f:
     f.write(arrays_table(s0, s1))
+
+# ----------------------------------------------------------------------------------------------------------------------
+# 8. One mesh of each kind generated by stress.py (same generator, fixed seed), with the selected edges in red.
+#    Figures: stress_quad, stress_tri, stress_hybrid, stress_poly.
+# ----------------------------------------------------------------------------------------------------------------------
+import random  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import stress  # noqa: E402  (only its functions are used; its main() is not executed on import)
+
+for kind in stress.KINDS:
+    rng = random.Random(3)
+    pts, elems = stress.mesh(kind, 6, 4, rng)
+    mesh = os.path.join(WORK, f'stress_{kind}.txt')
+    write_mesh(mesh, pts, elems)
+    edges, border = stress.interior_edges(elems)
+    sel = rng.sample(edges, len(edges) // 4)
+    d = run(mesh, [], f'stress_{kind}')
+    save(f'stress_{kind}', draw(State(d, 0), scale=0.62, label_all=False, vsize=0.05,
+                                pending=[(i, (a, b)) for i, (h, ho, a, b) in enumerate(sel)], show_numbers=False))
 print('figures written to', FIGS)
