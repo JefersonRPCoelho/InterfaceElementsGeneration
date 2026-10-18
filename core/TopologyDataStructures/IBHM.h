@@ -108,11 +108,15 @@ public:
     /**
      * @brief Add a new point to the mesh geometry.
      *
-     * The function supposes that the required space is already allocated.
-     * @param coordinates - The coordinates for the new point. If it is nullptr the origin point will be used.
+     * The point is appended to the end of the coordinate's vector, and its index is numberPoints() before the call. If
+     * the space was reserved with reserveSpaceForNodes(), no reallocation happens; otherwise, the vector grows as
+     * needed.
+     * @param coordinates The coordinates for the new point. It should have exactly numberCoordinatesByVertex() values,
+     * or be empty to use the origin (the default). It is a separate vector, read only through its own indices, so it is
+     * safe to build it from the coordinates of a point of the mesh, e.g., to create a copy of a vertex.
      * @return The index for the new vertex.
      */
-    unsigned int addPoint(const float *coordinates = nullptr);
+    unsigned int addPoint(const std::vector<float> &coordinates = {});
 
     /**
      * Mark the next element index as valid.
@@ -231,8 +235,13 @@ public:
     /**
      * @brief Reserve space for new nodes.
      *
-     * Although the space is reserved, it is not used. The number of points inserted in the mesh is controlled by
-     * _numberOfValidPoints, so avoid using the vectors' size to determine the number of points.
+     * Only the capacity of the coordinate's vector changes; its size, and therefore numberPoints(), stays the same.
+     * The capacity becomes exactly the current number of points plus @p numberNodes (or stays the same if it is
+     * already larger), so no memory is reserved beyond what is requested, and the next @p numberNodes calls to
+     * addPoint() do not reallocate the vector.
+     *
+     * As the reservation is exact, calling this function many times with small values may reallocate the vector at
+     * each call. If many insertions are expected, the user can reserve more space in advance with a single call.
      * @param numberNodes Number of extra points that should be reserved in the mesh.
      */
     void reserveSpaceForNodes(unsigned int numberNodes);
@@ -287,8 +296,8 @@ private:
     /**
      * @brief Stores the number of points inserted in the mesh.
      *
-     * The points related structured can be pre-allocated, allowing to having elements that are not part of the mesh yet.
-     * This variable determines the number of valid points in the mesh.
+     * The coordinate's vector always stores exactly _numberOfValidPoints * _numberCoordinatesPerVertex values; the
+     * space for future points is kept as reserved capacity (see reserveSpaceForNodes()).
      */
     unsigned int _numberOfValidPoints;
 

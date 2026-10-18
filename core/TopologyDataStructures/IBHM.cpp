@@ -22,6 +22,9 @@ IBHM::IBHM(
 
 
 {
+    // Every point needs at least one coordinate (it is also used to compute the number of points below).
+    assert(numberCoordinates > 0);
+
     // Allocate the vectors.
     _oppositeHalfEdge.resize(_halfEdgeVertex.size());
 
@@ -162,7 +165,9 @@ void IBHM::reserveSpaceForElements(const unsigned int numberPositions, const uns
 
 void IBHM::reserveSpaceForNodes(const unsigned int numberNodes)
 {
-    _coordinates.resize(_coordinates.size() + _numberCoordinatesPerVertex * numberNodes);
+    // Only the capacity grows, and exactly to the requested amount. The size keeps matching the number of points, so
+    // addPoint() can simply append the new coordinates.
+    _coordinates.reserve(_coordinates.size() + static_cast<size_t>(_numberCoordinatesPerVertex) * numberNodes);
 }
 
 
@@ -246,21 +251,18 @@ const std::vector<float> &IBHM::points() const
 
 
 
-unsigned int IBHM::addPoint(const float *coordinates)
+unsigned int IBHM::addPoint(const std::vector<float> &coordinates)
 {
-    if (coordinates == nullptr)
+    // The coordinate's vector always has one entry per coordinate of each valid point, so the new point goes to the
+    // end.
+    assert(_coordinates.size() == static_cast<size_t>(_numberOfValidPoints) * _numberCoordinatesPerVertex);
+
+    // An empty vector means the origin. Otherwise, there must be one value for each coordinate.
+    assert(coordinates.empty() || coordinates.size() == _numberCoordinatesPerVertex);
+
+    for (unsigned int i = 0; i < _numberCoordinatesPerVertex; i++)
     {
-        for (unsigned int i = 0; i < _numberCoordinatesPerVertex; i++)
-        {
-            _coordinates.push_back(0.0);
-        }
-    }
-    else
-    {
-        for (unsigned int i = 0; i < _numberCoordinatesPerVertex; i++)
-        {
-            _coordinates.push_back(coordinates[i]);
-        }
+        _coordinates.push_back(i < coordinates.size() ? coordinates[i] : 0.0f);
     }
     _numberOfValidPoints++;
 
