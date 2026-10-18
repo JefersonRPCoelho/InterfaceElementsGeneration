@@ -98,7 +98,7 @@ void IBHMInterfaceElementBuilder::insertInterfaceElements(const std::vector<unsi
                 break;
             case OperatorType::UNDEFINED:
             default:
-                printf("It was not possible to recognize the operator for the half-edge %d\n", a);
+                printf("It was not possible to recognize the operator for the half-edge %u\n", a);
                 break;
         }
 
@@ -119,7 +119,7 @@ void IBHMInterfaceElementBuilder::insertInterfaceElements(const std::vector<unsi
                 break;
             case OperatorType::UNDEFINED:
             default:
-                printf("It was not possible to recognize the operator for the half-edge %d\n", a);
+                printf("It was not possible to recognize the operator for the half-edge %u\n", b);
                 break;
         }
 
