@@ -11,21 +11,46 @@ class IBHM;
 /**
  * @brief Insert interface elements in an IBHM mesh.
  *
- * An interface element is a zero-thickness element created by opening an edge of the mesh. The
- * builder receives the mesh it should modify and, for each selected edge, creates the new
- * element and repairs the topology around both of its vertices by applying one of four
- * operators: canonical, split element, expand edge or open hole.
+ * An interface element is a zero-thickness element created by opening an edge of the mesh. The builder receives the
+ * mesh it should modify and, for each selected edge, creates the new element and repairs the topology around both of
+ * its vertices by applying one of four operators: canonical, split element, expand edge, or open hole.
  *
- * The builder keeps its own bookkeeping about which vertices and elements already belong to an
- * interface element, so a single builder instance must be used for the whole editing session of
- * a mesh. Creating a second builder over a mesh that has already been edited loses that state
- * and leads to the wrong operator being selected.
+ * The builder keeps its own bookkeeping about which vertices and elements already belong to an interface element, so a
+ * single builder instance must be used for the whole editing session of a mesh. Creating a second builder over a mesh
+ * that has already been edited loses that state and leads to the wrong operator being selected.
+ *
+ * @todo vertex based
  */
 class IBHMInterfaceElementBuilder
 {
 public:
     /**
      * Define the type of all available operators.
+     *
+     * CANONICAL: The operator that should be applied to a vertex that is not part of any interface element yet. A
+     * vertex will be duplicated in the topology only, resulting in a degenerated edge between the duplicated vertices.
+     * There is no opposite half-edge defined to this edge. However, the topological operations still working for the
+     * internal element. The opposite response for this edge should be COLLAPSED. The exception is when the vertex is on
+     * the bother. In this case, a geometric vertex is also created and the opposite half-edge for the created edge
+     * points to BORDER. By definition, this is the first operation in a regular element. It works as an initialization,
+     * preparing the vertex for the other operations. When two internal vertices respect these conditions, the resulting
+     * element will be like ABBA with two collapsed edges AA and BB.
+     *
+     * SPLIT_ELEMENT: When there is a vertex available (duplicated vertex on the topology, but not in the geometry) and
+     * the available vertex has an income/outcome half-edge that is part of an element shared by the edge being split.
+     * The operator creates a new geometric vertex for the available topological vertex. The collapsed edge in the
+     * former interface element now determines the frontier with the brand-new interface element.
+     *
+     * EXPAND_EDGE: When the former rule fails to find a shared element, this operator should be applied. As the former
+     * operator, this operator creates a new geometric vertex for the available topological vertex. The surrounding
+     * elements should be reindex with the new vertex. The edge being split determined the point of division between
+     * the elements that should be connected with one of the vertices that were collapsed.
+     *
+     * OPEN_HOLE: The operator that should be applied to a vertex that is already part of an interface element, and
+     * there is no vertex available (duplicated vertex in the topology but not in the geometry). The operator will
+     * insert or increase a hole.
+     *
+     * UNDEFINED: Use to initialize variables as an invalid type.
      */
     enum class OperatorType { CANONICAL, SPLIT_ELEMENT, EXPAND_EDGE, OPEN_HOLE, UNDEFINED };
 
