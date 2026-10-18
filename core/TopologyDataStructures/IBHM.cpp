@@ -6,9 +6,9 @@
 
 #include "IBHM.h"
 #include <cassert>
-#include <map>
 #include <cstdio>
-
+#include <cstring>
+#include <algorithm>
 
 
 IBHM::IBHM(

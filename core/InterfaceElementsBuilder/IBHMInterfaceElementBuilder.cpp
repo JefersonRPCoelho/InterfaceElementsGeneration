@@ -1,8 +1,8 @@
 //
 // Created by jcoelho on 2/24/2026.
 //
-#include <iostream>
 #include <cassert>
+#include <cstdio>
 #include "IBHMInterfaceElementBuilder.h"
 #include "IBHM.h"
 
