@@ -38,7 +38,7 @@ public:
      * vertex will be duplicated in the topology only, resulting in a degenerated edge between the duplicated vertices.
      * There is no opposite half-edge defined to this edge. However, the topological operations still working for the
      * internal element. The opposite response for this edge should be COLLAPSED. The exception is when the vertex is on
-     * the bother. In this case, a geometric vertex is also created and the opposite half-edge for the created edge
+     * the border. In this case, a geometric vertex is also created and the opposite half-edge for the created edge
      * points to BORDER. By definition, this is the first operation in a regular element. It works as an initialization,
      * preparing the vertex for the other operations. When two internal vertices respect these conditions, the resulting
      * element will be like ABBA with two collapsed edges AA and BB.
@@ -67,7 +67,7 @@ public:
      * modified.
      *
      * The builder keeps the information about vertices and elements during the process of element insertion. It
-     * supports adaptive elements insertion, but the same build should be used. It works as a second layer mesh
+     * supports adaptive elements insertion, but the same builder should be used. It works as a second layer mesh
      * definition. The IBHM defines that current mesh state, including interface elements, but the builder keeps the
      * required definition to be able to insert new interface elements from the last state.
      *
@@ -81,9 +81,23 @@ public:
     /**
      * Insert interface elements in a group of provided edges.
      *
-     * The algorithm inserts the edges in the order they are provided.
-     * @param edges A vector with one half-edge for each input edge. Each edge is defined for two half-edges. There user
-     * can select anyone of them.
+     * The algorithm inserts the edges in the order they are provided. The final topology does not depend on this order,
+     * nor on inserting the edges in a single call or in several calls.
+     *
+     * Edges that cannot be opened are skipped with a message on the standard output, and nothing is reported to the
+     * caller:
+     *     1. Border edges, i.e., the provided half-edge has no opposite.
+     *     2. Edges that already belong to an interface element, for example, an edge provided twice in the same call or
+     *     in different calls.
+     * The space reserved for the skipped edges is left unused.
+     *
+     * @warning The provided indices are not validated. Every value must be the index of a half-edge of an element that
+     * already exists in the mesh (a committed element). A half-edge of an interface element makes
+     * computeNumberOfNewVertices() loop forever, because the test that skips these edges runs only after it, and an
+     * index outside the valid range leads to an assertion failure or to invalid memory access.
+     *
+     * @param edges A vector with one half-edge for each input edge. Each edge is defined by two half-edges. The user
+     * can select any of them.
      */
     void insertInterfaceElements(const std::vector<unsigned int> &edges);
 
@@ -100,7 +114,7 @@ private:
      *
      * When the vertex is on the border, a new geometric vertex is created and the resulting edge is not collapsed
      * anymore. As a result, all elements from the new vertex side should be re-indexed to use the new vertex. See
-     * @reindexElements. The opposite half-edge is marked as a border.
+     * reindexElementsCCW(). The opposite half-edge is marked as a border.
      *
      * All involved vertices are identified as part of an interface element. It is important to identify the right
      * operator to be used.
@@ -119,7 +133,12 @@ private:
      * Perform the Split Element operator in a vertex identified by the half-edge he.
      *
      * This operator is always applied in a vertex with a collapsed edge. The interface element with this collapsed
-     * edge should have an edge in the element of he.
+     * edge should share an edge with one of the two elements of the edge being split. This common element is the
+     * shared element, and there are two possibilities (see retrieveAvailableVertex()):
+     *     1. It is the element of he. The interface element half-edge that leaves the vertex just after the collapsed
+     *     edge is the opposite of previous(he).
+     *     2. It is the element of opposite(he). The interface element half-edge that arrives at the vertex just before
+     *     the collapsed edge is the opposite of next(opposite(he)).
      *
      * The half-edge availableVertexHE identifies one vertex of the collapsed edge that should be used to insert the new
      * vertex in the shared element.
@@ -205,6 +224,11 @@ private:
      *
      * If the stopHE is never found, the algorithm will replace the vertex from 'he' by 'v' for all elements.
      *
+     * Precondition: the rotation must reach stopHE, the border, or 'he' again before it arrives at the half-edge that
+     * follows a collapsed edge. The next half-edge is obtained as opposite(previous(currentHE)), and a COLLAPSED value
+     * is not tested, so it would be used as a half-edge index. The operators that call this method respect this
+     * condition.
+     *
      * @param he A half-edge outgoing from the vertex that should be replaced by v.
      * @param stopHE The half-edge the algorithm should stop when finding it. It can be IBHM::BORDER.
      * @param v The new vertex index that should be used to replace the vertex in 'he'.
@@ -233,17 +257,26 @@ private:
 
 public:
     /**
-     * Compute the number of new vertices will be required to insert interface elements in the provided edges.
+     * Compute the number of new vertices that will be required to insert interface elements in the provided edges.
      *
-     * The current implementation uses the following rules to determine the number of new vertices:
-     *     1. As a general rule, from the start, each vertex will need n - 1 new vertices if it is not in the border or
-     *     n if it is in the border, where n is the vertex valence in terms of selected edges.
-     *     2. If the vertex is already part of an interface element, the number of required new vertices is n.
+     * The computation uses the state of each vertex before the insertion. Let n be the number of provided edges that
+     * touch the vertex:
+     *     1. If the vertex is not part of an interface element, it needs n - 1 new vertices if it is internal and n new
+     *     vertices if it is on the border. The first time an internal vertex is split, it generates a collapsed edge,
+     *     which does not require a new vertex; a border vertex is duplicated already at the first edge.
+     *     2. If the vertex is already part of an interface element, it needs n new vertices, since every new edge
+     *     duplicates it.
      *
-     * The first time a vertex is split, it generates a collapsed edge, which does not require a new vertex. From that
-     * on, every new operation will generate a new vertex.
-     * @param edges The group of edges represented one of their half-edges that should be used to insert new interface
-     * elements.
+     * The result is used to reserve memory and is an upper bound. It is exact when all edges are accepted and every
+     * border vertex is touched by at most one of them, but:
+     *     1. Edges that insertInterfaceElements() will skip (border edges, edges of interface elements, repeated edges)
+     *     are also counted.
+     *     2. The extra vertex of the border rule is added once per edge instead of once per vertex, so a border vertex
+     *     that is not part of an interface element and is touched by k edges is counted as 2k - 1 instead of k.
+     *
+     * @param edges The group of edges, each one represented by one of its half-edges, that should be used to insert new
+     * interface elements.
+     * @return An upper bound for the number of new vertices.
      */
     [[nodiscard]] unsigned int computeNumberOfNewVertices(const std::vector<unsigned int> &edges) const;
 
@@ -264,8 +297,10 @@ private:
     std::vector<bool> _isInterfaceElement;
 
     /**
-     * Stores the current collapsed edges. The key is the vertex that is collapsed, and the value is the half-edge from
-     * the first-edge vertex.
+     * Stores the current collapsed edges. The key is the vertex that has a collapsed edge, and the value is the
+     * collapsed half-edge itself, i.e., the short side (h3 or h1) of the interface element that created it, which goes
+     * from the vertex to the vertex itself. The entry is removed when the vertex is split by SPLIT_ELEMENT or
+     * EXPAND_EDGE.
      *
      * @todo evaluate if we can get rid of it by getting this information on the fly.
      */

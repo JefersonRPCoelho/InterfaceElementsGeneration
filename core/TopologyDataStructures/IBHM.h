@@ -1,5 +1,5 @@
 /* 
- * File:   CHELevelOne.h
+ * File:   IBHM.h
  * Author: jeferson
  *
  * Created on 27 de Julho de 2012, 00:28
@@ -24,6 +24,14 @@
 class IBHM final
 {
 public:
+    /**
+     * Special values stored in the opposite table instead of a half-edge index.
+     *
+     * BORDER: the half-edge is on the border of the mesh (including the border of a hole), so it has no opposite.
+     *
+     * COLLAPSED: the half-edge is a collapsed edge of an interface element, i.e., an edge that goes from a vertex to
+     * the same vertex. It is created by the interface element insertion and has no opposite.
+     */
     enum OPPOSITE
     {
         BORDER = -1,
@@ -35,7 +43,7 @@ public:
      * @brief Build a IBHM based on the coordinates and elements list.
      * It will save the coordinate's vector, the element's list, and build the opposite table.
      *
-     * @param coordinates The coordinate's vector. It should have @p numberOfVertices * @p numberCoordinates elements.
+     * @param coordinates The coordinate's vector. It should have (number of vertices) * @p numberCoordinates elements.
      * @param elementsList The element list indexes. It is expected to have hybrid elements in the vector.
      * @param offset A vector with size n + 1, where n is the number of elements. The position i stores the index where
      * the element i starts in the elementsList. The position i + 1 is the upper bound.
@@ -46,14 +54,14 @@ public:
          const std::vector<unsigned int> &offset, unsigned int numberCoordinates);
 
     /**
-     * Default constructor.
+     * Default destructor.
      */
     ~IBHM() = default;
 
     /**
      * @brief Get the element's list.
      *
-     * The CHE class can only edit the element's list. It is only available in the read-only mode.
+     * Only the IBHM class can edit the element's list, so it is returned in read-only mode.
      * @return The elements list.
      */
     const std::vector<unsigned int> &elementsList();
@@ -130,11 +138,12 @@ public:
     void setElementVertex(unsigned int he, unsigned int vertex);
 
     /**
-     * @brief Get the number of reserved elements in the mesh.
+     * @brief Get the number of reserved half-edge positions in the element's list.
      *
-     * The number of reserved elements is the number of elements the current vector can store before requiring
-     * reallocation.
-     * @return The number of elements in the mesh.
+     * Despite the name, the value is not a number of elements: since the elements may have different sizes, it returns
+     * the size of the element's list, i.e., the number of half-edge positions available before requiring reallocation,
+     * including the positions reserved by reserveSpaceForElements() and not used yet.
+     * @return The number of reserved half-edge positions.
      */
     [[nodiscard]] unsigned int numberReservedElements() const;
 
@@ -172,7 +181,9 @@ public:
     /**
      * @brief Given a half-edge, get the opposite half-edge.
      * @param halfEdge The given half-edge to query to the opposite.
-     * @return The opposite half-edge if it exists or -1 if the opposite is a border.
+     * @return The opposite half-edge if it exists, BORDER (-1) if the half-edge is on the border, or COLLAPSED (-2) if
+     * it is a collapsed edge of an interface element. As the return type is unsigned, compare the result with
+     * IBHM::BORDER and IBHM::COLLAPSED instead of with negative numbers.
      */
     [[nodiscard]] unsigned int heOpposite(unsigned int halfEdge) const;
 
@@ -255,7 +266,8 @@ private:
     std::vector<unsigned int> _halfEdgeVertex;
 
     /**
-     * @brief For each half-edge in the mesh, stores an opposite half-edge or -1 if it is a border.
+     * @brief For each half-edge in the mesh, stores the opposite half-edge, BORDER (-1) if it is a border, or COLLAPSED
+     * (-2) if it is a collapsed edge of an interface element.
      */
     std::vector<unsigned int> _oppositeHalfEdge;
 
@@ -290,9 +302,9 @@ private:
     /**
      * @brief Build the opposite table.
      *
-     * The algorithm builds a temporary map from each vertex to all elements that share that vertex and looks for edge
-     * with the same vertex, but with opposite direction. Whenever a pair of edges with this characteristic is found,the
-     * correspondent pair of half-edges is assigned as opposite to each other.
+     * The algorithm builds a temporary list, for each vertex, with the half-edges that start at that vertex. For each
+     * half-edge from vertex A to vertex B, it looks among the half-edges that start at B for one that goes back to A.
+     * Whenever such a pair is found, the two half-edges are assigned as opposites to each other.
      *
      * For those edges with no pair, the half-edge is assigned to -1, which means a border.
      */
