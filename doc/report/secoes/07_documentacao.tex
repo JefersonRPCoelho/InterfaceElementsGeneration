@@ -1,0 +1,187 @@
+\section{Documentação \texorpdfstring{$\times$}{x} implementação}
+\label{sec:documentacao}
+
+Esta seção confronta as três fontes de documentação --- a apresentação de projeto, os comentários do código e o artigo
+da IBHM --- com o que o código faz. Os comentários analisados são os de \code{IBHMInterfaceElementBuilder.h} e
+\code{IBHM.h}. A apresentação foi preparada \emph{antes} da implementação, de modo que parte das diferenças é
+simplesmente desatualização; ainda assim, vale registrá-las, porque a apresentação é hoje o principal documento do
+algoritmo. Cada item tem uma etiqueta: \textbf{[Erro]} (afirma algo falso sobre o código), \textbf{[Imprecisão]}
+(incompleto ou ambíguo), \textbf{[Desatualizado]} e \textbf{[Menor]} (redação, digitação).
+
+\subsection{Apresentação de projeto (\code{Operators\_Template})}
+
+\begin{nota}[O que confere]
+A decomposição em quatro operadores, as regras de decisão do slide 13, o comportamento do Canônico (aresta colapsada
+no interior, vértice novo na borda), o tratamento das arestas do meio (slide 14) e o exemplo completo (slides 15--27)
+coincidem com a implementação. Em particular, os 24 operadores anunciados no exemplo são exatamente os escolhidos pelo
+código, e o resultado final tem os mesmos buracos ($K$: 4 lados, $L$: 3, $M$: 6) e a mesma aresta colapsada em $F$.
+\end{nota}
+
+\begin{enumerate}[label=\textbf{A\arabic*.}, leftmargin=2.3em]
+\item \textbf{[Desatualizado]} Nomes: os slides usam \emph{Expand Collapsed Edge} (\code{expandCollapsedEdge}) e
+\emph{Hole} (\code{hole(he)}); no código são \code{EXPAND\_EDGE}/\code{expandEdge} e \code{OPEN\_HOLE}/\code{openHole}.
+\item \textbf{[Imprecisão]} Slide 6, condição do Split Element: ``\emph{shares an outcome half-edge}''. O código testa
+duas hipóteses: um lado do elemento de interface que \emph{sai} do vértice ($x_1$) ou que \emph{chega} nele ($x_3$),
+conforme o elemento compartilhado contenha $he$ ou $b$ (\cref{sec:split}). O slide 7 fala em ``\emph{income/outcome}'',
+que é o correto. Também vale explicitar que a hipótese depende da posição da aresta nova em relação ao elemento de
+interface, não da half-edge escolhida pelo usuário.
+\item \textbf{[Imprecisão]} Slide 7: ``\emph{This operator replaces the algorithm that rotates around a vertex}''. Na
+implementação os dois coexistem, e o Split Element é um atalho $O(1)$ do Expand Edge que produz a mesma topologia
+(\cref{sec:relacoes}). Seria mais preciso dizer que ele \emph{evita} a rotação quando o elemento compartilhado existe.
+\item \textbf{[Desatualizado]} Slide 9, Expand: ``\emph{We need to perform a traversal around the vertex starting from
+both element's side}''. O código faz uma única rotação anti-horária, que começa na aresta colapsada e para na aresta
+nova. A travessia pelos dois lados existe, mas no Open Hole. A preocupação do slide com o produto vetorial também não se
+aplica à solução adotada: a rotação é combinatória ($h\leftarrow\Op[\prv(h)]$) e não usa geometria.
+\item \textbf{[Imprecisão]} Slides 11--12, Hole: ``\emph{the edge in the interface element is also duplicated for the
+new two vertices}'' e ``\emph{both edge's vertices should be handled as in Expand}''. O código não duplica aresta
+alguma: ele descola os lados curtos de dois elementos de interface que estavam colados ($\Op\leftarrow\BORDER$), move um
+canto de um deles para o vértice novo, e usa duas travessias que param em elementos de interface --- um procedimento
+diferente do Expand.
+\item \textbf{[Imprecisão]} Slide 13, regra 3 (``\emph{part of an interface element, but not duplicated: this
+condition will open a hole}''): não distingue vértices internos de vértices de borda. O código segue a regra ao pé da
+letra e aplica Open Hole também na borda, onde não há buraco a abrir e a execução falha (\cref{sec:falha-borda}). A
+especificação precisa de um caso para a borda.
+\item \textbf{[Imprecisão]} Slide 5: ``\emph{the opposite half-edge for these edges is not defined}''. No código ela é
+definida, com o valor sentinela \COLLAPSED{} ($-2$), que as consultas reconhecem (\code{isBorder} pula essas arestas).
+Esse estado é uma extensão da estrutura de dados e merece ser documentado como tal.
+\item \textbf{[Menor]} Slide 2: ``IBVHM'' em vez de ``IBHM''.
+\item \textbf{[Menor]} O slide 27 tem o título ``\emph{Mesh Example -- Edge 11}'', igual ao do slide 26, mas mostra o
+estado após a aresta 12.
+\item \textbf{[Observação]} Slide 14: ``\emph{all the operators are designed to work on vertices. This property is
+desired in order to be easily translated to 3D}''. Em 3D a duplicação acontece também em \emph{arestas} (\cref{sec:3d});
+a afirmação vale como objetivo, mas é um ponto de risco.
+\end{enumerate}
+
+\subsection{Comentários do código}
+
+\begin{enumerate}[label=\textbf{B\arabic*.}, leftmargin=2.3em]
+\item \textbf{[Erro]} \code{openHole}, parâmetro \code{he}: ``\emph{This vertex should be part of a collapsed edge}''.
+É o contrário: Open Hole é escolhido justamente quando o vértice \emph{não} tem aresta colapsada (texto copiado de
+\code{expandEdge}).
+\item \textbf{[Erro]} \code{IBHM::addPoint}: ``\emph{The function supposes that the required space is already
+allocated}''. Mas \code{reserveSpaceForNodes} usa \code{resize}, e \code{addPoint} usa \code{push\_back}: as coordenadas
+novas vão para depois do bloco reservado, o vetor de coordenadas cresce o dobro do necessário, e
+\code{coordinatesFromIndex} de um vértice novo devolve o valor zerado da reserva, não o que foi passado a
+\code{addPoint}. Hoje passa despercebido porque todos os pontos novos são criados na origem.
+\item \textbf{[Erro]} \code{IBHM::\_halfEdgeVertex}: ``\emph{For each \_numberVerticesByElement vector values, an
+element is represented}''. A IBHM não tem esse membro; os elementos são delimitados por \code{\_offset} (texto copiado da
+CHE).
+\item \textbf{[Erro]} Documentação da classe \code{IBHMInterfaceElementBuilder}: ``\emph{There are only 4 operators to
+3D}''. A implementação é 2D; provavelmente a intenção era ``apenas 4 operadores, pensados para serem estendidos a 3D''.
+\item \textbf{[Imprecisão]} \code{splitElement}: ``\emph{The interface element with this collapsed edge should have an
+edge in the element of he}''. Também pode ser no elemento de $\Op[he]$ (hipótese $x_3$, \cref{sec:split}).
+\item \textbf{[Imprecisão]} \code{heOpposite} e \code{\_oppositeHalfEdge} documentam apenas o valor $-1$ (borda); falta
+\COLLAPSED{} ($-2$).
+\item \textbf{[Imprecisão]} \code{computeNumberOfNewVertices}: ``\emph{n if it is in the border}''. O código soma 1
+\emph{por aresta} que toca um vértice de borda, então um vértice de borda com duas arestas no mesmo lote é contado como
+3 em vez de 2; arestas que depois serão rejeitadas também são contadas. O efeito é só reservar memória a mais.
+\item \textbf{[Imprecisão]} \code{reindexElementsCCW} não documenta a pré-condição de que a rotação não pode atravessar
+uma aresta colapsada: se $\Op[\prv(h)]=\COLLAPSED$, o laço usa o sentinela como índice. Nos usos atuais isso não ocorre,
+mas é um invariante implícito.
+\item \textbf{[Imprecisão]} \code{insertInterfaceElements} não documenta que arestas de borda e de elementos de interface
+são rejeitadas, nem que nada é informado a quem chamou; também não diz que as half-edges precisam ser índices válidos de
+elementos já existentes.
+\item \textbf{[Menor]} Os operadores documentam ``\emph{@return True if the operation was performed successfully and
+false otherwise}'', mas sempre devolvem \code{true}, e o valor é ignorado.
+\item \textbf{[Menor]} \code{numberReservedElements} diz devolver ``\emph{the number of elements}'', mas devolve o número
+de \emph{posições de half-edges} reservadas.
+\item \textbf{[Menor]} \code{canonical}: ``\emph{See @reindexElements}'' --- o método se chama
+\code{reindexElementsCCW}, e \code{@reindexElements} não é um comando Doxygen (seria \code{@see}).
+\item \textbf{[Menor]} \code{\_collapsed}: ``\emph{the value is the half-edge from the first-edge vertex}''. Mais
+preciso: o valor é a própria half-edge colapsada ($h_3$ ou $h_1$ do elemento de interface).
+\item \textbf{[Menor]} Restos de cópia e digitação: cabeçalho de \code{IBHM.h} com ``\emph{File: CHELevelOne.h}'';
+\code{elementsList} cita ``\emph{The CHE class}''; o destrutor está documentado como ``\emph{Default constructor}''; o
+construtor cita um parâmetro \code{numberOfVertices} que não existe; \code{buildOppositesLinear} fala em ``mapa do
+vértice para os elementos'', mas guarda, em vetores, as half-edges que partem de cada vértice; ``\emph{the bother}''
+(border) e ``\emph{the same build should be used}'' (builder).
+\end{enumerate}
+
+\subsection{Artigo da IBHM}
+
+\begin{enumerate}[label=\textbf{C\arabic*.}, leftmargin=2.3em]
+\item \textbf{[Imprecisão no artigo]} Equação (1): $\mathrm{next}_{he}(he,c):=Of[c]+\mathrm{circ}(he+1,n_v(c))$. Lida
+literalmente, com $he$ sendo o índice global, a fórmula só funciona quando $Of[c]$ é múltiplo de $n_v(c)$, o que em
+geral não acontece em malhas híbridas. No próprio exemplo da Figura~4 do artigo, a face 2 (quadrilátero) tem $Of=3$ e
+half-edges 4 a 7; a fórmula dá $\mathrm{next}(4)=3+\mathrm{circ}(5,4)=4$, quando deveria dar 5. A forma correta aplica
+o $\mathrm{circ}$ ao índice local: $Of[c]+\mathrm{circ}(he-Of[c]+1,\,n_v(c))$. A implementação usa a forma correta
+(\code{firstHE + (he - firstHE + 1) \% n}).
+\item \textbf{[Imprecisão no artigo, menor]} Algoritmo~4 (estrela de um vértice): como está impresso, para um vértice
+de borda o laço executa $he\leftarrow\Op[\prv(he)]=0$ e insere $\mathrm{cell}_{he}(0)$ antes de testar a condição de
+parada, e a célula de $VH[v]$ só é incluída quando o laço volta a ela (vértices internos). Ao que parece, a intenção é
+inserir primeiro a célula de $VH[v]$ e testar $\Op[\prv(he)]=0$ antes de avançar. O algoritmo não é usado pela
+implementação.
+\item \textbf{[Divergência]} A implementação não tem o vetor $VH[\,]$. Por isso \code{isBorder} precisa girar em torno
+do vértice ($O(d\log n_c)$ em vez de $O(1)$), e é nessa rotação que mora o defeito I2 (\cref{sec:defeitos}). Manter $VH[\,]$ atualizado pelos operadores é simples (cada operador sabe quais cantos mudou) e
+eliminaria as rotações de teste.
+\item \textbf{[Divergência]} Convenções diferentes (índices a partir de zero, $-1$ para borda, $n_c+1$ offsets, estado
+\COLLAPSED), resumidas na \cref{tab:estruturas}. Não são erros, mas devem ser registradas para quem comparar código e
+artigo.
+\item \textbf{[Observação]} O artigo aponta como limitação da IBHM o remalhamento dinâmico. A estratégia
+``contar $\to$ reservar $\to$ validar'' da implementação é uma resposta a essa limitação e merece ser destacada em uma
+futura publicação.
+\end{enumerate}
+
+\subsection{Arquivos de dados}
+
+\begin{enumerate}[label=\textbf{D\arabic*.}, leftmargin=2.3em]
+\item \textbf{[Menor]} Em \code{malha2Hyb.txt} o vértice 18 ($T$) tem coordenadas $(3,4)$; nos slides ele está em
+$(4,3)$. Com $(3,4)$, o triângulo $M$--$T$--$S$ fica degenerado (três vértices colineares em $x=3$). A topologia não é
+afetada, mas qualquer visualização ou verificação geométrica será. As figuras deste relatório usam $(4,3)$.
+\item \textbf{[Menor]} \code{meshIBHM.txt} reproduz a Figura~4 do artigo, mas o último triângulo começa em outro
+vértice, o que muda a numeração de suas half-edges em relação ao artigo.
+\item \textbf{[Menor]} \code{readHybridMesh} (\code{main.cpp}) imprime os offsets a cada elemento lido, o que polui a
+saída em malhas grandes.
+\end{enumerate}
+
+\subsection{Defeitos e limitações encontrados no código}
+\label{sec:defeitos}
+
+A \cref{tab:defeitos} reúne os problemas de \code{IBHMInterfaceElementBuilder} e \code{IBHM} encontrados durante a
+análise e confirmados com o programa de teste, com uma sugestão de correção. Como esta é a implementação que será
+evoluída, todos devem ser corrigidos; os de gravidade alta impedem o uso em malhas gerais (de triângulos, ou com trincas
+que chegam à borda). Nenhuma correção foi aplicada ao código.
+
+\begin{table}[ht]
+\centering\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\linewidth}{c c >{\raggedright\arraybackslash}p{3.0cm} X}
+\toprule
+ID & Grav. & Onde & Defeito e sugestão\\
+\midrule
+I1 & alta & \code{openHole} & Vértice de borda (externa ou de furo) já aberto recebendo nova aresta: asserção (debug)
+ou escrita fora do vetor (release); 141 das 400 malhas da rodada 1. \emph{Sugestão:} permitir que os dois laços parem na
+borda; se o laço anti-horário parar na borda, não há canto de elemento de interface a mover; no laço horário, testar
+$\Op[h]=\BORDER$ \emph{antes} de aplicar $\nxt$. Nos vértices de borda os lados curtos já são de borda, então nada mais
+muda.\\
+I2 & alta & \code{isBorder}, \code{insertInterface\allowbreak{}Elements} & Laço infinito quando a half-edge inicial vem
+logo após uma aresta colapsada: o desvio ``pula'' exatamente a half-edge de parada. Acontece quando a entrada contém uma
+half-edge de elemento de interface, porque a rejeição dessas arestas vem \emph{depois} da pré-contagem. \emph{Sugestão:}
+validar a entrada antes de contar e testar a parada também após o desvio.\\
+I3 & média & \code{insertInterface\allowbreak{}Elements}, \code{reserveSpace\allowbreak{}ForElements} & Entrada sem
+validação de índice: um índice maior que o vetor dispara uma asserção; um índice no espaço reservado e ainda não validado
+é aceito, porque as posições reservadas de $\Op[\,]$ começam com 0 (uma half-edge válida). \emph{Sugestão:} aceitar só
+$h<Of[n_c]$ e inicializar as posições reservadas de $\Op[\,]$ com \BORDER.\\
+I4 & média & \code{addPoint}, \code{reserveSpace\allowbreak{}ForNodes} & Coordenadas novas gravadas fora do lugar (B2).
+\emph{Sugestão:} usar \code{reserve} ou escrever na posição do índice; atribuir às cópias a coordenada do vértice de
+origem.\\
+I5 & baixa & \code{computeNumber\allowbreak{}OfNewVertices} & Contagem em excesso na borda, para arestas rejeitadas e
+para arestas repetidas no lote (B7). Só desperdiça memória.\\
+I6 & baixa & \code{retrieveAvailable\allowbreak{}Vertex}, \code{openHole}, \code{reindexElements\allowbreak{}CCW} & Os
+sentinelas \BORDER{} e \COLLAPSED{} podem chegar a $\nxt$/$\prv$ (B8; segundo laço do Open Hole; \COLLAPSED{} não é
+testado em $x_1$/$x_3$). Na IBHM isso vira uma busca binária com índice inválido. \emph{Sugestão:} testes explícitos
+antes de cada $\nxt$/$\prv$ aplicado a uma oposta.\\
+I7 & baixa & operadores, \code{insertInterface\allowbreak{}Elements} & Não há relato de erro: os operadores sempre
+devolvem \code{true} (B10) e o método devolve \code{void}; rejeições só aparecem no console. \emph{Sugestão:} devolver a
+lista de arestas inseridas/rejeitadas e um estado de erro.\\
+I8 & baixa & \code{insertInterface\allowbreak{}Elements} & A mensagem de operador indefinido para $B$ imprime \code{a}
+em vez de \code{b}; \code{\%d} com \code{unsigned}.\\
+I9 & manut. & \code{IBHM} & Toda consulta $\nxt$/$\prv$ refaz a busca binária; nas rotações, o elemento corrente já é
+conhecido e o intervalo dele poderia ser reaproveitado.\\
+I10 & manut. & build & \code{IBHM.cpp} usa \code{memset} e \code{std::upper\_bound} sem incluir \code{<cstring>} e
+\code{<algorithm>} (compila por inclusão transitiva, o que não é garantido em outros compiladores);
+\code{CMakeLists.txt} exige Qt, que o código atual não usa.\\
+\bottomrule
+\end{tabularx}
+\caption{Defeitos encontrados em \code{IBHMInterfaceElementBuilder} e \code{IBHM}, por gravidade.}
+\label{tab:defeitos}
+\end{table}

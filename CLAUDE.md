@@ -1,0 +1,96 @@
+# CLAUDE.md
+
+Contexto para as sessões do Claude Code neste repositório. O projeto é longo (2D → testes → GeMA → 3D); leia isto
+antes de mexer no código ou no relatório.
+
+## Objetivo
+
+Inserir automaticamente **elementos de interface** (quadriláteros de espessura nula, 4 nós em pares coincidentes) em
+malhas de elementos finitos, a partir de um conjunto de arestas (faces em 3D), de forma **incremental/adaptativa** e
+sobre uma estrutura de dados compacta baseada em índices (**IBHM**, Lage et al. 2017, `doc/papers/`). Autor do
+algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
+
+## O que é base e o que é legado
+
+- **Base a ser evoluída:** `core/InterfaceElementsBuilder/IBHMInterfaceElementBuilder.{h,cpp}` sobre
+  `core/TopologyDataStructures/IBHM.{h,cpp}`. Não pode ter defeitos: toda mudança deve passar pelos testes abaixo.
+- **Legado (experimento inicial, não evoluir, ignorar em relatórios):** `CHE.{h,cpp}` e
+  `CHEInterfaceElementBuilder.{h,cpp}`, e os arquivos `malha.txt` e `malha2.txt`. A *teoria* da CHE continua válida
+  como base conceitual da IBHM.
+- `doc/ppt/Operators_Template.{pptx,pdf}` (mesmo conteúdo) foi feita **antes** da implementação e está parcialmente
+  desatualizada; em caso de conflito, vale o código. As divergências estão listadas no relatório (seção 7).
+
+## Como o algoritmo funciona (resumo)
+
+- Para cada half-edge `a` (A→B, elemento U) com oposta `b` (B→A, elemento L), cria um elemento `[F,G,H,E]` com
+  half-edges `h0..h3 = nextAvailableHE()..+3`. `h0 ↔ b` e `h2 ↔ a` ("arestas do meio", sempre ligadas no fim);
+  `h3` (lado curto em A) e `h1` (lado curto em B) são responsabilidade dos operadores, chamados com `(a, h3)` e `(b, h1)`.
+- Convenção: a origem de `elementHE` fica do lado do elemento que contém `edgeHE`; `next(elementHE)` fica do outro lado.
+- Sentinelas em `O[]`: `BORDER = -1`, `COLLAPSED = -2` (lado curto de comprimento zero, vértice ainda não duplicado).
+- Estado do builder: `_inInterfaceElement[v]`, `_isInterfaceElement[e]`, `_collapsed` (vértice → half-edge colapsada).
+  Um único builder por malha durante toda a edição.
+- Escolha do operador (só pelo estado do vértice de `he`):
+  - vértice fora de EI → **Canônico** (interno: aresta colapsada, 0 vértices; borda: vértice novo + rotação até a borda);
+  - colapsado e EI vizinho de um elemento da aresta nova (hipóteses x1/x3) → **Split Element** (O(1));
+  - colapsado, sem elemento comum → **Expand Edge** (rotação anti-horária de `c` até `he`);
+  - em EI sem colapsada → **Open Hole** (abre/aumenta o buraco).
+- Split Element é um caso particular (otimização) do Expand Edge: trocar um pelo outro dá a mesma topologia.
+- Invariante: cada vértice termina com tantas cópias quantos são os componentes da sua estrela cortada pelas arestas
+  selecionadas (interno com 1 aresta: 1 cópia, colapsado; borda com k arestas: k+1). Por isso o resultado não depende
+  da ordem de inserção nem de inserir em lote.
+- Na IBHM, `commitElement(4)` é chamado **antes** dos operadores (next/prev dependem de `_offset`), e posições
+  reservadas de `O[]` começam com 0.
+
+## Defeitos conhecidos da IBHM (relatório v0.2, seção 7.5) — ainda não corrigidos
+
+- **I1 (alta)** `openHole` em vértice de borda (externa ou de furo) já aberto: asserção/escrita fora do vetor.
+  Comum em malhas de triângulos.
+- **I2 (alta)** `isBorder` entra em laço infinito se a entrada contém half-edge de elemento de interface (a rejeição
+  vem depois de `computeNumberOfNewVertices`).
+- **I3** entrada sem validação de índice (índice no espaço reservado é aceito). **I4** `addPoint` usa `push_back` após
+  `reserveSpaceForNodes` usar `resize`. **I5–I10**: ver relatório.
+
+## Build e testes
+
+- `CMakeLists.txt` exige Qt (para uma futura interface), mas o núcleo não usa Qt. Para testar, compile direto:
+  ```
+  c++ -std=c++17 -Icore/TopologyDataStructures -Icore/InterfaceElementsBuilder \
+      doc/report/tools/driver.cpp core/TopologyDataStructures/IBHM.cpp \
+      core/InterfaceElementsBuilder/IBHMInterfaceElementBuilder.cpp -o $W/driver
+  ```
+- `doc/report/tools/driver.cpp`: insere arestas (`--batch` para lote), imprime o operador por vértice, valida a
+  topologia (V1–V6: opostas simétricas, vértices consistentes, colapsadas degeneradas, um leque por vértice, todo
+  vértice usado, contagem prevista = criada) e grava JSON. Exemplo dos slides:
+  `$W/driver malha2Hyb.txt $W/ex.json 31 34 11 26 47 38 23 19 30 42 29 45` → 19 vértices novos, `TOTAL ERRORS: 0`.
+- `doc/report/tools/stress.py <driver> <seed> <casos> <dir> [--skip-border-multi]`: malhas aleatórias (quad, tri,
+  híbrida, polígonos), 3 ordens + lote. Referência v0.2: seed 21/400 → 259 ok e 141 abortos (todos I1); seed 22/400
+  com `--skip-border-multi` → 400/400 ok. Após corrigir I1, a primeira rodada deve passar inteira.
+- `doc/report/tools/compare.py`: compara topologias (partição dos cantos dos elementos originais).
+- Formato de malha (`malha2Hyb.txt`, `meshIBHM.txt`): `np ne`, `np` linhas `x y`, `ne` linhas `n v0 ... v(n-1)`.
+  Obs.: em `malha2Hyb.txt` o vértice 18 deveria estar em (4,3), não (3,4) (só afeta geometria).
+
+## Relatório técnico (`doc/report/`)
+
+- Em português; fontes em `relatorio.tex`, `styles.tex`, `secoes/*.tex`; figuras de malha em `figs/` são **geradas**
+  por `tools/gen.py` a partir de execuções reais do driver (não editar à mão; regenerar).
+- Compilar com `tectonic -X compile relatorio.tex` (instalado via Homebrew) ou xelatex.
+- **Versionamento obrigatório:** nunca sobrescrever versões anteriores. A cada nova versão: incrementar `\versao` em
+  `relatorio.tex`, acrescentar linha na tabela de histórico (após o resumo) e em `historico/HISTORICO.md`, compilar e
+  copiar o PDF para `historico/relatorio_vX.Y.pdf`. Versão atual: **0.2**.
+- **Só gerar uma nova versão quando o autor pedir.** Os itens pedidos para a próxima versão ficam na seção
+  "Pendências para a próxima versão" de `historico/HISTORICO.md`; consulte-a ao gerar o relatório.
+
+## Convenções de código
+
+- C++17, comentários e identificadores em inglês, Doxygen (`/** ... */`, `@param`, `@return`), indentação de 4 espaços,
+  chaves em linha própria, linhas de até 120 colunas, `[[nodiscard]]` em consultas.
+- Qualquer correção deve valer para malhas híbridas (triângulos, quadriláteros, polígonos) e ser verificada com o
+  driver e o stress test antes de ser dada como pronta.
+
+## Roteiro
+
+1. Corrigir I1–I4 e transformar o driver/stress em testes automatizados (CTest).
+2. Geometria das cópias (coordenada do vértice de origem) e mapa vértice novo → origem (transferência de campos).
+3. Relato de erros/rejeições na API; manter `VH[]` da IBHM.
+4. Integração com o GeMA.
+5. Extensão 3D (faces selecionadas; duplicação também de arestas; operadores 2D reaparecem como operadores de aresta).

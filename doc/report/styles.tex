@@ -1,0 +1,31 @@
+% Shared TikZ styles for the report figures (generated figures in figs/ use these names).
+\usetikzlibrary{arrows.meta, patterns, positioning, shapes.geometric, shapes.misc, calc, decorations.pathreplacing,
+  decorations.markings, fit, backgrounds}
+
+\definecolor{ceblue}{RGB}{214,240,250}
+\definecolor{ieorange}{RGB}{250,200,150}
+\definecolor{vblue}{RGB}{52,92,160}
+\definecolor{iehl}{RGB}{255,170,40}
+
+\tikzset{
+  cefill/.style={fill=ceblue, draw=black!75, line width=0.45pt, line join=round},
+  iefill/.style={fill=ieorange, draw=orange!55!black, line width=0.45pt, line join=round},
+  holefill/.style={pattern=north east lines, pattern color=black!55},
+  seledge/.style={draw=red!80!black, line width=1.3pt},
+  curedge/.style={draw=red, line width=2.4pt},
+  edgenum/.style={text=red!80!black, font=\tiny\bfseries, inner sep=0.5pt},
+  hearrow/.style={-{Stealth[length=3.2pt, width=2.6pt]}, line width=0.55pt},
+  helabel/.style={font=\scriptsize, inner sep=0.3pt},
+  vreg/.style={circle, fill=vblue, text=white, inner sep=0pt, font=\scriptsize\bfseries},
+  vie/.style={circle, fill=vblue, text=iehl, inner sep=0pt, font=\scriptsize\bfseries},
+  vcol/.style={circle, fill=vblue, text=iehl, draw=red, line width=1.1pt, inner sep=0pt, font=\scriptsize\bfseries},
+  dot/.style={minimum size=3.2pt, inner sep=0pt, line width=0.6pt},
+  elemlabel/.style={font=\footnotesize\sffamily\bfseries, text=black!55},
+  % hand-drawn diagrams
+  box/.style={draw=black!70, rounded corners=2pt, fill=white, align=center, font=\small, inner sep=4pt},
+  decision/.style={draw=black!70, diamond, aspect=2.2, fill=yellow!12, align=center, font=\small, inner sep=1pt},
+  opbox/.style={draw=black!70, rounded corners=3pt, align=center, font=\small\bfseries, inner sep=5pt, minimum width=2.5cm},
+  state/.style={draw=black!70, rounded corners=6pt, align=center, font=\small, inner sep=5pt, minimum width=2.3cm,
+    minimum height=1cm},
+  flow/.style={-{Stealth[length=5pt]}, line width=0.7pt},
+}

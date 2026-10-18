@@ -1,0 +1,42 @@
+\section{Reprodução das figuras e dos testes}
+\label{app:repro}
+
+Os arquivos ficam em \code{doc/report/}:
+\begin{itemize}
+\item \code{tools/driver.cpp}: programa de teste da \code{IBHMInterfaceElementBuilder}. Compila \code{IBHM.cpp} e
+\code{IBHMInterfaceElementBuilder.cpp} sem alterações (para ler o estado privado do construtor, usa
+\code{\#define private public} \emph{apenas} nesta unidade de compilação), insere as arestas uma a uma ou em lote
+(\code{--batch}), aplica as verificações V1--V6 e grava todos os estados intermediários em JSON.
+\item \code{tools/gen.py}: monta as malhas pequenas, chama o \code{driver} e gera as figuras TikZ em \code{figs/}.
+\item \code{tools/stress.py} e \code{tools/compare.py}: teste com malhas aleatórias e comparação de topologias.
+\item \code{relatorio.tex}, \code{styles.tex} e \code{secoes/}: o texto. A versão fica na macro \code{\textbackslash
+versao} de \code{relatorio.tex}.
+\item \code{historico/}: o PDF de cada versão publicada (\code{relatorio\_vX.Y.pdf}), e \code{HISTORICO.md} com o
+resumo das mudanças.
+\end{itemize}
+
+\noindent Comandos (a partir da raiz do repositório; \code{\$W} é um diretório de trabalho qualquer):
+\begin{lstlisting}[language=bash]
+c++ -std=c++17 -Icore/TopologyDataStructures -Icore/InterfaceElementsBuilder \
+    doc/report/tools/driver.cpp core/TopologyDataStructures/IBHM.cpp \
+    core/InterfaceElementsBuilder/IBHMInterfaceElementBuilder.cpp -o $W/driver
+$W/driver malha2Hyb.txt $W/ex.json 31 34 11 26 47 38 23 19 30 42 29 45     # exemplo dos slides
+python3 doc/report/tools/gen.py $W/driver doc/report/figs $W/work
+python3 doc/report/tools/stress.py $W/driver 21 400 $W/s1                       # rodada 1
+python3 doc/report/tools/stress.py $W/driver 22 400 $W/s2 --skip-border-multi   # rodada 2
+cd doc/report && tectonic -X compile relatorio.tex                              # ou xelatex
+\end{lstlisting}
+
+\noindent Exemplo de saída do \code{driver} para o exemplo dos slides:
+\begin{lstlisting}[language={}]
+step  1 edge he=31 (10-15)  A:CANONICAL     B:CANONICAL     new=1 predicted=1 ok
+step  2 edge he=34 (10-11)  A:SPLIT_ELEMENT B:CANONICAL     new=1 predicted=1 ok
+...
+step 12 edge he=45 (32-18)  A:OPEN_HOLE     B:CANONICAL     new=2 predicted=2 ok
+TOTAL ERRORS: 0
+\end{lstlisting}
+
+As posições dos vértices nas figuras são calculadas apenas para visualização: cada cópia de um vértice é deslocada de
+uma pequena distância na direção média dos centróides dos elementos contínuos que a usam, e os cantos de um elemento de
+interface sobre uma aresta colapsada são afastados na direção do elemento vizinho, para que a aresta de comprimento zero
+fique visível.

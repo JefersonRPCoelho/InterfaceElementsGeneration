@@ -1,0 +1,154 @@
+% Relatório técnico: inserção de elementos de interface em malhas 2D.
+% Compilar com:  tectonic -X compile relatorio.tex   (ou xelatex/lualatex)
+% As figuras de malha em figs/ são geradas por tools/gen.py a partir de execuções reais do código.
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[a4paper,margin=2.3cm]{geometry}
+\usepackage{amsmath}
+\usepackage{libertinus}
+\usepackage[brazilian]{babel}
+
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{booktabs,tabularx,multirow,array}
+\usepackage{enumitem}
+\usepackage{caption,subcaption}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\usepackage{listings}
+\usepackage[most]{tcolorbox}
+\usepackage{float}
+\usepackage[section]{placeins}
+\usepackage[hidelinks]{hyperref}
+\usepackage[nameinlink,noabbrev,brazilian]{cleveref}
+
+\input{styles.tex}
+
+\captionsetup{font=small,labelfont=bf,format=hang}
+\setlist{itemsep=2pt,topsep=4pt}
+\setlength{\parskip}{3pt}
+\setlength{\emergencystretch}{3em}
+\captionsetup[subfigure]{justification=centering}
+
+% --- pseudo-código em português -------------------------------------------------------------------------------------
+\floatname{algorithm}{Algoritmo}
+\renewcommand{\listalgorithmname}{Lista de algoritmos}
+\algrenewcommand\algorithmicif{\textbf{se}}
+\algrenewcommand\algorithmicthen{\textbf{então}}
+\algrenewcommand\algorithmicelse{\textbf{senão}}
+\algrenewcommand\algorithmicfor{\textbf{para}}
+\algrenewcommand\algorithmicforall{\textbf{para cada}}
+\algrenewcommand\algorithmicdo{\textbf{faça}}
+\algrenewcommand\algorithmicwhile{\textbf{enquanto}}
+\algrenewcommand\algorithmicrepeat{\textbf{repita}}
+\algrenewcommand\algorithmicuntil{\textbf{até que}}
+\algrenewcommand\algorithmicreturn{\textbf{retorne}}
+\algrenewcommand\algorithmicprocedure{\textbf{procedimento}}
+\algrenewcommand\algorithmicfunction{\textbf{função}}
+\algrenewcommand\algorithmicrequire{\textbf{Entrada:}}
+\algrenewcommand\algorithmicensure{\textbf{Saída:}}
+\algrenewcommand{\algorithmiccomment}[1]{\hfill{\color{black!55}\(\triangleright\) #1}}
+\crefname{algorithm}{Algoritmo}{Algoritmos}
+\crefname{figure}{Figura}{Figuras}
+\crefname{table}{Tabela}{Tabelas}
+\crefname{section}{Seção}{Seções}
+\crefname{subsection}{Seção}{Seções}
+\crefname{appendix}{Apêndice}{Apêndices}
+
+% --- notação ---------------------------------------------------------------------------------------------------------
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\V}{\mathrm{V}}
+\newcommand{\Op}{\mathrm{O}}
+\newcommand{\nxt}{\mathrm{next}}
+\newcommand{\prv}{\mathrm{prev}}
+\newcommand{\BORDER}{\textsc{border}}
+\newcommand{\COLLAPSED}{\textsc{collapsed}}
+\newcommand{\opname}[1]{\textsf{\bfseries #1}}
+
+\lstset{basicstyle=\ttfamily\footnotesize, keywordstyle=\color{blue!60!black}\bfseries, commentstyle=\color{black!55},
+  language=C++, frame=single, framerule=0.3pt, rulecolor=\color{black!30}, columns=fullflexible, breaklines=true,
+  showstringspaces=false, xleftmargin=4pt, xrightmargin=4pt}
+
+\newtcolorbox{nota}[1][]{colback=blue!3, colframe=blue!40!black, boxrule=0.5pt, arc=2pt, left=6pt, right=6pt,
+  top=4pt, bottom=4pt, fonttitle=\bfseries\small, title={#1}}
+\newtcolorbox{alerta}[1][]{colback=red!3, colframe=red!50!black, boxrule=0.5pt, arc=2pt, left=6pt, right=6pt,
+  top=4pt, bottom=4pt, fonttitle=\bfseries\small, title={#1}}
+
+% Versão do relatório: incrementar a cada nova versão e registrar em historico/ e na tabela de histórico.
+\newcommand{\versao}{0.2}
+
+\title{\textbf{Inserção adaptativa de elementos de interface}\\ \textbf{em malhas 2D}\\[4pt]
+  \large Operadores topológicos sobre estruturas de dados compactas baseadas em índices}
+\author{Jeferson Coelho\\ \small Tecgraf/PUC-Rio\thanks{Texto redigido com o auxílio do Claude Code a partir do
+  código do ramo \code{feature/edge-element-insertion} (commit \code{ce3461d}), da apresentação
+  \code{doc/ppt/Operators\_Template} e do artigo da IBHM~\cite{ibhm}. As figuras de malha foram geradas executando o
+  próprio código (\cref{app:repro}). As versões anteriores estão em \code{doc/report/historico/}.}}
+\date{Relatório técnico — versão \versao{} — outubro de 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent Este relatório documenta o primeiro protótipo, em 2D, de um algoritmo para inserir elementos de interface de
+espessura nula em malhas de elementos finitos representadas por estruturas de dados topológicas compactas (CHE e
+IBHM). O algoritmo recebe um conjunto de arestas e, para cada uma, cria um quadrilátero degenerado e repara a vizinhança
+de seus dois vértices aplicando um entre quatro operadores --- \opname{Canônico}, \opname{Split Element},
+\opname{Expand Edge} e \opname{Open Hole} ---, escolhido exclusivamente a partir do \emph{estado do vértice}.
+Descrevemos o problema, a estrutura IBHM, a arquitetura do algoritmo, cada operador com seus detalhes de implementação e
+o algoritmo de travessia, tal como implementados na classe \code{IBHMInterfaceElementBuilder}, que é a base a ser
+evoluída. Cada caso é ilustrado com figuras produzidas pelo próprio código. Em seguida, confrontamos a implementação com
+a apresentação de projeto, com seus comentários e com o artigo da IBHM, apontando imprecisões. Uma verificação
+experimental com 800 malhas aleatórias (triângulos, quadriláteros, malhas híbridas e polígonos de seis lados) confirma, em
+todas as configurações suportadas, a validade topológica, a contagem exata de vértices novos e a independência da ordem
+de inserção (inclusive na inserção em lote). Ela também revela falhas que precisam ser corrigidas: vértices de borda com
+mais de uma aresta selecionada, entradas que contêm arestas de elementos de interface e índices de half-edge inválidos.
+\end{abstract}
+
+\begin{center}\small
+\begin{tabular}{clp{11.2cm}}
+\toprule
+Versão & Data & Mudanças\\
+\midrule
+0.1 & 18/10/2026 & Primeira versão, baseada na classe \code{CHEInterfaceElementBuilder}.\\
+0.2 & 18/10/2026 & Análise refeita sobre a classe \code{IBHMInterfaceElementBuilder}, base a ser evoluída; a implementação
+baseada na CHE deixa de ser considerada (a teoria da CHE foi mantida). Nova figura com os vetores da IBHM antes e depois
+de uma inserção; verificação com 800 malhas de triângulos, quadriláteros, híbridas e com polígonos, inclusive inserção em
+lote; novos casos-limite (índices inválidos, malha com furo interno); lista de defeitos restrita à IBHM.\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\tableofcontents
+\newpage
+
+\input{secoes/01_introducao}
+\input{secoes/02_estruturas}
+\input{secoes/03_arquitetura}
+\input{secoes/04_operadores}
+\input{secoes/05_travessia}
+\input{secoes/06_verificacao}
+\input{secoes/07_documentacao}
+\input{secoes/08_conclusao}
+
+\begin{thebibliography}{9}\small
+\bibitem{ibhm} M.~Lage, L.~F. Martha, J.~P. Moitinho de Almeida, H.~Lopes.
+  \emph{IBHM: index-based data structures for 2D and 3D hybrid meshes}.
+  Engineering with Computers 33:727--744, 2017. DOI 10.1007/s00366-015-0395-0.
+\bibitem{che} M.~Lage, T.~Lewiner, H.~Lopes, L.~Velho. \emph{CHE: a scalable topological data structure for triangular
+  meshes}. Relatório técnico, PUC-Rio, 2005.
+\bibitem{chf} M.~Lage, T.~Lewiner, H.~Lopes, L.~Velho. \emph{CHF: a scalable topological data structure for
+  tetrahedral meshes}. SIBGRAPI 2005, pp.~349--356.
+\bibitem{mantyla} M.~Mäntylä. \emph{An Introduction to Solid Modeling}. Computer Science Press, 1988.
+\bibitem{tops} W.~Celes, G.~H. Paulino, R.~Espinha. \emph{A compact adjacency-based topological data structure for
+  finite element mesh representation}. Int. J. Numer. Methods Eng. 64:1529--1556, 2005.
+\bibitem{paulino} G.~H. Paulino, W.~Celes, R.~Espinha, Z.~Zhang. \emph{A general topology-based framework for adaptive
+  insertion of cohesive elements in finite element meshes}. Engineering with Computers 24:59--78, 2008.
+\bibitem{slides} J.~Coelho. \emph{Adaptive Interface Elements Generation -- 2D Case}. Apresentação (Tecgraf/PUC-Rio),
+  versão de 25/02/2026. Arquivos \code{doc/ppt/Operators\_Template.\{pptx,pdf\}}.
+\end{thebibliography}
+
+\appendix
+\input{secoes/09_apendice}
+
+\end{document}

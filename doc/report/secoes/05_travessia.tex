@@ -1,0 +1,126 @@
+\section{O algoritmo de travessia}
+\label{sec:travessia}
+
+\subsection{Inserção de um lote de arestas}
+
+O ponto de entrada é \code{insertInterfaceElements}, que recebe uma lista de half-edges (uma por aresta; qualquer uma
+das duas serve) e as processa na ordem dada (\cref{alg:insert}). Antes de alterar a malha, o método conta os vértices
+novos e reserva espaço para eles e para um elemento de quatro half-edges por aresta. Depois, para cada aresta, valida a
+entrada, abre o novo elemento a partir do gabarito da \cref{fig:gabarito}, escolhe e aplica o operador em $A$ e em $B$
+e, por fim, liga as arestas do meio. A \cref{sec:ibhm-insercao} mostra o efeito de cada passo nos vetores da IBHM.
+
+\begin{algorithm}[ht]
+\caption{\code{insertInterfaceElements}$(E)$ \quad (classe \code{IBHMInterfaceElementBuilder})}
+\label{alg:insert}
+\begin{algorithmic}[1]
+\Require lista $E$ de half-edges, uma por aresta a abrir
+\State $n_v\gets$ \code{computeNumberOfNewVertices}$(E)$
+\State \code{reserveSpaceForElements}$(4|E|, |E|)$; \code{reserveSpaceForNodes}$(n_v)$; aumenta
+\code{\_isInterfaceElement} e \code{\_inInterfaceElement}
+\ForAll{$a\in E$}
+  \State $b\gets\Op[a]$
+  \If{$b=\BORDER$ \textbf{ou} $b=\COLLAPSED$} \textbf{continue} \Comment{aresta de borda: rejeitada}
+  \EndIf
+  \If{$\mathrm{elem}(a)$ \textbf{ou} $\mathrm{elem}(b)$ é elemento de interface} \textbf{continue} \Comment{rejeitada}
+  \EndIf
+  \State $h_0\gets$ \code{nextAvailableHE}$()$; \quad $h_1,h_2,h_3\gets h_0+1,h_0+2,h_0+3$
+  \State $e\gets$ \code{commitElement}$(4)$ \Comment{antes dos operadores: $\nxt/\prv$ dependem de $Of[\,]$}
+  \State $\mathit{op}\gets$ \code{retrieveOperator}$(a)$; aplica $\mathit{op}$ com $(a,h_3)$ \Comment{vértice $A$}
+  \State $\mathit{op}\gets$ \code{retrieveOperator}$(b)$; aplica $\mathit{op}$ com $(b,h_1)$ \Comment{vértice $B$}
+  \State $\Op[h_0]\leftrightarrow b$; \quad $\Op[h_2]\leftrightarrow a$ \Comment{arestas do meio}
+  \State \code{\_isInterfaceElement}$[e]\gets$ \textbf{true}
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+Alguns detalhes de implementação merecem atenção:
+\begin{itemize}
+\item \textbf{Rejeições.} Arestas de borda e arestas que já pertencem a um elemento de interface (por exemplo, a mesma
+aresta pedida duas vezes, no mesmo lote ou em chamadas diferentes) são ignoradas com uma mensagem no console. Nada é
+devolvido a quem chamou, e o espaço reservado para elas fica sem uso. A validação, porém, acontece \emph{depois} da
+pré-contagem, e é aí que mora o defeito I2 (\cref{sec:defeitos}).
+\item \textbf{Validação antecipada do elemento.} \code{commitElement(4)} grava o offset do novo elemento antes de os
+operadores rodarem, porque na IBHM $\nxt$ e $\prv$ das half-edges $h_0,\dots,h_3$ dependem dele. Durante os operadores,
+as posições $\Op[h_0]$ e $\Op[h_2]$ ainda contêm o valor 0 da reserva; nenhuma rotação chega a elas porque nenhuma
+half-edge antiga aponta para o novo elemento até o fim da iteração.
+\item \textbf{Ordem $A$, depois $B$.} O operador de $B$ é escolhido depois de o operador de $A$ ter sido aplicado. Como
+os operadores só mexem na estrela do próprio vértice, isso não altera a decisão em $B$.
+\item \textbf{$a$ e $b$ ainda opostas.} Enquanto os operadores trabalham, $a$ e $b$ continuam opostas entre si; é isso
+que permite que as rotações em torno de $A$ e de $B$ atravessem a aresta que está sendo aberta (por exemplo, o laço
+horário do Open Hole parte de $he$ e passa por $\Op[he]$). Só no final $a$ e $b$ são religadas a $h_2$ e $h_0$.
+\item \textbf{Lote ou uma a uma.} Chamar o método uma vez com todas as arestas ou uma vez por aresta produz a mesma
+topologia (\cref{sec:verificacao}); a diferença é só a quantidade de reservas de memória.
+\end{itemize}
+
+\subsection{O exemplo completo, passo a passo}
+\label{sec:exemplo}
+
+A \cref{tab:exemplo} lista o operador escolhido pelo código em cada extremidade, para as 12 arestas do exemplo da
+apresentação, na ordem dos slides. Os 24 operadores coincidem exatamente com os anunciados nos slides 15 a 26 da
+apresentação~\cite{slides}. A \cref{fig:passos} mostra o estado da malha depois de cada inserção, e a
+\cref{fig:final} o resultado final com todos os vértices nomeados.
+
+\begin{table}[ht]
+\centering\small
+\input{figs/example_table.tex}
+\caption{Operadores escolhidos pelo código no exemplo (IBHM, malha \code{malha2Hyb.txt}). $X_i$ é a $i$-ésima cópia
+criada do vértice $X$. A coluna $A$--$B$ mostra a orientação da half-edge usada (por isso a aresta 1, ``$QK$'' nos
+slides, aparece como $K$--$Q$).}
+\label{tab:exemplo}
+\end{table}
+
+\begin{figure}[p]
+\centering
+\newcommand{\passo}[2]{\begin{subfigure}[t]{0.32\linewidth}\centering\input{figs/example_step#1.tex}\caption*{\scriptsize #2}\end{subfigure}}
+\passo{01}{1: $K$ Canônico, $Q$ Canônico (borda)}\hfill
+\passo{02}{2: $K$ Split, $L$ Canônico}\hfill
+\passo{03}{3: $G$ Canônico, $C$ Canônico (borda)}\\[3pt]
+\passo{04}{4: $M$ Canônico, $H$ Canônico (borda)}\hfill
+\passo{05}{5: $S$ Canônico (borda), $M$ Expand}\hfill
+\passo{06}{6: $L$ Expand, $M$ Open Hole}\\[3pt]
+\passo{07}{7: $L$ Open Hole, $G$ Expand}\hfill
+\passo{08}{8: $K$ Open Hole, $F$ Canônico}\hfill
+\passo{09}{9: $J$ Canônico (borda), $K$ Open Hole}\\[3pt]
+\passo{10}{10: $M$ Open Hole, $N$ Canônico (borda)}\hfill
+\passo{11}{11: $M$ Open Hole, $I$ Canônico (borda)}\hfill
+\passo{12}{12: $M$ Open Hole, $T$ Canônico (borda)}
+\caption{Estado da malha após cada uma das 12 inserções do exemplo (vista explodida). As arestas ainda não inseridas
+estão em vermelho e a próxima, em vermelho grosso. Observe a sequência em $M$: colapsado (4), dividido por Expand (5),
+buraco triangular (6) que cresce até um hexágono (12). Em $K$ a segunda aresta já chega por Split Element (2), porque
+$KL$ e $KQ$ compartilham o elemento $KLRQ$.}
+\label{fig:passos}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\input{figs/example_final.tex}
+\caption{Resultado final do exemplo, com os nomes de todos os vértices. Os vértices $K$, $L$ e $M$ terminam com 4, 3 e 6
+cópias e com buracos de 4, 3 e 6 lados; $G$ (duas arestas) termina com duas cópias coladas; $F$ (uma aresta, interno)
+continua com uma aresta colapsada (contorno vermelho); os vértices de borda $C$, $H$, $I$, $J$, $N$, $Q$, $S$ e $T$
+foram duplicados uma vez. A posição das cópias é apenas ilustrativa: no código todas as cópias novas recebem a
+coordenada $(0,0)$.}
+\label{fig:final}
+\end{figure}
+
+\subsection{Propriedades observadas}
+
+\paragraph{Independência da ordem.} O resultado final não depende da ordem de inserção, da half-edge escolhida para
+cada aresta, nem de as arestas virem em lote ou uma a uma. A razão é que a topologia final é determinada pelo
+\emph{conjunto} de arestas: as arestas selecionadas cortam a estrela de cada vértice em setores, e cada setor termina com
+uma cópia própria (salvo no vértice interno com uma única aresta, que fica colapsado). Os operadores sempre dividem a
+estrela exatamente ao longo das arestas selecionadas, de modo que qualquer ordem leva à mesma partição. Verificamos isso
+para três ordens do exemplo (a dos slides, a de \code{main.cpp} e o lote inteiro em uma única chamada) e, nos 659 casos
+aleatórios que terminaram (\cref{sec:verificacao}), para três ordens aleatórias e uma inserção em lote.
+
+\paragraph{Custo.} Cada aresta custa $O\big((\deg A+\deg B)\log n_c\big)$, dominado pelas rotações (\code{isBorder} no
+Canônico, reindexação no Expand e no Open Hole); o fator $\log n_c$ vem da busca binária em $Of[\,]$ que toda consulta
+$\nxt$/$\prv$ faz. A pré-contagem também chama \code{isBorder} para cada extremidade. O custo total é proporcional ao
+número de arestas inseridas para malhas de valência limitada, e só depende do tamanho da malha pelo fator logarítmico.
+
+\paragraph{Memória.} O número de vértices novos é exatamente o previsto, exceto quando há arestas rejeitadas ou um
+vértice de borda com mais de uma aresta no lote (casos em que sobra espaço reservado). É reservado um elemento por aresta
+do lote.
+
+\paragraph{O exemplo no \code{main.cpp}.} Hoje o \code{main.cpp} executa este construtor sobre \code{malha2Hyb.txt},
+com as mesmas 12 arestas dos slides em outra ordem (9, 1, 2, 8, 6, 7, 3, 10, 4, 5, 11, 12, na numeração dos slides); o
+resultado é o mesmo da \cref{fig:final}.

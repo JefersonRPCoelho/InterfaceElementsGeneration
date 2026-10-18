@@ -1,0 +1,37 @@
+\begin{tikzpicture}[scale=1.700, every node/.style={font=\scriptsize}]
+\clip (0.450,0.300) rectangle (3.550,1.700);
+\filldraw[cefill] (0.000,0.000) -- (1.000,0.000) -- (1.000,1.000) -- (0.000,1.000) -- cycle;
+\filldraw[cefill] (1.000,0.000) -- (2.000,0.000) -- (2.000,1.000) -- (1.000,1.000) -- cycle;
+\filldraw[cefill] (2.000,0.000) -- (3.000,0.000) -- (3.000,1.000) -- (2.000,1.000) -- cycle;
+\filldraw[cefill] (3.000,0.000) -- (4.000,0.000) -- (4.000,1.000) -- (3.000,1.000) -- cycle;
+\filldraw[cefill] (0.000,1.000) -- (1.000,1.000) -- (1.000,2.000) -- (0.000,2.000) -- cycle;
+\filldraw[cefill] (1.000,1.000) -- (2.000,1.000) -- (2.000,2.000) -- (1.000,2.000) -- cycle;
+\filldraw[cefill] (2.000,1.000) -- (3.000,1.000) -- (3.000,2.000) -- (2.000,2.000) -- cycle;
+\filldraw[cefill] (3.000,1.000) -- (4.000,1.000) -- (4.000,2.000) -- (3.000,2.000) -- cycle;
+\filldraw[iefill] (1.057,0.943) -- (1.943,0.943) -- (1.943,1.057) -- (1.057,1.057) -- cycle;
+\draw[red, line width=1.1pt] (1.943,0.943) -- (1.943,1.057);
+\draw[red, line width=1.1pt] (1.057,1.057) -- (1.057,0.943);
+\draw[seledge] (2.000,1.000) -- (3.000,1.000);
+\draw[hearrow, red!70!black] (2.220,1.140) -- (2.780,1.140);
+\node[helabel, text=red!70!black] at (2.500,1.266) {$he$};
+\draw[hearrow, orange!80!black] (1.803,0.968) -- (1.803,1.032);
+\node[helabel, text=orange!80!black] at (1.677,1.000) {$c$};
+\draw[hearrow, blue!70!black] (2.780,0.860) -- (2.220,0.860);
+\node[helabel, text=blue!70!black] at (2.500,0.734) {$b$};
+\node[vreg, dot] at (0.000,0.000) {};
+\node[vreg, dot] at (1.000,0.000) {};
+\node[vreg, dot] at (2.000,0.000) {};
+\node[vreg, dot] at (3.000,0.000) {};
+\node[vreg, dot] at (4.000,0.000) {};
+\node[vreg, dot] at (0.000,1.000) {};
+\node[vcol, minimum size=0.29cm] at (1.000,1.000) {$A$};
+\node[vcol, minimum size=0.29cm] at (2.000,1.000) {$B$};
+\node[vreg, minimum size=0.29cm] at (3.000,1.000) {$C$};
+\node[vreg, dot] at (4.000,1.000) {};
+\node[vreg, dot] at (0.000,2.000) {};
+\node[vreg, dot] at (1.000,2.000) {};
+\node[vreg, dot] at (2.000,2.000) {};
+\node[vreg, dot] at (3.000,2.000) {};
+\node[vreg, dot] at (4.000,2.000) {};
+
+\end{tikzpicture}

@@ -1,0 +1,21 @@
+\begin{tikzpicture}[scale=1.400, every node/.style={font=\scriptsize}]
+\filldraw[cefill] (0.000,0.000) -- (1.000,0.000) -- (1.000,1.000) -- (0.000,1.000) -- cycle;
+\filldraw[cefill] (1.000,0.000) -- (2.000,0.000) -- (2.000,1.000) -- (1.000,1.000) -- cycle;
+\filldraw[cefill] (0.000,1.000) -- (1.000,1.000) -- (1.000,2.000) -- (0.000,2.000) -- cycle;
+\filldraw[cefill] (1.000,1.000) -- (2.000,1.000) -- (2.000,2.000) -- (1.000,2.000) -- cycle;
+\draw[seledge] (1.000,1.000) -- (1.000,2.000);
+\draw[hearrow, red!70!black] (0.860,1.220) -- (0.860,1.780);
+\node[helabel, text=red!70!black] at (0.734,1.500) {$a$};
+\draw[hearrow, blue!70!black] (1.140,1.780) -- (1.140,1.220);
+\node[helabel, text=blue!70!black] at (1.266,1.500) {$b$};
+\node[vreg, dot] at (0.000,0.000) {};
+\node[vreg, dot] at (1.000,0.000) {};
+\node[vreg, dot] at (2.000,0.000) {};
+\node[vreg, dot] at (0.000,1.000) {};
+\node[vreg, minimum size=0.31cm] at (1.000,1.000) {$A$};
+\node[vreg, dot] at (2.000,1.000) {};
+\node[vreg, dot] at (0.000,2.000) {};
+\node[vreg, minimum size=0.31cm] at (1.000,2.000) {$B$};
+\node[vreg, dot] at (2.000,2.000) {};
+
+\end{tikzpicture}

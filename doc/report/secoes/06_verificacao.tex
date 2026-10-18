@@ -1,0 +1,116 @@
+\section{Verificação experimental}
+\label{sec:verificacao}
+
+Para confirmar o entendimento descrito nas seções anteriores, escrevemos um pequeno programa de teste
+(\code{tools/driver.cpp}, \cref{app:repro}) que compila os arquivos \code{IBHM.cpp} e
+\code{IBHMInterfaceElementBuilder.cpp} \emph{sem alterações}, insere arestas (uma a uma ou em lote), registra o operador
+escolhido em cada extremidade e, após cada inserção, verifica:
+\begin{enumerate}[label=\textbf{V\arabic*.}]
+\item simetria das opostas: $\Op[\Op[h]]=h$ para toda oposta válida;
+\item consistência de vértices entre opostas: $\V[h]=\V[\nxt(\Op[h])]$ e $\V[\nxt(h)]=\V[\Op[h]]$;
+\item toda half-edge \COLLAPSED{} tem comprimento zero: $\V[h]=\V[\nxt(h)]$;
+\item variedade: os cantos de cada vértice formam um único leque conexo pela relação $h\sim\Op[\prv(h)]$ (nenhum vértice
+``estrangulado'' por dois leques separados);
+\item todo vértice criado é usado por algum elemento;
+\item o número de vértices criados é igual ao previsto por \code{computeNumberOfNewVertices}.
+\end{enumerate}
+Para comparar resultados de ordens diferentes, usamos a partição dos cantos dos elementos \emph{originais} em classes de
+vértices: duas execuções produzem a mesma topologia (a menos de renumeração) se e somente se essas partições coincidem.
+
+\subsection{Malhas aleatórias}
+
+O teste com malhas aleatórias (\code{tools/stress.py}) gera grades de $3$ a $7$ por $3$ a $7$ células de quatro tipos
+--- só quadriláteros, só triângulos, quadriláteros e triângulos misturados, e misturadas com hexágonos (dois
+quadriláteros fundidos) ---, sorteia até metade das arestas internas e insere esse conjunto quatro vezes: em três ordens
+aleatórias, escolhendo ao acaso qual half-edge representa cada aresta, e uma vez em lote, numa única chamada. As quatro
+execuções precisam ser válidas e produzir a mesma topologia. Foram feitas duas rodadas de 400 malhas
+(\cref{tab:estresse}).
+
+\begin{table}[ht]
+\centering\small
+\begin{tabularx}{\linewidth}{>{\raggedright}X>{\centering}p{3.3cm}>{\centering\arraybackslash}p{3.3cm}}
+\toprule
+& Rodada 1: sem restrição & Rodada 2: sem vértice de borda com 2+ arestas\\
+\midrule
+Malhas (quad / tri / híbrida / polígonos) & 100 / 100 / 100 / 100 & 100 / 100 / 100 / 100\\
+Concluídas e válidas (V1--V6) & 259 & \textbf{400}\\
+\quad por tipo & 100 / 37 / 56 / 66 & 100 / 100 / 100 / 100\\
+Abortadas & 141 & 0\\
+\quad das quais com vértice de borda com 2+ arestas & \textbf{141} & ---\\
+Ordens diferentes ou lote com resultado diferente & 0 & 0\\
+Contagem de vértices diferente da prevista & 0 & 0\\
+Operadores aplicados (Canônico / Split / Expand / Hole) & 3124 / 553 / 384 / 321 & 5130 / 791 / 708 / 535\\
+\bottomrule
+\end{tabularx}
+\caption{Teste com malhas aleatórias. Todas as falhas da rodada 1 são exatamente os casos em que algum vértice de borda
+recebe duas ou mais arestas. Nas malhas só de quadriláteros essa configuração não aparece (em uma grade, cada vértice de
+borda tem uma única aresta interna); nas de triângulos ela é frequente.}
+\label{tab:estresse}
+\end{table}
+
+\subsection{Casos específicos}
+
+A \cref{tab:verificacao} reúne os cenários construídos à mão: o exemplo dos slides em várias ordens, uma trinca reta e
+um laço fechado, o experimento que troca Split Element por Expand Edge e um conjunto de entradas inválidas.
+
+\begin{table}[ht]
+\centering\small
+\begin{tabularx}{\linewidth}{>{\raggedright}p{5.6cm}X}
+\toprule
+Cenário & Resultado\\
+\midrule
+Exemplo dos slides (ordem dos slides) & válido em todos os passos; 24/24 operadores iguais aos slides; 19 vértices novos
+(previsto: 19); buracos em $K$, $L$ e $M$.\\
+Exemplo, ordem do \code{main.cpp} e lote único & mesma topologia da ordem dos slides.\\
+Trinca reta $J$--$K$--$L$--$M$--$N$ em 3 ordens & válida; mesma topologia nas 3 ordens.\\
+Laço fechado em torno do elemento $FGLK$ & válido; Split Element nos quatro cantos.\\
+Split Element substituído por Expand Edge\textsuperscript{a} & 791 ocorrências nas 400 malhas da rodada 2: topologia
+idêntica em todas.\\
+Mesma aresta duas vezes (em chamadas separadas ou no mesmo lote) & a segunda é rejeitada; a pré-contagem reserva 2
+vértices que não são usados.\\
+Aresta de borda na entrada & rejeitada.\\
+Half-edge de um elemento de interface na entrada & \textbf{laço infinito} em \code{isBorder}, dentro de
+\code{computeNumberOfNewVertices} (antes da rejeição).\\
+Índice de half-edge maior que o vetor & asserção em \code{heOpposite} (em \emph{release}, leitura fora do vetor).\\
+Índice no espaço reservado e ainda não validado\textsuperscript{b} & \textbf{aceito} como aresta: $\Op$ dessa posição vale
+0, que é uma half-edge válida; a inserção corrompe a malha (no teste, termina numa asserção do Open Hole).\\
+Malha com furo interno (\code{meshIBHM.txt}): aresta $4$--$0$ e depois $8$--$4$ & a primeira é válida (Canônico de
+borda nas duas pontas); a segunda falha no Open Hole, porque o vértice 4 está na borda do furo.\\
+\bottomrule
+\end{tabularx}
+\caption{Cenários específicos. \textsuperscript{a}Variante compilada à parte em que \code{retrieveOperator} nunca
+escolhe Split Element. \textsuperscript{b}Por exemplo, a half-edge 48 de \code{malha2Hyb.txt} depois de uma chamada
+cuja única aresta foi rejeitada: a reserva criou as posições 48--51, mas nenhum elemento foi validado.}
+\label{tab:verificacao}
+\end{table}
+
+Em resumo: \emph{para todas as configurações suportadas, a implementação produz topologias válidas, independentes da
+ordem e do modo de inserção, com contagem exata de vértices}. As falhas encontradas estão concentradas no caso de
+borda ainda não tratado e na validação da entrada, discutidos a seguir e na \cref{sec:defeitos}.
+
+\subsection{O caso não suportado: vértice de borda com duas arestas}
+\label{sec:falha-borda}
+
+Quando um vértice de borda já foi aberto pelo Canônico e recebe uma segunda aresta, ele pertence a um elemento de
+interface e não tem aresta colapsada; \code{retrieveOperator} escolhe então Open Hole. Mas um dos dois laços de
+\code{openHole} chega à borda da malha antes de encontrar um elemento de interface (\cref{fig:borda}). Em modo
+\emph{debug}, a asserção \code{currentHE != IBHM::BORDER} interrompe o programa (os comentários do código perguntam
+``\emph{@todo Is it possible?}'': sim, é possível). Em modo \emph{release} o resultado é pior: o primeiro laço escreve
+na posição \code{0xFFFFFFFF} do vetor de vértices, e o segundo laço não detecta a borda, porque testa $\nxt(\Op[h])$ em
+vez de $\Op[h]$ --- e, na IBHM, $\nxt(\BORDER)$ é uma busca binária com um índice inválido, cujo resultado é
+imprevisível.
+
+Esse caso não é raro: aparece sempre que uma trinca chega à borda por um vértice que já tem outra aresta selecionada, o
+que é comum em malhas de triângulos (63 das 100 malhas de triângulos da rodada 1) e nos vértices da borda de furos
+internos.
+
+\begin{figure}[ht]
+\centering
+\input{figs/border_fail.tex}
+\caption{Configuração que falha. $Q$ está na borda e já foi aberto pela aresta $QR$ (cópias $Q$ e $Q_1$; os dois
+elementos à esquerda de $QR$ passaram a usar $Q_1$). Ao inserir $QP$, o Open Hole em $Q_1$ gira no sentido
+anti-horário a partir de $he$ e alcança imediatamente a borda (à esquerda), sem encontrar elemento de interface. Nesse
+caso não há buraco a abrir: bastaria duplicar $Q_1$ e mover para a cópia nova os elementos entre $QP$ e a borda (como no
+Canônico de borda), deixando o lado curto do novo elemento na borda.}
+\label{fig:borda}
+\end{figure}

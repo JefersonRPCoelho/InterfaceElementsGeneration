@@ -1,0 +1,279 @@
+\section{Os operadores}
+\label{sec:operadores}
+
+Esta seção descreve os quatro operadores tal como implementados. Cada um recebe a half-edge da aresta nova que parte do
+vértice $v$ (chamada \code{edgeHE} ou \code{he} no código) e a half-edge do lado curto correspondente do novo elemento
+(\code{elementHE}, $h_3$ ou $h_1$). Nos pseudocódigos, $\V[h]\leftarrow w$ corresponde a \code{setElementVertex(h, w)},
+``$\Op[x]\leftrightarrow y$'' a \code{setOpposite(x, y)} com $y$ uma half-edge válida (liga nos dois sentidos) e
+\code{addPoint()} cria um vértice novo (sem coordenadas: hoje ele é colocado na origem).
+
+As figuras desta seção foram geradas executando o código em malhas pequenas (\cref{app:repro}). Convenções visuais:
+elementos contínuos em azul, elementos de interface em laranja, aresta a inserir em vermelho; vértices com aresta
+colapsada têm contorno vermelho; vértices que pertencem a algum elemento de interface têm rótulo laranja; as cópias de
+um vértice $X$ são chamadas $X_1, X_2,\dots$ na ordem de criação e são desenhadas ligeiramente afastadas umas das
+outras. Arestas colapsadas (comprimento zero) aparecem como um pequeno segmento vermelho, com uma espessura
+\emph{apenas visual}.
+
+Todos os operadores usam a rotina de apoio \code{reindexElementsCCW} (\cref{alg:reindex}), que gira no sentido
+anti-horário a partir de uma half-edge trocando o vértice de origem até encontrar uma half-edge de parada, a borda ou o
+ponto de partida.
+
+\begin{algorithm}[ht]
+\caption{\code{reindexElementsCCW}$(h, \mathit{stop}, w)$}
+\label{alg:reindex}
+\begin{algorithmic}[1]
+\State $s\gets h$
+\Repeat
+  \State $\V[h]\gets w$ \Comment{o canto de $h$ passa a usar o vértice $w$}
+  \State $h\gets \Op[\prv(h)]$ \Comment{próximo elemento no sentido anti-horário}
+\Until{$h=\mathit{stop}$ \textbf{ou} $h=\BORDER$ \textbf{ou} $h=s$}
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Canônico}
+\label{sec:canonico}
+
+\textbf{Quando:} o vértice $v$ ainda não pertence a nenhum elemento de interface. É a ``inicialização'' do vértice.
+
+\textbf{O que faz:} se $v$ é interno, nada é duplicado: o lado curto do novo elemento vira uma aresta colapsada de $v$
+para $v$, com oposta \COLLAPSED, e ela é registrada em \code{\_collapsed[v]}. A trinca termina em $v$ e o elemento de
+interface fica ``fechado'' ali. Se $v$ está na borda, a abertura chega ao exterior: cria-se um vértice $v'$, todos os
+elementos do lado de \code{edgeHE} até a borda passam a usá-lo (rotação anti-horária), e o lado curto do novo elemento
+fica na borda (\cref{alg:canonical,fig:canonico}).
+
+\begin{algorithm}[ht]
+\caption{\code{canonical}$(e, x)$ \quad ($e$ = \code{edgeHE}, $x$ = \code{elementHE})}
+\label{alg:canonical}
+\begin{algorithmic}[1]
+\State $v\gets\V[e]$
+\If{\code{isBorder}$(e)$} \Comment{gira em torno de $v$ procurando uma half-edge sem oposta}
+  \State $v'\gets$ \code{addPoint}$()$
+  \State $\V[x]\gets v'$
+  \State \code{reindexElementsCCW}$(e, \BORDER, v')$ \Comment{lado de $e$, até a borda}
+  \State $\Op[x]\gets\BORDER$; \quad \code{\_inInterfaceElement}$[v']\gets$ \textbf{true}
+\Else
+  \State $\V[x]\gets v$; \quad $\Op[x]\gets\COLLAPSED$; \quad \code{\_collapsed}$[v]\gets x$
+\EndIf
+\State $\V[\nxt(x)]\gets v$; \quad \code{\_inInterfaceElement}$[v]\gets$ \textbf{true}
+\end{algorithmic}
+\end{algorithm}
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}[b]{0.28\linewidth}\centering\input{figs/canon_int_before.tex}\caption{Antes: $A$ e $B$ internos.}\end{subfigure}\hfill
+\begin{subfigure}[b]{0.28\linewidth}\centering\input{figs/canon_int_after.tex}\caption{Depois: elemento $[A,B,B,A]$.}\end{subfigure}\hfill
+\begin{subfigure}[b]{0.2\linewidth}\centering\input{figs/canon_border_before.tex}\caption{Antes: $B$ na borda.}\end{subfigure}\hfill
+\begin{subfigure}[b]{0.2\linewidth}\centering\input{figs/canon_border_after.tex}\caption{Depois.}\end{subfigure}
+\caption{Operador Canônico. (a--b) Com os dois vértices internos, o elemento de interface tem as duas extremidades
+colapsadas ($h_3$ em $A$ e $h_1$ em $B$, em vermelho) e nenhum vértice é criado: geometricamente ele é só a aresta $AB$.
+(c--d) Com $B$ na borda, $B$ é duplicado em $B_1$; o operador em $B$ recebe $b$, e os elementos do lado de $b$ (à
+direita) passam a usar a cópia; o lado curto em $B$ é uma aresta de borda. Em $A$ (interno) a extremidade continua colapsada.}
+\label{fig:canonico}
+\end{figure}
+
+\subsection{Split Element}
+\label{sec:split}
+
+\textbf{Quando:} $v$ tem uma aresta colapsada $c$ (pertence a exatamente um elemento de interface $I$, criado pelo
+Canônico) \emph{e} $I$ é vizinho de um dos dois elementos que contêm a aresta nova. Esse elemento comum é o
+\emph{elemento compartilhado} $S$.
+
+\textbf{Como o código testa} (\code{retrieveAvailableVertex}, \cref{alg:retrieve}). Seja $he$ a half-edge nova que parte
+de $v$ e $b=\Op[he]$. Há duas posições possíveis para $S$:
+\begin{itemize}
+\item \textbf{hipótese $x_1$}: $S$ é o elemento de $he$. Então a aresta de $S$ que chega em $v$, $\prv(he)$, é vizinha
+de $I$, e sua oposta $x_1=\Op[\prv(he)]$ é o lado longo de $I$ que \emph{sai} de $v$ logo depois de $c$, isto é,
+$\prv(x_1)=c$;
+\item \textbf{hipótese $x_3$}: $S$ é o elemento de $b$. Então a aresta de $S$ que sai de $v$, $\nxt(b)$, é vizinha de
+$I$, e $x_3=\Op[\nxt(b)]$ é o lado longo de $I$ que \emph{chega} em $v$ logo antes de $c$, isto é, $\nxt(x_3)=c$.
+\end{itemize}
+Qual hipótese ocorre não depende de qual half-edge da aresta o usuário escolheu, e sim da posição da aresta nova em
+relação a $I$: em $S$, se a aresta nova vem depois da aresta de $I$ (no sentido anti-horário de $S$) vale $x_1$; se vem
+antes, vale $x_3$ (\cref{fig:split}).
+
+\textbf{O que faz} (\cref{alg:split}): cria um vértice $n$ e o coloca ``dentro'' de $S$: só dois cantos mudam, o canto de
+$S$ em $v$ e o canto de $I$ adjacente a $S$. A antiga aresta colapsada $c$ deixa de ter comprimento zero (passa a ligar
+$v$ e $n$) e vira a fronteira entre $I$ e o novo elemento, sendo ligada a \code{elementHE}. O custo é um número
+constante de passos ($O(\log n_c)$ na IBHM, por causa das consultas $\nxt$/$\prv$).
+
+\begin{algorithm}[ht]
+\caption{\code{retrieveAvailableVertex}$(he)$ e \code{splitElement}$(he, \mathit{av}, \mathit{sh}, x)$}
+\label{alg:retrieve}\label{alg:split}
+\begin{algorithmic}[1]
+\Function{retrieveAvailableVertex}{$he$}
+  \State $v\gets\V[he]$; \quad $b\gets\Op[he]$; \quad $c\gets$ \code{\_collapsed}$[v]$
+  \State $x_1\gets\Op[\prv(he)]$
+  \If{$x_1\ne\BORDER$ \textbf{e} $\prv(x_1)=c$} \Return $(\mathit{av}=x_1,\ \mathit{sh}=he)$ \Comment{hipótese $x_1$}
+  \EndIf
+  \State $x_3\gets\Op[\nxt(b)]$
+  \If{$x_3\ne\BORDER$ \textbf{e} $\nxt(x_3)=c$} \Return $(\mathit{av}=c,\ \mathit{sh}=\nxt(b))$ \Comment{hipótese $x_3$}
+  \EndIf
+  \State \Return $(\BORDER,\BORDER)$ \Comment{nenhum elemento compartilhado $\Rightarrow$ Expand Edge}
+\EndFunction
+\Statex
+\Procedure{splitElement}{$he, \mathit{av}, \mathit{sh}, x$}
+  \State $v\gets\V[he]$; \quad $n\gets$ \code{addPoint}$()$
+  \State $\V[\mathit{av}]\gets n$ \Comment{canto do elemento de interface antigo}
+  \State $\V[\mathit{sh}]\gets n$ \Comment{canto do elemento compartilhado}
+  \If{$he=\mathit{sh}$} \Comment{hipótese $x_1$}
+    \State $\V[x]\gets n$; \quad $\V[\nxt(x)]\gets v$; \quad $\Op[x]\leftrightarrow\prv(\mathit{av})$ \Comment{$\prv(\mathit{av})=c$}
+  \Else \Comment{hipótese $x_3$}
+    \State $\V[x]\gets v$; \quad $\V[\nxt(x)]\gets n$; \quad $\Op[x]\leftrightarrow \mathit{av}$ \Comment{$\mathit{av}=c$}
+  \EndIf
+  \State marca $v$ e $n$ como vértices de EI; remove $v$ de \code{\_collapsed}
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}[b]{0.31\linewidth}\centering\input{figs/split_x1_before.tex}\caption{$x_1$: antes.}\end{subfigure}\hspace{0.06\linewidth}
+\begin{subfigure}[b]{0.31\linewidth}\centering\input{figs/split_x1_after.tex}\caption{$x_1$: depois.}\end{subfigure}\\[6pt]
+\begin{subfigure}[b]{0.31\linewidth}\centering\input{figs/split_x3_before.tex}\caption{$x_3$: antes.}\end{subfigure}\hspace{0.06\linewidth}
+\begin{subfigure}[b]{0.31\linewidth}\centering\input{figs/split_x3_after.tex}\caption{$x_3$: depois.}\end{subfigure}
+\caption{Split Element em $B$. Nos dois casos já existe um elemento de interface em $AB$, colapsado em $A$ e em $B$.
+(a--b) A aresta nova $BC$ sobe: o elemento compartilhado $S$ (acima de $AB$) contém $he$, e o lado de $I$ que sai de $B$
+é $x_1$. (c--d) A aresta nova $BD$ desce: agora $S$ (abaixo de $AB$) contém $b$, e o lado de $I$ que chega em $B$ é
+$x_3$. Em ambos, só $S$ e um canto de $I$ passam a usar a nova cópia $B_1$, e a antiga aresta colapsada em $B$ vira o
+lado comum entre os dois elementos de interface. Note que $C$ e $D$, internos, ficam colapsados.}
+\label{fig:split}
+\end{figure}
+
+\subsection{Expand Edge}
+\label{sec:expand}
+
+\textbf{Quando:} $v$ tem uma aresta colapsada $c$, mas nenhuma das duas hipóteses vale: o elemento de interface $I$ não
+toca os elementos da aresta nova. É o caso típico de uma trinca que continua ``em frente'' através de $v$
+(\cref{fig:expand}).
+
+\textbf{O que faz} (\cref{alg:expand}): a estrela de $v$ precisa ser dividida em dois setores, delimitados pela aresta
+nova de um lado e por $I$ do outro. O operador cria $n$ e gira no sentido anti-horário \emph{a partir da aresta
+colapsada} $c$: primeiro troca o canto de $c$ em $I$, depois sai de $I$ pelo seu lado longo $\prv(c)$ e percorre os
+elementos daquele setor até alcançar $he$, que \emph{não} é alterado. Assim, a parada natural da rotação é justamente
+cruzar a aresta nova. A aresta $c$ deixa de ser colapsada e é ligada a \code{elementHE}.
+
+\begin{algorithm}[ht]
+\caption{\code{expandEdge}$(he, x)$}
+\label{alg:expand}
+\begin{algorithmic}[1]
+\State $v\gets\V[he]$; \quad $n\gets$ \code{addPoint}$()$; \quad $c\gets$ \code{\_collapsed}$[v]$
+\State \code{reindexElementsCCW}$(c, he, n)$ \Comment{de $c$ até $he$ (exclusive)}
+\State $\Op[c]\leftrightarrow x$
+\State $\V[x]\gets v$; \quad $\V[\nxt(x)]\gets n$
+\State marca $v$ e $n$ como vértices de EI; remove $v$ de \code{\_collapsed}
+\end{algorithmic}
+\end{algorithm}
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}[b]{0.32\linewidth}\centering\resizebox{\linewidth}{!}{\input{figs/expand_before.tex}}\caption{Antes.}\end{subfigure}\hfill
+\begin{subfigure}[b]{0.32\linewidth}\centering\resizebox{\linewidth}{!}{\input{figs/expand_rotation.tex}}\caption{Rotação a partir de $c$.}\end{subfigure}\hfill
+\begin{subfigure}[b]{0.32\linewidth}\centering\resizebox{\linewidth}{!}{\input{figs/expand_after.tex}}\caption{Depois.}\end{subfigure}
+\caption{Expand Edge em $B$: a aresta $BC$ continua a trinca $AB$, e o elemento de interface em $AB$ não toca os
+elementos de $BC$. (b) Ordem em que \code{reindexElementsCCW} visita os cantos: 1 é a aresta colapsada $c$ (em $I$),
+2 e 3 são os elementos abaixo da trinca; a rotação para ao encontrar $he$ (a half-edge de $BC$ que parte de $B$). (c)
+Os cantos visitados passam a usar $B_1$; $A$ e $C$ continuam colapsados.}
+\label{fig:expand}
+\end{figure}
+
+\subsection{Open Hole}
+\label{sec:hole}
+
+\textbf{Quando:} $v$ já pertence a um elemento de interface, mas não tem aresta colapsada. Isso acontece a partir da
+terceira aresta em um vértice interno: depois do Split/Expand o vértice original já virou duas cópias, $v$ e $w$, e os
+dois elementos de interface $J$ e $K$ que passam por ele estão colados pelos seus lados curtos (um vai de $v$ para $w$, o
+outro de $w$ para $v$).
+
+\textbf{O que faz} (\cref{alg:hole}): com três ou mais elementos de interface chegando ao mesmo ponto, os lados curtos não
+conseguem mais fechar a vizinhança, e aparece um buraco. O operador cria $n$ e faz duas travessias a partir de $he$:
+\begin{enumerate}
+\item no sentido \emph{anti-horário}, troca $v$ por $n$ em todos os elementos até encontrar o primeiro elemento de
+interface $J$; troca também o canto de $J$ e ``descola'' o lado curto de $J$ que chega a esse canto ($\Op\gets\BORDER$);
+\item no sentido \emph{horário} (regra $h\leftarrow\nxt(\Op[h])$), apenas procura o primeiro elemento de interface $K$ e
+descola o lado curto de $K$ que sai de $v$.
+\end{enumerate}
+O lado curto do novo elemento também fica na borda. Na primeira vez, os lados descolados de $J$ e $K$ eram justamente o
+par que unia as duas cópias, e o resultado é um buraco triangular $(v,n,w)$; nas vezes seguintes o buraco já existe, os
+lados encontrados já são de borda e o buraco ganha um vértice (\cref{fig:hole}).
+
+\begin{algorithm}[ht]
+\caption{\code{openHole}$(he, x)$}
+\label{alg:hole}
+\begin{algorithmic}[1]
+\State $v\gets\V[he]$; \quad $n\gets$ \code{addPoint}$()$; \quad $h\gets he$
+\Repeat \Comment{laço 1: anti-horário, reindexando}
+  \State $\V[h]\gets n$; \quad $h\gets\Op[\prv(h)]$
+\Until{$h=\BORDER$ \textbf{ou} \code{\_isInterfaceElement}$[\mathrm{elem}(h)]$}
+\State \textbf{assert}$(h\ne\BORDER)$
+\State $\V[h]\gets n$; \quad $\Op[\prv(h)]\gets\BORDER$ \Comment{canto e lado curto de $J$}
+\State $h\gets he$
+\Repeat \Comment{laço 2: horário, só procura}
+  \State $h\gets\nxt(\Op[h])$
+\Until{$h=\BORDER$ \textbf{ou} \code{\_isInterfaceElement}$[\mathrm{elem}(h)]$}
+\State \textbf{assert}$(h\ne\BORDER)$
+\State $\Op[h]\gets\BORDER$ \Comment{lado curto de $K$}
+\State $\V[x]\gets n$; \quad $\V[\nxt(x)]\gets v$; \quad $\Op[x]\gets\BORDER$
+\State marca $v$ e $n$ como vértices de EI
+\end{algorithmic}
+\end{algorithm}
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}[b]{0.24\linewidth}\centering\resizebox{\linewidth}{!}{\input{figs/hole_step1.tex}}\caption{Aresta 1: Canônico.}\end{subfigure}\hfill
+\begin{subfigure}[b]{0.24\linewidth}\centering\resizebox{\linewidth}{!}{\input{figs/hole_step2.tex}}\caption{Aresta 2: Expand.}\end{subfigure}\hfill
+\begin{subfigure}[b]{0.24\linewidth}\centering\resizebox{\linewidth}{!}{\input{figs/hole_step3.tex}}\caption{Aresta 3: Open Hole.}\end{subfigure}\hfill
+\begin{subfigure}[b]{0.24\linewidth}\centering\resizebox{\linewidth}{!}{\input{figs/hole_step4.tex}}\caption{Aresta 4: Open Hole.}\end{subfigure}
+\caption{Quatro arestas chegando ao vértice interno $V$ (detalhe do centro de uma malha $4\times4$; a próxima aresta a
+inserir está em vermelho grosso). (a) A primeira deixa $V$ colapsado. (b) A segunda, alinhada, divide $V$ em duas cópias
+coladas pelos lados curtos. (c) A terceira descola esses lados: buraco triangular (hachurado). (d) A quarta aumenta o
+buraco para um quadrilátero. Com $k$ arestas, o buraco tem $k$ vértices.}
+\label{fig:hole}
+\end{figure}
+
+\subsection{Relações entre os operadores}
+\label{sec:relacoes}
+
+Olhando os quatro operadores lado a lado, todos fazem a mesma coisa em essência: \emph{dividem um leque da estrela de $v$
+entre duas ``paredes'', dão um vértice novo a um dos lados e decidem o que fazer com os lados curtos}. O que muda é a
+parede onde a rotação começa e onde ela para:
+
+\begin{center}\small
+\begin{tabular}{llll}
+\toprule
+Operador & começa em & para em & lados curtos\\
+\midrule
+Canônico (borda) & aresta nova & borda da malha & novo lado na borda\\
+Expand Edge & aresta colapsada $c$ & aresta nova & $c$ é colada ao novo lado\\
+Split Element & aresta colapsada $c$ & aresta nova (após 1 elemento) & $c$ é colada ao novo lado\\
+Open Hole & aresta nova & primeiro elemento de interface & descolados (buraco)\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Uma consequência interessante: o \textbf{Split Element é um caso particular do Expand Edge}. Na hipótese $x_3$, a rotação
+do Expand a partir de $c$ visita exatamente o canto de $c$ e o canto $\nxt(b)$ de $S$ e para em $he$ --- as mesmas
+alterações do Split. Na hipótese $x_1$, a rotação do Expand vai pelo outro lado e reindexa todos os elementos da estrela
+\emph{exceto} $S$; o resultado é a mesma divisão da estrela, só com os nomes $v$ e $n$ trocados. Verificamos isso
+experimentalmente: substituindo o Split pelo Expand em 791 ocorrências (400 malhas aleatórias de triângulos,
+quadriláteros, híbridas e com polígonos), a topologia final foi idêntica em todos os casos (\cref{sec:verificacao}). O
+Split Element é, portanto, uma \emph{otimização}: custo $O(\log n_c)$ em vez de $O(d\log n_c)$, movendo sempre o lado
+menor. Isso não é um defeito; mas é uma informação útil para a extensão 3D,
+onde talvez valha começar pela versão geral (rotação) e só depois especializar.
+
+\subsection{Contagem prévia de vértices}
+\label{sec:contagem}
+
+Para reservar memória de uma vez, \code{computeNumberOfNewVertices} conta, para cada vértice $v$ tocado pelo lote de
+arestas, o número $n_v$ de arestas do lote que o tocam, e aplica:
+\[
+\text{novos}(v)=
+\begin{cases}
+n_v-1, & v \text{ fora de EI e interno (o primeiro contato só colapsa)},\\
+n_v, & v \text{ fora de EI e na borda (o primeiro contato já duplica)},\\
+n_v, & v \text{ já em algum EI (todo contato duplica)}.
+\end{cases}
+\]
+No código, a regra da borda é implementada somando 1 ao contador \emph{por aresta} que toca um vértice de borda; por
+isso um vértice de borda com duas arestas no mesmo lote é contado em excesso (\cref{sec:documentacao}). Fora esse caso,
+a contagem foi exata em todos os testes (\cref{sec:verificacao}). Os elementos são reservados à razão de um por aresta
+do lote.

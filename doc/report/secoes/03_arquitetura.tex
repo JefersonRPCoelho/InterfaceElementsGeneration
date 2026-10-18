@@ -1,0 +1,208 @@
+\section{Arquitetura do algoritmo}
+\label{sec:arquitetura}
+
+\subsection{Princípios de projeto}
+
+A apresentação de projeto~\cite{slides} lista como objetivos ``um conjunto simples e pequeno de operadores'', resolver
+a implementação ``no nível dos operadores'' e um algoritmo que percorra as arestas de entrada aplicando-os. A
+implementação materializa esses objetivos nas seguintes características:
+
+\begin{enumerate}[label=\textbf{P\arabic*.}, leftmargin=2.2em]
+\item \textbf{Baseado em operadores.} Inserir uma aresta $AB$ é sempre: criar o elemento, aplicar \emph{um} operador em
+$A$, aplicar \emph{um} operador em $B$ e ligar as duas arestas ``do meio'' (\cref{sec:gabarito}). Há apenas quatro
+operadores.
+\item \textbf{Decisão centrada no vértice.} O operador aplicado em um vértice depende só do estado desse vértice
+(pertence a algum elemento de interface? tem uma aresta colapsada? essa aresta compartilha um elemento com a nova
+aresta?). Não há análise de combinações de arestas nem dependência da ordem de chegada.
+\item \textbf{Localidade.} Cada operador altera somente a estrela de um vértice; o custo é $O(1)$ ou proporcional à
+valência.
+\item \textbf{Puramente topológico.} Nenhuma coordenada, ângulo ou produto vetorial é usado: só $\V$, $\Op$, $\nxt$ e
+$\prv$. A apresentação justifica explicitamente essa escolha pela futura extensão a 3D.
+\item \textbf{Duplicação adiada.} O primeiro contato com um vértice interno \emph{não} cria vértice novo: o elemento de
+interface ganha uma aresta \emph{colapsada} (de comprimento zero) naquele vértice. A cópia só é criada quando, e se,
+uma segunda aresta chegar. É isso que faz uma ponta de trinca ficar fechada e que torna a contagem de vértices exata.
+\item \textbf{Incremental.} O construtor guarda o estado necessário entre chamadas; novas arestas podem ser inseridas a
+qualquer momento sobre uma malha que já tem elementos de interface (inserção adaptativa).
+\item \textbf{Memória previsível.} O número de vértices novos é calculado antes de alterar a malha, e todo o espaço é
+reservado de uma vez (\cref{sec:contagem}).
+\end{enumerate}
+
+\subsection{Componentes}
+
+A classe \code{IBHMInterfaceElementBuilder} (\code{core/InterfaceElementsBuilder}) recebe um ponteiro para a malha
+\code{IBHM} e mantém três estruturas auxiliares, que formam uma ``segunda camada'' de informação sobre a malha:
+
+\begin{table}[ht]
+\centering\small
+\begin{tabularx}{\linewidth}{>{\ttfamily\small}p{4.2cm}X}
+\toprule
+\normalfont Estado & Significado\\
+\midrule
+\_inInterfaceElement[v] & o vértice $v$ pertence a algum elemento de interface (por vértice).\\
+\_isInterfaceElement[e] & o elemento $e$ é um elemento de interface (por elemento).\\
+\_collapsed & mapa $v\mapsto c$: vértices que têm uma aresta colapsada e a half-edge colapsada $c$ (que vai de $v$
+para $v$).\\
+\bottomrule
+\end{tabularx}
+\caption{Estado mantido pelo construtor entre inserções.}
+\label{tab:estado}
+\end{table}
+
+Como esse estado não está guardado na malha, deve existir um único construtor por malha durante toda a sessão de
+edição; os comentários da classe registram essa restrição, ainda sem um mecanismo que a garanta (há um \code{@todo}).
+Os métodos se dividem em quatro grupos:
+
+\begin{itemize}
+\item \textbf{travessia}: \code{insertInterfaceElements} valida e percorre as arestas de entrada (\cref{sec:travessia});
+\item \textbf{decisão}: \code{retrieveOperator} escolhe o operador, com o auxílio de \code{retrieveAvailableVertex} para
+distinguir \opname{Split Element} de \opname{Expand Edge};
+\item \textbf{operadores}: \code{canonical}, \code{splitElement}, \code{expandEdge} e \code{openHole};
+\item \textbf{apoio}: \code{reindexElementsCCW} (troca o vértice de um leque de elementos) e
+\code{computeNumberOfNewVertices} (pré-contagem).
+\end{itemize}
+
+\subsection{O gabarito do elemento de interface}
+\label{sec:gabarito}
+
+Todo elemento de interface é criado com o mesmo gabarito (\cref{fig:gabarito}). Seja $a$ a half-edge selecionada, que
+vai de $A$ para $B$ no elemento $U$, e $b=\Op[a]$, que vai de $B$ para $A$ no elemento $L$. O novo elemento recebe as
+quatro próximas half-edges livres, $h_0,\dots,h_3$, cujos vértices de origem são $F,G,H,E$:
+\begin{itemize}
+\item $h_0: F\to G$ e $h_2: H\to E$ são as arestas ``do meio'', paralelas a $AB$. Ao final, $h_0$ vira oposta de $b$ e
+$h_2$ vira oposta de $a$; $a$ e $b$ deixam de ser opostas entre si.
+\item $h_3: E\to F$ é o lado curto em $A$; $E$ e $F$ são cópias (topológicas) de $A$, $E$ do lado de $U$ e $F$ do lado
+de $L$.
+\item $h_1: G\to H$ é o lado curto em $B$; $G$ é a cópia de $B$ do lado de $L$, e $H$, do lado de $U$.
+\end{itemize}
+O operador do vértice $A$ é chamado com o par $(a, h_3)$ e o do vértice $B$ com $(b, h_1)$. Em ambos os casos vale a
+mesma convenção: \emph{a origem de \code{elementHE} fica do lado do elemento que contém \code{edgeHE}, e
+$\nxt(\text{\code{elementHE}})$ fica do outro lado}. Cada operador, portanto, só precisa decidir dois vértices,
+$\V[\text{\code{elementHE}}]$ e $\V[\nxt(\text{\code{elementHE}})]$, reindexar o que for preciso na estrela do vértice
+e definir $\Op[\text{\code{elementHE}}]$. As arestas do meio são sempre tratadas da mesma forma pela travessia, qualquer
+que seja o operador (slide ``What happens in the middle?'').
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[scale=1.15, every node/.style={font=\small}]
+  \filldraw[cefill] (0,1.6) rectangle (6,3.0); \filldraw[cefill] (0,-1.4) rectangle (6,0);
+  \filldraw[iefill] (0,0) rectangle (6,1.6);
+  \node[elemlabel] at (3,2.65) {U}; \node[elemlabel] at (3,-1.0) {L};
+  \node[font=\footnotesize\bfseries, text=orange!40!black] at (3,0.8) {elemento de interface};
+  % half-edges da interface
+  \draw[hearrow, line width=0.8pt] (0.6,0.25) -- (5.4,0.25) node[pos=0.12, above=0pt] {$h_0$};
+  \draw[hearrow, line width=0.8pt] (5.75,0.3) -- (5.75,1.3) node[midway, left=1pt] {$h_1$};
+  \draw[hearrow, line width=0.8pt] (5.4,1.35) -- (0.6,1.35) node[pos=0.12, below=0pt] {$h_2$};
+  \draw[hearrow, line width=0.8pt] (0.25,1.3) -- (0.25,0.3) node[midway, right=1pt] {$h_3$};
+  % a e b
+  \draw[hearrow, red!70!black, line width=0.9pt] (0.6,1.85) -- (5.4,1.85) node[pos=0.12, above=0pt] {$a$};
+  \draw[hearrow, blue!70!black, line width=0.9pt] (5.4,-0.25) -- (0.6,-0.25) node[pos=0.12, below=0pt] {$b$};
+  % opostas
+  \draw[{Stealth[length=3pt]}-{Stealth[length=3pt]}, dashed, black!60] (3,1.42) -- (3,1.78)
+    node[right=0pt, font=\scriptsize, pos=0.5] {$\Op$};
+  \draw[{Stealth[length=3pt]}-{Stealth[length=3pt]}, dashed, black!60] (3,-0.18) -- (3,0.18)
+    node[right=0pt, font=\scriptsize, pos=0.5] {$\Op$};
+  % vértices
+  \node[vie, minimum size=0.42cm] at (0,0) {$F$}; \node[vie, minimum size=0.42cm] at (6,0) {$G$};
+  \node[vie, minimum size=0.42cm] at (6,1.6) {$H$}; \node[vie, minimum size=0.42cm] at (0,1.6) {$E$};
+  \node[align=right, font=\scriptsize, anchor=east] at (-0.35,0.8) {cópias de $A$\\ $E$: lado de $U$\\ $F$: lado de $L$};
+  \node[align=left, font=\scriptsize, anchor=west] at (6.35,0.8) {cópias de $B$\\ $H$: lado de $U$\\ $G$: lado de $L$};
+  \node[font=\scriptsize, text=black!65, anchor=north] at (0,-1.45) {operador em $A$: $(a,h_3)$};
+  \node[font=\scriptsize, text=black!65, anchor=north] at (6,-1.45) {operador em $B$: $(b,h_1)$};
+\end{tikzpicture}
+\caption{Gabarito de todo elemento de interface ($FGHE$, sentido anti-horário), desenhado com espessura exagerada. As
+arestas do meio $h_0$ e $h_2$ são ligadas a $b$ e $a$ pela travessia; os lados curtos $h_3$ (em $A$) e $h_1$ (em $B$)
+são responsabilidade dos operadores. Quando $A$ e $B$ são internos e ainda não pertencem a elemento de interface, o
+elemento resultante é $[A,B,B,A]$, com $h_1$ e $h_3$ colapsadas.}
+\label{fig:gabarito}
+\end{figure}
+
+\subsection{Estados de um vértice e escolha do operador}
+\label{sec:estados}
+
+Do ponto de vista de um vértice original, a sequência de inserções o faz passar por uma pequena máquina de estados
+(\cref{fig:estados}). Um vértice interno começa \emph{regular}; a primeira aresta o deixa \emph{colapsado} (um elemento
+de interface, nenhuma cópia nova); a segunda o \emph{divide} em duas cópias, que ficam unidas pelos lados curtos dos
+dois elementos de interface; a terceira e as seguintes abrem e aumentam um \emph{buraco}. Um vértice de borda é
+dividido já na primeira aresta, porque a abertura escapa para o exterior. O caso de uma segunda aresta em um vértice de
+borda não é tratado pela implementação atual (\cref{sec:falha-borda}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[node distance=1.0cm and 1.55cm, every node/.style={font=\small}]
+  \node[state, fill=ceblue] (R) {\textbf{Regular}\\ \scriptsize 0 EI};
+  \node[state, fill=ieorange!60, right=of R] (C) {\textbf{Colapsado}\\ \scriptsize 1 EI, 1 cópia};
+  \node[state, fill=ieorange!60, right=of C] (D) {\textbf{Dividido}\\ \scriptsize 2 EI, 2 cópias};
+  \node[state, fill=ieorange!60, right=of D] (H) {\textbf{Buraco}\\ \scriptsize $k\ge3$ EI, $k$ cópias};
+  \draw[flow] (R) -- node[above, font=\scriptsize\bfseries] {Canônico} (C);
+  \draw[flow] (C) -- node[above, font=\scriptsize\bfseries, align=center] {Split /\\Expand} (D);
+  \draw[flow] (D) -- node[above, font=\scriptsize\bfseries] {Open Hole} (H);
+  \draw[flow] (H) edge[loop below, looseness=5] node[below, font=\scriptsize\bfseries] {Open Hole} (H);
+  \node[state, fill=ceblue, below=1.5cm of R] (Rb) {\textbf{Regular}\\ \scriptsize na borda};
+  \node[state, fill=ieorange!60, right=of Rb] (Db) {\textbf{Aberto}\\ \scriptsize 1 EI, 2 cópias};
+  \node[state, draw=red!60!black, dashed, right=of Db, text=red!60!black] (Fb) {\textbf{não suportado}\\ \scriptsize
+  (falha de asserção)};
+  \draw[flow] (Rb) -- node[above, font=\scriptsize\bfseries, align=center] {Canônico\\(borda)} (Db);
+  \draw[flow, red!60!black, dashed] (Db) -- node[above, font=\scriptsize\bfseries] {Open Hole} (Fb);
+  \node[anchor=west, font=\scriptsize, text=black!60] at ($(R.north west)+(0,0.35)$) {vértice interno};
+  \node[anchor=west, font=\scriptsize, text=black!60] at ($(Rb.north west)+(0,0.35)$) {vértice de borda};
+\end{tikzpicture}
+\caption{Estados de um vértice original ao longo das inserções (EI = elemento de interface). Os rótulos das
+transições são os operadores aplicados. Com $k$ arestas selecionadas, um vértice interno termina com $\max(1,k)$ cópias
+e um de borda com $k+1$ (este último só é atingido hoje para $k=1$).}
+\label{fig:estados}
+\end{figure}
+
+A implementação não guarda esse estado explicitamente; ele é deduzido em \code{retrieveOperator} a partir das três
+estruturas da \cref{tab:estado}, olhando para o vértice $v$ de onde parte a half-edge recebida (\cref{fig:decisao}):
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[node distance=0.75cm and 1.1cm, every node/.style={font=\small}]
+  \node[box] (in) {half-edge $he$ que parte de $v$};
+  \node[decision, below=of in] (q1) {$v$ pertence a\\algum EI?};
+  \node[opbox, fill=green!12, left=1.4cm of q1] (can) {Canônico\\[-1pt]\scriptsize\normalfont borda? novo vértice\\[-2pt]
+    \scriptsize\normalfont : aresta colapsada};
+  \node[decision, below=of q1] (q2) {$v$ tem aresta\\colapsada?};
+  \node[opbox, fill=red!10, left=1.4cm of q2] (hole) {Open Hole};
+  \node[decision, below=of q2] (q3) {hipótese $x_1$\\ou $x_3$ vale?};
+  \node[opbox, fill=blue!10, left=1.4cm of q3] (split) {Split Element};
+  \node[opbox, fill=violet!10, right=1.4cm of q3] (exp) {Expand Edge};
+  \draw[flow] (in) -- (q1);
+  \draw[flow] (q1) -- node[above, font=\scriptsize] {não} (can);
+  \draw[flow] (q1) -- node[right, font=\scriptsize] {sim} (q2);
+  \draw[flow] (q2) -- node[above, font=\scriptsize] {não} (hole);
+  \draw[flow] (q2) -- node[right, font=\scriptsize] {sim} (q3);
+  \draw[flow] (q3) -- node[above, font=\scriptsize] {sim} (split);
+  \draw[flow] (q3) -- node[above, font=\scriptsize] {não} (exp);
+  \node[font=\scriptsize\ttfamily, text=black!55, right=0.3cm of q1] {\_inInterfaceElement[v]};
+  \node[font=\scriptsize\ttfamily, text=black!55, right=0.3cm of q2] {\_collapsed.find(v)};
+  \node[font=\scriptsize\ttfamily, text=black!55, below=0.15cm of q3] {retrieveAvailableVertex};
+\end{tikzpicture}
+\caption{Árvore de decisão de \code{retrieveOperator}. As hipóteses $x_1$ e $x_3$ verificam se o elemento de interface
+que tem a aresta colapsada em $v$ é vizinho de um dos dois elementos que contêm a aresta nova
+(\cref{sec:split}).}
+\label{fig:decisao}
+\end{figure}
+
+\begin{table}[ht]
+\centering\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\linewidth}{lXcccc}
+\toprule
+Operador & Condição em $v=\V[he]$ & novos & $\V[\text{eHE}]$, $\V[\nxt(\text{eHE})]$ & $\Op[\text{eHE}]$ & custo\\
+\midrule
+Canônico (interno) & $v$ fora de EI, interno & 0 & $v$, $v$ & \COLLAPSED & $O(d\log n_c)$\textsuperscript{*}\\
+Canônico (borda) & $v$ fora de EI, na borda & 1 ($v'$) & $v'$, $v$ & \BORDER & $O(d\log n_c)$\\
+Split Element ($x_1$) & colapsado, $x_1$ vale & 1 ($n$) & $n$, $v$ & $c$ & $O(\log n_c)$\\
+Split Element ($x_3$) & colapsado, $x_3$ vale & 1 ($n$) & $v$, $n$ & $c$ & $O(\log n_c)$\\
+Expand Edge & colapsado, nenhuma hipótese & 1 ($n$) & $v$, $n$ & $c$ & $O(d\log n_c)$\\
+Open Hole & em EI, sem colapsada & 1 ($n$) & $n$, $v$ & \BORDER & $O(d\log n_c)$\\
+\bottomrule
+\end{tabularx}
+\caption{Resumo dos operadores. ``eHE'' é a half-edge \code{elementHE} do novo elemento ($h_3$ em $A$, $h_1$ em $B$);
+$c$ é a half-edge colapsada registrada em \code{\_collapsed[v]}, que deixa de ser colapsada e passa a ser a oposta de
+eHE. $d$ é a valência do vértice e $n_c$ o número de elementos: na IBHM cada $\nxt$/$\prv$ faz uma busca binária em
+$Of[\,]$. \textsuperscript{*}O custo do Canônico interno vem apenas do teste \code{isBorder}, que gira em torno do
+vértice.}
+\label{tab:operadores}
+\end{table}

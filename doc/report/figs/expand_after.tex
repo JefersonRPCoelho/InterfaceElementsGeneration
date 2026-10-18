@@ -1,0 +1,32 @@
+\begin{tikzpicture}[scale=1.700, every node/.style={font=\scriptsize}]
+\clip (0.450,0.300) rectangle (3.550,1.700);
+\filldraw[cefill] (0.000,0.000) -- (1.000,0.000) -- (1.000,1.000) -- (0.000,1.000) -- cycle;
+\filldraw[cefill] (1.000,0.000) -- (2.000,0.000) -- (2.000,0.800) -- (1.000,1.000) -- cycle;
+\filldraw[cefill] (2.000,0.000) -- (3.000,0.000) -- (3.000,1.000) -- (2.000,0.800) -- cycle;
+\filldraw[cefill] (3.000,0.000) -- (4.000,0.000) -- (4.000,1.000) -- (3.000,1.000) -- cycle;
+\filldraw[cefill] (0.000,1.000) -- (1.000,1.000) -- (1.000,2.000) -- (0.000,2.000) -- cycle;
+\filldraw[cefill] (1.000,1.000) -- (2.000,1.200) -- (2.000,2.000) -- (1.000,2.000) -- cycle;
+\filldraw[cefill] (2.000,1.200) -- (3.000,1.000) -- (3.000,2.000) -- (2.000,2.000) -- cycle;
+\filldraw[cefill] (3.000,1.000) -- (4.000,1.000) -- (4.000,2.000) -- (3.000,2.000) -- cycle;
+\filldraw[iefill] (1.054,0.941) -- (2.000,0.800) -- (2.000,1.200) -- (1.054,1.059) -- cycle;
+\filldraw[iefill] (2.000,0.800) -- (2.946,0.941) -- (2.946,1.059) -- (2.000,1.200) -- cycle;
+\draw[red, line width=1.1pt] (1.054,1.059) -- (1.054,0.941);
+\draw[red, line width=1.1pt] (2.946,0.941) -- (2.946,1.059);
+\node[vreg, dot] at (0.000,0.000) {};
+\node[vreg, dot] at (1.000,0.000) {};
+\node[vreg, dot] at (2.000,0.000) {};
+\node[vreg, dot] at (3.000,0.000) {};
+\node[vreg, dot] at (4.000,0.000) {};
+\node[vreg, dot] at (0.000,1.000) {};
+\node[vcol, minimum size=0.29cm] at (1.000,1.000) {$A$};
+\node[vie, minimum size=0.29cm] at (2.000,1.200) {$B$};
+\node[vcol, minimum size=0.29cm] at (3.000,1.000) {$C$};
+\node[vreg, dot] at (4.000,1.000) {};
+\node[vreg, dot] at (0.000,2.000) {};
+\node[vreg, dot] at (1.000,2.000) {};
+\node[vreg, dot] at (2.000,2.000) {};
+\node[vreg, dot] at (3.000,2.000) {};
+\node[vreg, dot] at (4.000,2.000) {};
+\node[vie, minimum size=0.29cm] at (2.000,0.800) {$B_{1}$};
+
+\end{tikzpicture}

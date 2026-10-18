@@ -1,0 +1,43 @@
+\begin{tikzpicture}[scale=2.000, every node/.style={font=\scriptsize}]
+\clip (0.450,0.550) rectangle (2.800,3.450);
+\filldraw[cefill] (0.000,0.000) -- (1.000,0.000) -- (1.000,1.000) -- (0.000,1.000) -- cycle;
+\filldraw[cefill] (1.000,0.000) -- (2.000,0.000) -- (2.000,1.000) -- (1.000,1.000) -- cycle;
+\filldraw[cefill] (2.000,0.000) -- (3.000,0.000) -- (3.000,1.000) -- (2.000,1.000) -- cycle;
+\filldraw[cefill] (0.000,1.000) -- (1.000,1.000) -- (1.000,2.000) -- (0.000,2.000) -- cycle;
+\filldraw[cefill] (1.000,1.000) -- (2.000,1.000) -- (1.844,1.844) -- (1.000,2.000) -- cycle;
+\filldraw[cefill] (2.000,1.000) -- (3.000,1.000) -- (3.000,2.000) -- (2.156,2.156) -- cycle;
+\filldraw[cefill] (0.000,2.000) -- (1.000,2.000) -- (1.000,3.000) -- (0.000,3.000) -- cycle;
+\filldraw[cefill] (1.000,2.000) -- (2.156,2.156) -- (2.000,3.000) -- (1.000,3.000) -- cycle;
+\filldraw[cefill] (2.156,2.156) -- (3.000,2.000) -- (3.000,3.000) -- (2.000,3.000) -- cycle;
+\filldraw[cefill] (0.000,3.000) -- (1.000,3.000) -- (1.000,4.000) -- (0.000,4.000) -- cycle;
+\filldraw[cefill] (1.000,3.000) -- (2.000,3.000) -- (2.000,4.000) -- (1.000,4.000) -- cycle;
+\filldraw[cefill] (2.000,3.000) -- (3.000,3.000) -- (3.000,4.000) -- (2.000,4.000) -- cycle;
+\filldraw[iefill] (1.057,1.933) -- (1.844,1.844) -- (2.156,2.156) -- (1.062,2.062) -- cycle;
+\filldraw[iefill] (1.844,1.844) -- (1.933,1.057) -- (2.062,1.062) -- (2.156,2.156) -- cycle;
+\draw[red, line width=1.1pt] (1.062,2.062) -- (1.057,1.933);
+\draw[red, line width=1.1pt] (1.933,1.057) -- (2.062,1.062);
+\node[elemlabel] at (1.461,1.461) {S};
+\node[elemlabel] at (1.999,1.530) {};
+\node[vreg, dot] at (0.000,0.000) {};
+\node[vreg, dot] at (1.000,0.000) {};
+\node[vreg, dot] at (2.000,0.000) {};
+\node[vreg, dot] at (3.000,0.000) {};
+\node[vreg, dot] at (0.000,1.000) {};
+\node[vreg, dot] at (1.000,1.000) {};
+\node[vcol, minimum size=0.29cm] at (2.000,1.000) {$D$};
+\node[vreg, dot] at (3.000,1.000) {};
+\node[vreg, dot] at (0.000,2.000) {};
+\node[vcol, minimum size=0.29cm] at (1.000,2.000) {$A$};
+\node[vie, minimum size=0.29cm] at (2.156,2.156) {$B$};
+\node[vreg, dot] at (3.000,2.000) {};
+\node[vreg, dot] at (0.000,3.000) {};
+\node[vreg, dot] at (1.000,3.000) {};
+\node[vreg, minimum size=0.29cm] at (2.000,3.000) {$C$};
+\node[vreg, dot] at (3.000,3.000) {};
+\node[vreg, dot] at (0.000,4.000) {};
+\node[vreg, dot] at (1.000,4.000) {};
+\node[vreg, dot] at (2.000,4.000) {};
+\node[vreg, dot] at (3.000,4.000) {};
+\node[vie, minimum size=0.29cm] at (1.844,1.844) {$B_{1}$};
+
+\end{tikzpicture}

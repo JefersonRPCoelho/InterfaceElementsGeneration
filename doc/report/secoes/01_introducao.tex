@@ -1,0 +1,131 @@
+\section{Introdução}
+\label{sec:intro}
+
+\subsection{Elementos de interface}
+
+Em muitos problemas de engenharia o comportamento que mais importa acontece em superfícies de descontinuidade:
+fraturas e falhas geológicas, juntas em maciços rochosos, contatos entre materiais distintos, caminhos de propagação de
+trincas. No método dos elementos finitos, uma forma clássica de representar essas descontinuidades é inserir, ao longo
+delas, \emph{elementos de interface} --- também chamados de elementos de espessura nula ou, quando associados a uma lei
+de tração--separação, elementos coesivos~\cite{paulino}.
+
+Em 2D, um elemento de interface linear é um quadrilátero de quatro nós cujos nós vêm aos pares geometricamente
+coincidentes (\cref{fig:ie-conceito}). Dois nós pertencem a um lado da descontinuidade e dois ao outro. Como a espessura
+é nula, a grandeza cinemática relevante deixa de ser a deformação e passa a ser o \emph{salto de deslocamento} entre os
+dois lados, $[\![\mathbf{u}]\!] = \mathbf{u}^{+} - \mathbf{u}^{-}$, que mede abertura e deslizamento da interface.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[scale=1.05, every node/.style={font=\small}]
+  % (a) contínuo
+  \begin{scope}
+    \filldraw[cefill] (0,0) rectangle (3,1); \filldraw[cefill] (0,1) rectangle (3,2);
+    \draw[seledge] (0,1) -- (3,1);
+    \node[elemlabel] at (1.5,1.5) {U}; \node[elemlabel] at (1.5,0.5) {L};
+    \node[vreg, minimum size=0.38cm] at (0,1) {1}; \node[vreg, minimum size=0.38cm] at (3,1) {2};
+    \node at (1.5,-0.5) {(a) malha contínua};
+  \end{scope}
+  % (b) com elemento de interface (espessura exagerada)
+  \begin{scope}[xshift=4.2cm]
+    \filldraw[cefill] (0,0) rectangle (3,1); \filldraw[iefill] (0,1) rectangle (3,1.35);
+    \filldraw[cefill] (0,1.35) rectangle (3,2.35);
+    \node[elemlabel] at (1.5,1.85) {U}; \node[elemlabel] at (1.5,0.5) {L};
+    \node[font=\scriptsize\bfseries, text=orange!40!black] at (1.5,1.175) {I};
+    \node[vie, minimum size=0.36cm] at (0,1) {1}; \node[vie, minimum size=0.36cm] at (3,1) {2};
+    \node[vie, minimum size=0.36cm] at (3,1.35) {3}; \node[vie, minimum size=0.36cm] at (0,1.35) {4};
+    \draw[decorate, decoration={brace, amplitude=3pt}] (3.3,1.4) -- (3.3,0.95)
+      node[midway, right=3pt, align=left, font=\scriptsize] {espessura nula\\(exagerada)};
+    \node at (1.5,-0.5) {(b) elemento de interface};
+  \end{scope}
+  % (c) abertura
+  \begin{scope}[xshift=9.6cm]
+    \filldraw[cefill] (0,0) rectangle (3,1);
+    \filldraw[iefill] (0,1) -- (3,1) -- (3.25,1.55) -- (0.15,1.3) -- cycle;
+    \filldraw[cefill] (0.15,1.3) -- (3.25,1.55) -- (3.25,2.55) -- (0.15,2.3) -- cycle;
+    \node[elemlabel] at (1.7,1.95) {U}; \node[elemlabel] at (1.5,0.5) {L};
+    \draw[-{Stealth[length=4pt]}, red!70!black, line width=0.8pt] (3,1) -- (3.25,1.55);
+    \draw[-{Stealth[length=4pt]}, red!70!black, line width=0.8pt] (0,1) -- (0.15,1.3);
+    \node[text=red!70!black, font=\scriptsize] at (4.05,1.25) {$[\![\mathbf{u}]\!]=\mathbf{u}^{+}-\mathbf{u}^{-}$};
+    \node at (1.6,-0.5) {(c) abertura da interface};
+  \end{scope}
+\end{tikzpicture}
+\caption{O elemento de interface. (a) Dois elementos contínuos compartilham uma aresta (em vermelho). (b) A aresta é
+\emph{aberta}: os nós 1 e 2 são duplicados em 4 e 3, e entre U e L surge um quadrilátero de quatro nós com
+$\mathbf{x}_1=\mathbf{x}_4$ e $\mathbf{x}_2=\mathbf{x}_3$ (desenhado com espessura exagerada). (c) Durante a simulação os
+dois lados podem se separar; o elemento mede o salto de deslocamento.}
+\label{fig:ie-conceito}
+\end{figure}
+
+Há duas estratégias para colocar esses elementos na malha. Na estratégia \emph{a priori}, todos os elementos de
+interface são criados antes da análise, ao longo de todas as superfícies em que uma descontinuidade pode ocorrer. Na
+estratégia \emph{adaptativa}, eles são inseridos durante a simulação, apenas onde e quando um critério (de tensão, de
+dano etc.) indica que a descontinuidade se formou~\cite{paulino}. A segunda estratégia evita a rigidez artificial e o
+custo de milhares de elementos inúteis, mas exige um algoritmo que altere a topologia da malha de forma incremental,
+local e eficiente, sobre uma malha que \emph{já contém} elementos de interface.
+
+\subsection{O problema da inserção}
+\label{sec:problema}
+
+\begin{nota}[Problema]
+\textbf{Dados:} uma malha 2D orientada $\mathcal{M}$ e um conjunto $S$ de arestas internas (cada uma compartilhada por
+dois elementos).\\
+\textbf{Obter:} uma malha $\mathcal{M}'$ em que cada aresta de $S$ foi \emph{aberta}: os dois elementos que a
+compartilhavam passam a se ligar através de um novo elemento de interface de quatro nós, e os vértices são duplicados
+apenas o necessário para que a topologia continue consistente.
+\end{nota}
+
+A \cref{fig:exemplo-intro} mostra a entrada e a saída para o exemplo usado ao longo de todo o texto: uma malha híbrida
+de quadriláteros e triângulos, com 12 arestas selecionadas e numeradas na ordem de inserção. Parece simples, mas há
+várias dificuldades:
+\begin{enumerate}
+\item \textbf{Quantas cópias de cada vértice?} Um vértice interno tocado por uma única aresta selecionada não precisa
+ser duplicado geometricamente (a trinca termina nele). Com duas arestas, ele vira dois. Com três ou mais, surge uma
+\emph{junção} (em T, em X, em estrela), e os elementos de interface não conseguem fechar a vizinhança sozinhos:
+aparece um \emph{buraco} poligonal, visível como as regiões hachuradas na \cref{fig:exemplo-intro}b.
+\item \textbf{Quais elementos vão para cada cópia?} A estrela do vértice precisa ser dividida em setores delimitados
+pelas arestas selecionadas, e cada setor deve passar a usar uma cópia diferente.
+\item \textbf{Borda.} Na borda da malha a abertura não precisa ser fechada: o vértice sempre ganha uma cópia a mais.
+\item \textbf{Incrementalidade.} Em uma análise adaptativa as arestas chegam aos poucos e em qualquer ordem. O
+resultado não deveria depender dessa ordem.
+\item \textbf{Estruturas compactas.} Estruturas baseadas em índices, como a CHE e a IBHM~\cite{che,ibhm}, armazenam a
+malha em vetores de inteiros, sem ponteiros. Os próprios autores da IBHM apontam como limitação o uso em remalhamento
+dinâmico~\cite{ibhm}. Inserir elementos é exatamente esse tipo de alteração.
+\item \textbf{Extensão para 3D.} O objetivo final é inserir elementos em faces de malhas 3D. As decisões tomadas em 2D
+devem ser transportáveis.
+\end{enumerate}
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}[b]{0.42\linewidth}\centering
+  \input{figs/example_initial.tex}
+  \caption{Entrada: malha com as arestas selecionadas (em vermelho) e a ordem de inserção.}
+\end{subfigure}\hfill
+\begin{subfigure}[b]{0.55\linewidth}\centering
+  \input{figs/example_final_small.tex}
+  \caption{Saída produzida pelo código: 12 elementos de interface (laranja), 19 vértices novos e três buracos
+  (hachurados).}
+\end{subfigure}
+\caption{O exemplo da apresentação de projeto~\cite{slides}, executado pelo código. Na saída, cada cópia de um vértice
+foi deslocada um pouco na direção dos elementos que a usam, para que vértices coincidentes fiquem visíveis (``vista
+explodida''). A malha é a do arquivo \code{malha2Hyb.txt}.}
+\label{fig:exemplo-intro}
+\end{figure}
+
+\subsection{Proposta e contribuições deste relatório}
+
+O algoritmo estudado aqui~\cite{slides} parte de uma observação simples, que dá nome a um dos slides de projeto: embora
+o problema seja \emph{abrir arestas e criar elementos}, as decisões difíceis acontecem nos \emph{vértices}. Por isso,
+a inserção de cada aresta é decomposta em duas aplicações de operadores locais, uma em cada extremidade, e o operador
+é escolhido olhando apenas para o estado daquele vértice. Há quatro operadores (\opname{Canônico},
+\opname{Split Element}, \opname{Expand Edge} e \opname{Open Hole}), e a ordem das arestas é livre.
+
+Este relatório tem quatro objetivos:
+\begin{itemize}
+\item explicar o problema e a estrutura de dados IBHM de forma acessível, inclusive o que acontece com seus vetores a cada inserção (\cref{sec:intro,sec:estruturas});
+\item descrever a arquitetura do algoritmo, cada operador e o algoritmo de travessia exatamente como estão
+implementados na classe \code{IBHMInterfaceElementBuilder}, a base a ser evoluída (\cref{sec:arquitetura,sec:operadores,sec:travessia});
+\item verificar experimentalmente o comportamento do código (\cref{sec:verificacao});
+\item confrontar a documentação existente (apresentação, comentários do código e artigo da IBHM) com a implementação,
+apontando imprecisões e defeitos (\cref{sec:documentacao}).
+\end{itemize}
+A \cref{sec:conclusao} reúne próximos passos, inclusive observações para a extensão 3D.

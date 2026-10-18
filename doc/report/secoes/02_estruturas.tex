@@ -1,0 +1,200 @@
+\section{Estruturas de dados: da CHE à IBHM}
+\label{sec:estruturas}
+
+O algoritmo opera inteiramente sobre a topologia da malha. Esta seção apresenta o vocabulário necessário: o conceito
+de \emph{half-edge}, a estrutura compacta CHE, sua extensão para malhas híbridas (IBHM) e como as duas estão
+implementadas no repositório.
+
+\subsection{Half-edges}
+
+Em uma malha 2D orientada, cada elemento é um polígono cujos vértices são listados no sentido anti-horário. Cada lado
+do elemento, visto com a orientação induzida pelo elemento, é uma \emph{half-edge}~\cite{mantyla}. Uma aresta interna
+é, portanto, representada por duas half-edges com sentidos opostos, uma em cada elemento vizinho; uma aresta de borda
+tem apenas uma. Cada half-edge $h$ guarda o vértice de onde parte, $\V[h]$. A partir dela definem-se três consultas
+(\cref{fig:halfedge}):
+\begin{itemize}
+\item $\nxt(h)$ e $\prv(h)$: a half-edge seguinte e a anterior no mesmo elemento;
+\item $\Op[h]$: a half-edge \emph{oposta}, isto é, a mesma aresta vista pelo elemento vizinho (ou \BORDER{} se $h$
+está na borda).
+\end{itemize}
+Note que $h$ parte de $\V[h]$ e chega em $\V[\nxt(h)]$, e que $\Op[h]$ vai de $\V[\nxt(h)]$ para $\V[h]$.
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}[b]{0.44\linewidth}\centering
+\begin{tikzpicture}[scale=1.25, every node/.style={font=\small}]
+  \filldraw[cefill] (0,0) -- (2,0) -- (2,2) -- (0,2) -- cycle;
+  \filldraw[cefill, fill=ceblue!60] (2,0) -- (4,0) -- (4,2) -- (2,2) -- cycle;
+  \node[elemlabel] at (0.8,1.05) {$c_0$}; \node[elemlabel] at (3.3,1.05) {$c_1$};
+  \draw[hearrow, red!70!black, line width=0.9pt] (1.82,0.35) -- (1.82,1.65) node[midway, left=1pt] {$h$};
+  \draw[hearrow, violet] (1.65,1.82) -- (0.35,1.82) node[midway, below=1pt] {$\nxt(h)$};
+  \draw[hearrow, green!45!black] (0.35,0.18) -- (1.65,0.18) node[midway, above=1pt] {$\prv(h)$};
+  \draw[hearrow, blue!70!black, line width=0.9pt] (2.18,1.65) -- (2.18,0.35) node[midway, right=1pt] {$\Op[h]$};
+  \node[vreg, minimum size=0.36cm, label={[font=\scriptsize]below right:{$v=\V[h]$}}] at (2,0) {};
+  \node[vreg, minimum size=0.36cm] at (2,2) {}; \node[vreg, dot] at (0,0) {}; \node[vreg, dot] at (0,2) {};
+  \node[vreg, dot] at (4,0) {}; \node[vreg, dot] at (4,2) {};
+\end{tikzpicture}
+\caption{Consultas básicas.}
+\label{fig:halfedge}
+\end{subfigure}\hfill
+\begin{subfigure}[b]{0.52\linewidth}\centering
+\begin{tikzpicture}[scale=1.2, every node/.style={font=\small}]
+  \foreach \i in {0,...,5} { \coordinate (p\i) at ({60*\i}:2.0); }
+  \coordinate (v) at (0,0);
+  \foreach \i/\j in {0/1,1/2,2/3,3/4,4/5,5/0} { \filldraw[cefill] (v) -- (p\i) -- (p\j) -- cycle; }
+  \filldraw[cefill, fill=ceblue!55] (v) -- (p1) -- (p2) -- cycle;
+  \node[elemlabel, font=\scriptsize\sffamily\bfseries] at (90:0.62) {$T_1$};
+  \node[elemlabel, font=\scriptsize\sffamily\bfseries] at (150:0.62) {$T_2$};
+  \node[elemlabel, font=\scriptsize\sffamily\bfseries] at (30:0.62) {$T_0$};
+  % h e prev(h) em T1
+  \draw[hearrow, red!70!black, line width=0.9pt] ($(v)!0.2!(p1)+(150:0.1)$) -- ($(v)!0.8!(p1)+(150:0.1)$);
+  \node[text=red!70!black] at (73:1.05) {$h$};
+  \draw[hearrow, violet] ($(p2)!0.2!(v)+(30:0.1)$) -- ($(p2)!0.8!(v)+(30:0.1)$);
+  \node[text=violet, font=\scriptsize] at (98:1.55) {$\prv(h)$};
+  % O[prev(h)] em T2
+  \draw[hearrow, green!45!black, line width=0.9pt] ($(v)!0.2!(p2)+(210:0.1)$) -- ($(v)!0.8!(p2)+(210:0.1)$);
+  \node[text=green!45!black, font=\scriptsize] at (142:1.3) {$\Op[\prv(h)]$};
+  % O[h] e next(O[h]) em T0
+  \draw[hearrow, blue!70!black] ($(p1)!0.2!(v)+(-30:0.1)$) -- ($(p1)!0.8!(v)+(-30:0.1)$);
+  \node[text=blue!70!black, font=\scriptsize] at (44:1.5) {$\Op[h]$};
+  \draw[hearrow, orange!80!black, line width=0.9pt] ($(v)!0.2!(p0)+(90:0.1)$) -- ($(v)!0.8!(p0)+(90:0.1)$);
+  \node[text=orange!80!black, font=\scriptsize] at (13:1.25) {$\nxt(\Op[h])$};
+  \node[vreg, minimum size=0.36cm] at (v) {$v$};
+  \foreach \i in {0,...,5} { \node[vreg, dot] at (p\i) {}; }
+  \draw[-{Stealth[length=5pt]}, green!45!black, line width=0.8pt] (68:2.3) arc (68:118:2.3)
+    node[pos=0.55, above=1pt, font=\scriptsize] {anti-horário};
+  \draw[-{Stealth[length=5pt]}, orange!80!black, line width=0.8pt] (52:2.3) arc (52:8:2.3)
+    node[midway, right=1pt, font=\scriptsize] {horário};
+\end{tikzpicture}
+\caption{Girando em torno de um vértice $v$.}
+\label{fig:rotacao}
+\end{subfigure}
+\caption{(a) Uma half-edge $h$ do elemento $c_0$ e suas consultas. (b) As duas maneiras de girar em torno de um vértice
+usando apenas $\nxt$, $\prv$ e $\Op$: a regra $h\leftarrow\Op[\prv(h)]$ passa ao elemento vizinho no sentido
+anti-horário (usada por \code{reindexElementsCCW}), e a regra $h\leftarrow\nxt(\Op[h])$ passa ao vizinho no sentido
+horário (usada por \code{isBorder} e pelo segundo laço de \code{openHole}). Em ambos os casos a nova half-edge também
+parte de $v$.}
+\end{figure}
+
+\subsection{CHE: half-edges implícitas}
+
+A \emph{Compact Half-Edge} (CHE)~\cite{che} dispensa objetos ``half-edge''. Se todos os elementos têm $k$ vértices,
+basta guardar a lista de elementos como um vetor de inteiros $\V[\,]$ com $k$ entradas por elemento: a posição $h$ desse
+vetor \emph{é} a half-edge, e o valor armazenado é o vértice de origem. As demais consultas saem por aritmética:
+\[
+  \mathrm{elem}(h)=\lfloor h/k\rfloor,\qquad
+  \nxt(h)=k\,\mathrm{elem}(h)+(h+1)\bmod k,\qquad
+  \prv(h)=k\,\mathrm{elem}(h)+(h+k-1)\bmod k .
+\]
+O único vetor adicional é o das opostas, $\Op[\,]$, com uma entrada por half-edge. Toda a adjacência da malha cabe em
+dois vetores de inteiros do mesmo tamanho.
+
+\subsection{IBHM: malhas híbridas}
+
+A IBHM (\emph{Index-Based data structure for Hybrid Meshes})~\cite{ibhm} estende a CHE (e a CHF~\cite{chf}, em 3D) para
+malhas com elementos de tipos diferentes. Em 2D, a mudança essencial é um vetor de \emph{offsets} $Of[\,]$ que diz onde
+cada elemento começa em $\V[\,]$. Assim, o elemento $c$ ocupa as posições $Of[c],\dots,Of[c]+n_v(c)-1$, e:
+\begin{itemize}
+\item $\mathrm{elem}(h)$ é obtido por \emph{busca binária} em $Of[\,]$, em $O(\log n_c)$ (em vez de uma divisão);
+\item $\nxt(h)=Of[c]+\big((h-Of[c]+1)\bmod n_v(c)\big)$ e analogamente para $\prv$;
+\item $\Op[\,]$ é idêntico ao da CHE;
+\item um vetor extra $VH[\,]$ associa a cada vértice uma half-edge que parte dele (a de borda, se o vértice estiver na
+borda), o que permite iniciar consultas de vizinhança e testar borda em $O(1)$.
+\end{itemize}
+A \cref{fig:ibhm} mostra os vetores para a malha do arquivo \code{meshIBHM.txt}, que reproduz (com índices a partir de
+zero) o exemplo da Figura~4 do artigo: um quadrado com um furo quadrado, formado por três quadriláteros e três
+triângulos.
+
+\begin{figure}[ht]
+\centering
+\input{figs/ibhm_example.tex}
+\par\medskip
+{\footnotesize\setlength{\tabcolsep}{2.2pt}\input{figs/ibhm_arrays.tex}}
+\par\smallskip
+{\small $\V[h]$: vértice de origem de $h$;\quad $\Op[h]$: oposta de $h$ (``--'' = \BORDER);\quad $Of[c]$: primeira
+half-edge do elemento $c$.}
+\caption{A malha de \code{meshIBHM.txt} com o índice de cada half-edge e os vetores da IBHM tal como construídos pela
+classe \code{IBHM}. O último elemento ($c_5$) começa num vértice diferente do usado no artigo, por isso suas três
+half-edges têm outra numeração; o restante coincide com a Figura~4 de~\cite{ibhm} subtraindo-se 1 dos índices. O furo
+central é delimitado por half-edges de borda.}
+\label{fig:ibhm}
+\end{figure}
+
+\subsection{A classe \code{IBHM} do repositório}
+\label{sec:impl-estruturas}
+
+A classe \code{IBHM} (\code{core/TopologyDataStructures/IBHM.\{h,cpp\}}) segue as ideias acima, com algumas escolhas
+próprias que importam para o algoritmo de inserção (\cref{tab:estruturas}). As coordenadas são guardadas em
+\code{float}, e as malhas são lidas no formato de \code{malha2Hyb.txt}: número de vértices e de elementos, coordenadas e,
+para cada elemento, o número de vértices seguido dos índices.
+
+\begin{table}[ht]
+\centering\small
+\begin{tabularx}{\linewidth}{>{\raggedright}p{3.4cm}>{\raggedright}X>{\raggedright\arraybackslash}X}
+\toprule
+Aspecto & Artigo da IBHM~\cite{ibhm} & Classe \code{IBHM}\\
+\midrule
+Índices & a partir de 1; $\Op[h]=0$ na borda & a partir de 0; $\Op[h]=\BORDER=-1$ (como \code{unsigned}: \code{0xFFFFFFFF})\\
+Estado extra de $\Op$ & --- & $\COLLAPSED=-2$ marca uma aresta \emph{colapsada} (de comprimento zero) de um
+elemento de interface\\
+Offsets & $n_c$ entradas & $n_c+1$ entradas (sentinela final), de modo que $n_v(c)=Of[c+1]-Of[c]$\\
+$\mathrm{elem}(h)$ & busca binária & busca binária com \code{std::upper\_bound} nas $n_c+1$ primeiras entradas de
+$Of[\,]$ (\code{offsetIterator}); $\nxt$ e $\prv$ também fazem essa busca\\
+Construção de $\Op$ & mapa indexado pelo par ordenado de vértices & para cada vértice, lista das half-edges que partem
+dele; procura-se a half-edge reversa (\code{buildOppositesLinear})\\
+Vetor $VH[\,]$ & sim & \textbf{não}; o teste de borda (\code{isBorder}) gira em torno do vértice\\
+Crescimento da malha & não previsto (``limitação'' declarada) & \code{reserveSpaceForElements/Nodes} reservam espaço,
+\code{addPoint} e \code{commitElement} validam novos itens; contadores de itens válidos separam o reservado do usado\\
+\bottomrule
+\end{tabularx}
+\caption{Diferenças entre a IBHM do artigo e a classe \code{IBHM} do repositório.}
+\label{tab:estruturas}
+\end{table}
+
+Dois pontos merecem destaque. Primeiro, o estado \COLLAPSED{} é uma extensão criada para o algoritmo de inserção:
+ele permite que um elemento de interface tenha um lado de comprimento zero sem vizinho, e as consultas que giram em torno
+de vértices (\code{isBorder}) sabem pular esse lado. Segundo, a combinação ``contar $\to$ reservar $\to$ validar'' é a
+resposta da implementação à limitação apontada no artigo para alterações dinâmicas: o algoritmo de inserção calcula
+antes quantos vértices e elementos novos serão necessários (\cref{sec:contagem}), reserva o espaço de uma vez e só
+então altera a malha, sem realocações durante as operações.
+
+A interface usada pelo construtor de elementos de interface é pequena: \code{heVertexIndex} ($\V$), \code{heOpposite}
+($\Op$), \code{heNext}, \code{hePrevious}, \code{heElement}, \code{isBorder}, \code{setElementVertex} (altera $\V[h]$),
+\code{setOpposite} (altera $\Op$ nos dois sentidos quando a oposta é uma half-edge válida, ou em um só sentido quando é
+\BORDER{} ou \COLLAPSED), \code{addPoint}, \code{nextAvailableHE} e \code{commitElement}. Nenhuma coordenada é
+consultada: o algoritmo é puramente topológico.
+
+\subsection{Os vetores da IBHM durante uma inserção}
+\label{sec:ibhm-insercao}
+
+A \cref{fig:insercao-vetores} mostra, numa malha híbrida pequena, o que acontece com os vetores quando uma aresta é
+aberta. A aresta $4$--$7$ é compartilhada pelos triângulos que contêm as half-edges $a=9$ ($4\to7$) e $b=19$ ($7\to4$);
+o vértice 4 é interno e o vértice 7 está na borda.
+\begin{enumerate}
+\item \textbf{Reserva.} Antes de qualquer alteração, \code{reserveSpaceForElements(4, 1)} acrescenta 4 posições a
+$\V[\,]$ e a $\Op[\,]$ e uma entrada a $Of[\,]$, e \code{reserveSpaceForNodes(1)} reserva um vértice (a pré-contagem
+previu um vértice novo, para a borda).
+\item \textbf{Validação antecipada.} \code{nextAvailableHE()} devolve $Of[n_c]=20$, a primeira half-edge livre, e
+\code{commitElement(4)} já declara o elemento 6 válido, gravando $Of[7]=24$. Na IBHM isso precisa acontecer \emph{antes}
+dos operadores, porque $\nxt$ e $\prv$ das half-edges 20--23 dependem do offset do elemento.
+\item \textbf{Operador em 4} (Canônico, interno): $\V[23]=\V[20]=4$ e $\Op[23]=\COLLAPSED$ (marcado como \textsc{c}).
+\item \textbf{Operador em 7} (Canônico, borda): cria o vértice 9; $\V[21]=9$; a rotação a partir de $b$ troca $\V[19]$
+de 7 para 9 e para logo na borda; $\V[22]=7$ e $\Op[21]=\BORDER$.
+\item \textbf{Arestas do meio}: $\Op[20]\leftrightarrow19$ e $\Op[22]\leftrightarrow9$. As antigas opostas $\Op[9]=19$ e
+$\Op[19]=9$ são sobrescritas.
+\end{enumerate}
+Ao todo, uma inserção altera poucas posições dos vetores antigos (em vermelho na figura) e preenche as quatro posições
+novas (em laranja). Note que as posições reservadas de $\Op[\,]$ começam com o valor 0, que é um índice válido de
+half-edge; no fluxo normal todas são sobrescritas, mas esse detalhe é relevante para a robustez (\cref{sec:defeitos}).
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}[b]{0.48\linewidth}\centering\input{figs/insert_before.tex}\caption{Antes: a aresta $4$--$7$.}\end{subfigure}\hfill
+\begin{subfigure}[b]{0.48\linewidth}\centering\input{figs/insert_after.tex}\caption{Depois: elemento $6=[4,9,7,4]$.}\end{subfigure}
+\par\medskip
+{\scriptsize\setlength{\tabcolsep}{2.1pt}\input{figs/insert_arrays.tex}}
+\caption{Uma inserção vista pelos vetores da IBHM. Na tabela, vermelho indica entradas antigas que mudaram e laranja as
+posições do novo elemento (half-edges 20--23); ``--'' é \BORDER{} e \textsc{c} é \COLLAPSED. O novo elemento é
+$[F,G,H,E]=[4,9,7,4]$: colapsado em 4 (interno) e aberto em 7 (borda), onde surgiu o vértice 9.}
+\label{fig:insercao-vetores}
+\end{figure}
