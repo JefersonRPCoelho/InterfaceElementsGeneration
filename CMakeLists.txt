@@ -29,13 +29,6 @@ endif ()
 
 include(FetchContent)
 
-FetchContent_Declare(
-        pybind11
-        GIT_REPOSITORY https://github.com/pybind/pybind11.git
-        GIT_TAG v2.13.6
-)
-
-FetchContent_MakeAvailable(pybind11)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -48,10 +41,6 @@ endif()
 add_executable(${PROJECT_NAME}
         main.cpp
         ${APP_ICON_RESOURCE}
-        core/UI/Resources/resources.qrc
-        core/UI/MainWindow.cpp
-        core/UI/Canvas.cpp
-        core/UI/Utilities.cpp
 
         core/TopologyDataStructures/CHE.cpp
         core/TopologyDataStructures/IBHM.cpp
@@ -76,13 +65,5 @@ target_include_directories(InterfaceElementsLib
         core/InterfaceElementsBuilder
 )
 
-pybind11_add_module(pyInterfaceElementsLib
-        bindings/InterfaceElementsWrapper.cpp
-)
-
-target_link_libraries(pyInterfaceElementsLib
-        PRIVATE
-        InterfaceElementsLib
-)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ${QT_WIDGETS_LIB} ${QT_OPENGL_LIB})
