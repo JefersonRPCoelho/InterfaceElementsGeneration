@@ -19,7 +19,13 @@ class IBHM;
  * single builder instance must be used for the whole editing session of a mesh. Creating a second builder over a mesh
  * that has already been edited loses that state and leads to the wrong operator being selected.
  *
- * @todo vertex based
+ * The main algorithm's strengths are:
+ * 1. It is based on the operator. There is a traversal algorithm in the selected edges, and an operator is applied to
+ * each edge vertex.
+ * 2. There are only 4 operators to 3D.
+ * 3. Although the algorithm is designed to insert elements on the mesh, the decision about what operator should be
+ * applied is vertex-based. The vertex information is enough to build the whole decision, avoiding complex algorithms or
+ * big combinations to treat all the cases.
  */
 class IBHMInterfaceElementBuilder
 {
@@ -58,12 +64,23 @@ public:
     /**
      * The operators modify a IBHM instance. Therefore, the constructor should receive the instance that should be
      * modified.
+     *
+     * The builder keeps the information about vertices and elements during the process of element insertion. It
+     * supports adaptive elements insertion, but the same build should be used. It works as a second layer mesh
+     * definition. The IBHM defines that current mesh state, including interface elements, but the builder keeps the
+     * required definition to be able to insert new interface elements from the last state.
+     *
+     * As a consequence, there should be only one builder for each IBHM instance. @todo Implement a mechanism to avoid
+     * creating more than one builder for the same IBHM instance.
+     *
      * @param ibhm The IBHM instance that should be modified.
      */
     explicit IBHMInterfaceElementBuilder(IBHM *ibhm);
 
     /**
      * Insert interface elements in a group of provided edges.
+     *
+     * The algorithm inserts the edges in the order they are provided.
      * @param edges A vector with one half-edge for each input edge. Each edge is defined for two half-edges. There user
      * can select anyone of them.
      */
@@ -76,8 +93,9 @@ private:
      * The edgeHE half-edge identifies the edge being split and the vertex where the canonical operator should be
      * applied.
      *
-     * If the vertex is internal to the mesh, no new vertex is created. Instead, a collapsed edge is created in the
-     * pre-existent vertex. This edge is saved to the _collapsed mesh with the half-edge identifying the collapsed edge.
+     * If the vertex is internal to the mesh, no new geometric vertex is created. Instead, a collapsed edge is created
+     * in the pre-existent vertex. This edge is saved to the _collapsed mesh with the half-edge identifying the
+     * collapsed edge. The opposite is defined as COLLAPSED.
      *
      * When the vertex is on the border, a new geometric vertex is created and the resulting edge is not collapsed
      * anymore. As a result, all elements from the new vertex side should be re-indexed to use the new vertex. See
@@ -90,7 +108,8 @@ private:
      * applied.
      * @param elementHE The half-edge that identifies the edge being created in the vertice inside the new interface
      * element. The operator supposes that the element is already created and will only work on adjusting the neighbor
-     * around the vertex.
+     * around the vertex. Therefore, this parameter provides information about the new interface element that should be
+     * modified by the canonical operator.
      * @return True if the operation was performed successfully and false otherwise.
      */
     bool canonical(unsigned int edgeHE, unsigned int elementHE);
@@ -108,10 +127,10 @@ private:
      *
      * The elementHE, as in the canonical operator, should represent the first edge-vertex being opened. First, in the
      * sense of orientation.
+     *
      * @param he A half-edge identifying the vertex where the operator should be applied. This vertex should be part of
      * a collapsed edge.
-     * 
-     * @param availableVertexHE A half-edge representing the selected vertex to replaced by a geometric vertex in the
+     * @param availableVertexHE A half-edge representing the selected vertex to be replaced by a geometric vertex in the
      * pre-existent interface element. The interface element that generated the collapsed edge.
      * @param sharedElementHE A half-edge representing the available vertex in the shared element.
     * @param elementHE The half-edge that identifies the edge being created in the vertice inside the new interface
@@ -164,12 +183,13 @@ private:
 
     /**
      * Given a half-edge defining an edge, determine which operator should be used in the half-edge's vertex.
+     *
      * @param he A half-edge defining an edge and the vertex where the operator should be applied.
      * @param availableVertexHE For SPLIT_ELEMENT only: when the SPLIT_ELEMENT operator is selected, the half-edge for
      * one of the vertices in the collapsed edge is selected to be used by the operator and saved in this variable. This
      * half-edge is used to reindex the element with a newly created vertex.
      * @param sharedElementHE For SPLIT_ELEMENT only: when the SPLIT_ELEMENT operator is selected, the half-edge for the
-    * selected vertex in the shared element is selected to be used by the operator and saved in this variable. This
+     * selected vertex in the shared element is selected to be used by the operator and saved in this variable. This
      * half-edge is used to reindex the shared element with a newly created vertex.
      * @return The retrieved operator.
      */
@@ -182,11 +202,11 @@ private:
      *
      * The half-edge stopHE can be provided as IBHM::BORDER.
      *
-     * If the stopHE is never found, the algorithm will replace the vertex from he by v for all elements.
+     * If the stopHE is never found, the algorithm will replace the vertex from 'he' by 'v' for all elements.
      *
      * @param he A half-edge outgoing from the vertex that should be replaced by v.
      * @param stopHE The half-edge the algorithm should stop when finding it. It can be IBHM::BORDER.
-     * @param v The new vertex index that should be used to replace the vertex in he.
+     * @param v The new vertex index that should be used to replace the vertex in 'he'.
      */
     void reindexElementsCCW(unsigned int he, unsigned int stopHE, unsigned int v) const;
 
@@ -203,10 +223,10 @@ private:
      *
      * @param he A half-edge from the edge being split that belongs to the vertex that should be tested.
      * @param availableVertexHE If the operation is defined as SPLIT_ELEMENT, the function will write in this variable
-    * the half-edge index for the available vertex to be used in the operator or IBHM::BORDER if the operator is
-    * EXPAND_EDGE.
-    * @param sharedElementHE The half-edge for the node that should be index inside the shared face or IBHM::BORDER if
-    * the operator is EXPAND_EDGE.
+     * the half-edge index for the available vertex to be used in the operator or IBHM::BORDER if the operator is
+     * EXPAND_EDGE.
+     * @param sharedElementHE The half-edge for the node that should be index inside the shared face or IBHM::BORDER if
+     * the operator is EXPAND_EDGE.
      */
     void retrieveAvailableVertex(unsigned int he, unsigned int &availableVertexHE, unsigned int &sharedElementHE);
 
