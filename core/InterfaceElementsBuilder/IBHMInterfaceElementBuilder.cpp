@@ -153,8 +153,8 @@ bool IBHMInterfaceElementBuilder::canonical(const unsigned int edgeHE, const uns
     // If the vertex is on the border, a new geometry vertex should be created.
     if (_ibhm->isBorder(edgeHE))
     {
-        // Get the index for the new vertex.
-        const unsigned int newVertex = _ibhm->addPoint();
+        // Create the new vertex as a copy of v, i.e., with the same coordinates.
+        const unsigned int newVertex = _ibhm->duplicatePoint(v);
 
         // Add the element to the newly created element.
         _ibhm->setElementVertex(elementHE, newVertex);
@@ -199,8 +199,8 @@ bool IBHMInterfaceElementBuilder::splitElement(const unsigned int he, const unsi
     // Get the vertex index.
     const unsigned int v = _ibhm->heVertexIndex(he);
 
-    // Get the index for the new vertex.
-    const unsigned int newVertex = _ibhm->addPoint();
+    // Create the new vertex as a copy of v, i.e., with the same coordinates.
+    const unsigned int newVertex = _ibhm->duplicatePoint(v);
 
     // Update the pre-existent interface element.
     _ibhm->setElementVertex(availableVertexHE, newVertex);
@@ -250,8 +250,8 @@ bool IBHMInterfaceElementBuilder::expandEdge(const unsigned int he, const unsign
 
     assert(_collapsed.find(v) != _collapsed.end());
 
-    // Get the index for the new vertex.
-    const unsigned int newVertex = _ibhm->addPoint();
+    // Create the new vertex as a copy of v, i.e., with the same coordinates.
+    const unsigned int newVertex = _ibhm->duplicatePoint(v);
 
     // Get the available vertex half-edge.
     const unsigned int availableVertexHE = _collapsed[v];
@@ -283,8 +283,8 @@ bool IBHMInterfaceElementBuilder::openHole(const unsigned int he, const unsigned
     // Get the vertex index.
     const unsigned int v = _ibhm->heVertexIndex(he);
 
-    // Get the index for the new vertex.
-    const unsigned int newVertex = _ibhm->addPoint();
+    // Create the new vertex as a copy of v, i.e., with the same coordinates.
+    const unsigned int newVertex = _ibhm->duplicatePoint(v);
 
     // Reindex with the new vertex.
     unsigned int currentHE = he;

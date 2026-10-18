@@ -271,6 +271,26 @@ unsigned int IBHM::addPoint(const std::vector<float> &coordinates)
 
 
 
+unsigned int IBHM::duplicatePoint(const unsigned int vertex)
+{
+    assert(vertex < _numberOfValidPoints);
+    assert(_coordinates.size() == static_cast<size_t>(_numberOfValidPoints) * _numberCoordinatesPerVertex);
+
+    // Each value is copied to a local variable before being appended. The source is accessed by index, so a
+    // reallocation caused by push_back does not invalidate it.
+    const size_t first = static_cast<size_t>(vertex) * _numberCoordinatesPerVertex;
+    for (unsigned int i = 0; i < _numberCoordinatesPerVertex; i++)
+    {
+        const float value = _coordinates[first + i];
+        _coordinates.push_back(value);
+    }
+    _numberOfValidPoints++;
+
+    return _numberOfValidPoints - 1;
+}
+
+
+
 unsigned int IBHM::commitElement(const unsigned int elementSize)
 {
     assert(_numberOfValidElements + 1 < _offset.size());

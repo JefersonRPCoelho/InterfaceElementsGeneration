@@ -119,6 +119,18 @@ public:
     unsigned int addPoint(const std::vector<float> &coordinates = {});
 
     /**
+     * @brief Add a new point with the same coordinates as an existing vertex.
+     *
+     * It is used to create the copies of a vertex when the mesh is split: the copies are geometrically coincident with
+     * the original vertex. The coordinates are read by index while they are appended, so no temporary vector is needed,
+     * and the result is correct even if the coordinate's vector is reallocated. As in addPoint(), the new point is
+     * appended to the end, and reserveSpaceForNodes() avoids reallocations.
+     * @param vertex The index of the existing vertex whose coordinates should be copied.
+     * @return The index for the new vertex.
+     */
+    unsigned int duplicatePoint(unsigned int vertex);
+
+    /**
      * Mark the next element index as valid.
      * @param elementSize The size of the element being inserted.
      * @return The index for the new valid element.
