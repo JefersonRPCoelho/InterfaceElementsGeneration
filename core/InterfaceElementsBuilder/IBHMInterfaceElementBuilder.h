@@ -259,24 +259,27 @@ public:
     /**
      * Compute the number of new vertices that will be required to insert interface elements in the provided edges.
      *
-     * The computation uses the state of each vertex before the insertion. Let n be the number of provided edges that
-     * touch the vertex:
-     *     1. If the vertex is not part of an interface element, it needs n - 1 new vertices if it is internal and n new
-     *     vertices if it is on the border. The first time an internal vertex is split, it generates a collapsed edge,
-     *     which does not require a new vertex; a border vertex is duplicated already at the first edge.
-     *     2. If the vertex is already part of an interface element, it needs n new vertices, since every new edge
-     *     duplicates it.
+     * Only the edges that insertInterfaceElements() will really open are counted. The edges it skips are skipped here
+     * too, with the same tests: border edges, edges of interface elements, and repeated edges (also when an edge is
+     * given once by each of its half-edges).
      *
-     * The result is used to reserve memory and is an upper bound. It is exact when all edges are accepted and every
-     * border vertex is touched by at most one of them, but:
-     *     1. Edges that insertInterfaceElements() will skip (border edges, edges of interface elements, repeated edges)
-     *     are also counted.
-     *     2. The extra vertex of the border rule is added once per edge instead of once per vertex, so a border vertex
-     *     that is not part of an interface element and is touched by k edges is counted as 2k - 1 instead of k.
+     * Then, for each vertex, let n be the number of counted edges that touch it. Considering the state of the vertex
+     * before the insertion:
+     *     1. If the vertex is already part of an interface element, it needs n new vertices, since every new edge
+     *     duplicates it.
+     *     2. If it is not part of an interface element and is on the border, it also needs n new vertices: a border
+     *     vertex is duplicated already at the first edge.
+     *     3. If it is not part of an interface element and is internal, it needs n - 1 new vertices: the first edge
+     *     only creates a collapsed edge, which does not require a new vertex.
+     * The rule, and the border test, are applied once per vertex.
+     *
+     * The result is the exact number of vertices the insertion creates, so it can be used to reserve exactly the memory
+     * needed. A second edge on a border vertex that is already part of an interface element is counted as one new
+     * vertex, which is the expected result, although the insertion does not support this case yet.
      *
      * @param edges The group of edges, each one represented by one of its half-edges, that should be used to insert new
      * interface elements.
-     * @return An upper bound for the number of new vertices.
+     * @return The number of new vertices.
      */
     [[nodiscard]] unsigned int computeNumberOfNewVertices(const std::vector<unsigned int> &edges) const;
 

@@ -1,8 +1,11 @@
 //
 // Created by jcoelho on 2/24/2026.
 //
+#include <algorithm>
 #include <cassert>
 #include <cstdio>
+#include <unordered_map>
+#include <unordered_set>
 #include "IBHMInterfaceElementBuilder.h"
 #include "IBHM.h"
 
@@ -490,61 +493,96 @@ void IBHMInterfaceElementBuilder::retrieveAvailableVertex(const unsigned int he,
 
 unsigned int IBHMInterfaceElementBuilder::computeNumberOfNewVertices(const std::vector<unsigned int> &edges) const
 {
-    std::unordered_map<unsigned int, unsigned int> vertexCount;
+    // The count is done in two steps:
+    //     1. Select the edges that insertInterfaceElements() will really open and, for each vertex, count how many of
+    //     them touch it.
+    //     2. Apply, once per vertex, the rule of the vertex state.
+    //
+    // Counting per vertex (and not per edge) gives the exact result when a vertex is touched by several edges of the
+    // same call, and the border test, which rotates around the vertex, runs only once per vertex.
+
+    // Information gathered for each vertex touched by the selected edges.
+    struct VertexInfo
+    {
+        // Number of selected edges that touch the vertex.
+        unsigned int count = 0;
+
+        // One half-edge outgoing from the vertex. It is used to test if the vertex is on the border.
+        unsigned int he = IBHM::BORDER;
+    };
+    std::unordered_map<unsigned int, VertexInfo> vertices;
+
+    // Edges already selected, each one identified by the smaller of its two half-edges. It detects an edge provided
+    // twice, also when it is provided once by each of its half-edges.
+    std::unordered_set<unsigned int> selectedEdges;
+
+    // Step 1: select the edges and count them for their two vertices.
     for (const auto &a: edges)
     {
-        // Get the next vertex half-edge.
-        const unsigned int b = _ibhm->heNext(a);
+        // C             D
+        //  \  a -->    /
+        //  A --------- B
+        //  /    <-- b  \
+        // E             F
+        // The half-edges 'a' and 'b' represent the same edge: 'a' starts at A and 'b' starts at B.
+        const unsigned int b = _ibhm->heOpposite(a);
 
-        // Get both edges vertices;
-        const unsigned int v1 = _ibhm->heVertexIndex(a);
-        const unsigned int v2 = _ibhm->heVertexIndex(b);
+        // Skip the edges that insertInterfaceElements() skips, using the same tests. The result of these tests does not
+        // change while the edges of this call are inserted, except for a repeated edge, which is handled by the third
+        // test.
 
-        // Count the number of times the vertex appears.
-        if (vertexCount.find(v1) == vertexCount.end())
+        // 1. A border edge has no opposite, so it cannot be opened.
+        if (b == IBHM::BORDER || b == IBHM::COLLAPSED)
         {
-            vertexCount[v1] = 1;
-        }
-        else
-        {
-            vertexCount[v1]++;
-        }
-
-        // If the vertex is not part of an interface element, we will need an extra vertex in the border.
-        if (_ibhm->isBorder(a) && !_inInterfaceElement[v1])
-        {
-            vertexCount[v1]++;
+            continue;
         }
 
-        if (vertexCount.find(v2) == vertexCount.end())
+        // 2. An edge of an interface element cannot be opened. As this test comes before isBorder(), the border test
+        // is never applied to a half-edge of an interface element.
+        if (_isInterfaceElement[_ibhm->heElement(a)] || _isInterfaceElement[_ibhm->heElement(b)])
         {
-            vertexCount[v2] = 1;
-        }
-        else
-        {
-            vertexCount[v2]++;
+            continue;
         }
 
-        if (_ibhm->isBorder(b) && !_inInterfaceElement[v2])
+        // 3. The insertion skips a repeated edge: after the first time, it already belongs to an interface element.
+        // The insert() returns false in 'second' when the edge was already in the set.
+        if (!selectedEdges.insert(std::min(a, b)).second)
         {
-            vertexCount[v2]++;
+            continue;
+        }
+
+        // The edge will be opened: count it for the vertex A (origin of 'a') and for the vertex B (origin of 'b').
+        for (const unsigned int he: {a, b})
+        {
+            // If the element does not exist in the map yet, the operator [] creates it.
+            VertexInfo &info = vertices[_ibhm->heVertexIndex(he)];
+            info.count++;
+            info.he = he;
         }
     }
 
+    // Step 2: apply the rule of each vertex. In the comments, n is the number of selected edges that touch the vertex.
     unsigned int numberOfNewVertices = 0;
-    for (const auto &[vertex, count]: vertexCount)
+    for (const auto &[vertex, info]: vertices)
     {
-        if (_inInterfaceElement[vertex] == false)
+        if (_inInterfaceElement[vertex])
         {
-            // If the vertice is not part of an interface element, we need n - 1 vertex. The vertex itself will be
-            // reused. For the vertices on the border, it was already added an extra count, so it is correct to use the
-            // same formula.
-            numberOfNewVertices += (count - 1);
+            // The vertex is already part of an interface element: every new edge duplicates it (Split Element, Expand
+            // Edge, or Open Hole), so it needs n new vertices.
+            numberOfNewVertices += info.count;
+        }
+        else if (_ibhm->isBorder(info.he))
+        {
+            // The vertex is on the border and is not part of an interface element yet: the first edge already
+            // duplicates it (Canonical on the border), and so does every other edge, so it needs n new vertices.
+            numberOfNewVertices += info.count;
         }
         else
         {
-            // Once the vertex is already part of an interface element, each new edge will generate a new vertex.
-            numberOfNewVertices += count;
+            // The vertex is internal and is not part of an interface element yet: the first edge only creates a
+            // collapsed edge (Canonical), without a new vertex, and every other edge duplicates it, so it needs n - 1
+            // new vertices.
+            numberOfNewVertices += info.count - 1;
         }
     }
 
