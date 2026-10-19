@@ -22,6 +22,11 @@ IBHMInterfaceElementBuilder::IBHMInterfaceElementBuilder(IBHM *ibhm) : _ibhm(ibh
 
 void IBHMInterfaceElementBuilder::insertInterfaceElements(const std::vector<unsigned int> &edges)
 {
+    // Number of half-edges of the mesh before this call. Only smaller indices are accepted as input: the larger ones
+    // are outside the element's list or in its reserved space, where the positions are not edges of the mesh. It must
+    // be read here, since the elements committed by this call increase it.
+    const unsigned int numberOfHalfEdges = _ibhm->numberOfHalfEdges();
+
     // Get the number of required new vertices and elements.
     const unsigned int numNewVertices = computeNumberOfNewVertices(edges);
     const unsigned int numNewElements = static_cast<unsigned int>(edges.size());
@@ -42,6 +47,16 @@ void IBHMInterfaceElementBuilder::insertInterfaceElements(const std::vector<unsi
         //  A --------- B
         //  /    <-- b  \
         // E             F
+
+        // The index must be a half-edge of the mesh. This test comes first, since the queries below are only valid for
+        // half-edges of committed elements.
+        if (a >= numberOfHalfEdges)
+        {
+            printf("The half-edge [%u] is not valid because it is outside the range of the mesh half-edges [0, %u)\n",
+                   a, numberOfHalfEdges);
+            continue;
+        }
+
         // Get the opposite half-edge from the same edge. The half-edges 'a' and 'b' represent the same edge.
         const unsigned int b = _ibhm->heOpposite(a);
 
@@ -516,9 +531,24 @@ unsigned int IBHMInterfaceElementBuilder::computeNumberOfNewVertices(const std::
     // twice, also when it is provided once by each of its half-edges.
     std::unordered_set<unsigned int> selectedEdges;
 
+    // Number of half-edges of the mesh. It is the same limit insertInterfaceElements() reads before calling this
+    // function.
+    const unsigned int numberOfHalfEdges = _ibhm->numberOfHalfEdges();
+
     // Step 1: select the edges and count them for their two vertices.
     for (const auto &a: edges)
     {
+        // Skip the edges that insertInterfaceElements() skips, using the same tests. The result of these tests does not
+        // change while the edges of this call are inserted, except for a repeated edge, which is handled by the last
+        // test.
+
+        // 0. An index that is not a half-edge of the mesh is skipped. It must be the first test, since the queries
+        // below are only valid for half-edges of committed elements.
+        if (a >= numberOfHalfEdges)
+        {
+            continue;
+        }
+
         // C             D
         //  \  a -->    /
         //  A --------- B
@@ -526,10 +556,6 @@ unsigned int IBHMInterfaceElementBuilder::computeNumberOfNewVertices(const std::
         // E             F
         // The half-edges 'a' and 'b' represent the same edge: 'a' starts at A and 'b' starts at B.
         const unsigned int b = _ibhm->heOpposite(a);
-
-        // Skip the edges that insertInterfaceElements() skips, using the same tests. The result of these tests does not
-        // change while the edges of this call are inserted, except for a repeated edge, which is handled by the third
-        // test.
 
         // 1. A border edge has no opposite, so it cannot be opened.
         if (b == IBHM::BORDER || b == IBHM::COLLAPSED)

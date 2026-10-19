@@ -210,6 +210,16 @@ public:
     [[nodiscard]] unsigned int numberOfElements() const;
 
     /**
+     * @brief Get the number of half-edges of the mesh, i.e., of its valid (committed) elements.
+     *
+     * The valid half-edge indices go from 0 to numberOfHalfEdges() - 1. The positions reserved by
+     * reserveSpaceForElements() and not used by a committed element yet are not counted; numberReservedElements()
+     * counts them.
+     * @return The number of half-edges of the valid elements.
+     */
+    [[nodiscard]] unsigned int numberOfHalfEdges() const;
+
+    /**
      * Given an element index, get the first element half-edge.
      * @param elementIndex The element index.
      * @return The first element half-edge.
@@ -239,6 +249,10 @@ public:
      *
      * Although the space is reserved, it is not used. The number of elements inserted in the mesh is controlled by
      * _numberOfValidElements, so avoid using the vectors' size to determine the number of elements.
+     *
+     * The reserved positions of the opposite table start with BORDER. So, a reserved half-edge queried before being
+     * linked by its owner is seen as a border, and not as a link to half-edge 0, which is a valid half-edge of the
+     * mesh.
      * @param numberPositions Number of extra vector positions to be allocated.
      * @param numberElements The number of elements that will be stored in the reserved space.
      */

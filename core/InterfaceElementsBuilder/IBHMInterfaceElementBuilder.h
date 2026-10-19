@@ -86,15 +86,13 @@ public:
      *
      * Edges that cannot be opened are skipped with a message on the standard output, and nothing is reported to the
      * caller:
-     *     1. Border edges, i.e., the provided half-edge has no opposite.
-     *     2. Edges that already belong to an interface element, for example, an edge provided twice in the same call or
+     *     1. Indices that are not half-edges of the mesh, i.e., not smaller than IBHM::numberOfHalfEdges() at the
+     *     beginning of the call. It includes the indices in the space reserved for new elements, which is not part of
+     *     the mesh yet.
+     *     2. Border edges, i.e., the provided half-edge has no opposite.
+     *     3. Edges that already belong to an interface element, for example, an edge provided twice in the same call or
      *     in different calls.
      * The space reserved for the skipped edges is left unused.
-     *
-     * @warning The provided indices are not validated. Every value must be the index of a half-edge of an element that
-     * already exists in the mesh (a committed element). A half-edge of an interface element makes
-     * computeNumberOfNewVertices() loop forever, because the test that skips these edges runs only after it, and an
-     * index outside the valid range leads to an assertion failure or to invalid memory access.
      *
      * @param edges A vector with one half-edge for each input edge. Each edge is defined by two half-edges. The user
      * can select any of them.
@@ -260,8 +258,8 @@ public:
      * Compute the number of new vertices that will be required to insert interface elements in the provided edges.
      *
      * Only the edges that insertInterfaceElements() will really open are counted. The edges it skips are skipped here
-     * too, with the same tests: border edges, edges of interface elements, and repeated edges (also when an edge is
-     * given once by each of its half-edges).
+     * too, with the same tests: indices that are not half-edges of the mesh, border edges, edges of interface elements,
+     * and repeated edges (also when an edge is given once by each of its half-edges).
      *
      * Then, for each vertex, let n be the number of counted edges that touch it. Considering the state of the vertex
      * before the insertion:

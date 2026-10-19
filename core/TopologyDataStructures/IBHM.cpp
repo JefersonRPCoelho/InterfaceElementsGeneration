@@ -158,7 +158,9 @@ void IBHM::reserveSpaceForElements(const unsigned int numberPositions, const uns
 {
     _offset.resize(_offset.size() + numberElements);
     _halfEdgeVertex.resize(_halfEdgeVertex.size() + numberPositions);
-    _oppositeHalfEdge.resize(_oppositeHalfEdge.size() + numberPositions);
+
+    // The new positions start as borders (see the header). With the default value (0), they would point to half-edge 0.
+    _oppositeHalfEdge.resize(_oppositeHalfEdge.size() + numberPositions, static_cast<unsigned int>(BORDER));
 }
 
 
@@ -331,6 +333,14 @@ void IBHM::setElementVertex(const unsigned int he, const unsigned int vertex)
 unsigned int IBHM::numberOfElements() const
 {
     return _numberOfValidElements;
+}
+
+
+
+unsigned int IBHM::numberOfHalfEdges() const
+{
+    // The offset of the first element that does not exist yet is the number of half-edges of the valid elements.
+    return _offset[_numberOfValidElements];
 }
 
 
