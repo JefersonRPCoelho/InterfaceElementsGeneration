@@ -43,20 +43,24 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
   selecionadas (interno com 1 aresta: 1 cópia, colapsado; borda com k arestas: k+1). Por isso o resultado não depende
   da ordem de inserção nem de inserir em lote.
 - Na IBHM, `commitElement(4)` é chamado **antes** dos operadores (next/prev dependem de `_offset`), e posições
-  reservadas de `O[]` começam com 0.
+  reservadas de `O[]` começam com `BORDER` (antes do I3, com 0). Entrada válida: `h < numberOfHalfEdges()` lido no
+  início da chamada (`= Of[n_c]`); `numberReservedElements()` inclui o espaço reservado.
 
 ## Defeitos conhecidos da IBHM (relatório v0.3, seção 7.4) — ainda não corrigidos
 
 - **I1 (alta)** `openHole` em vértice de borda (externa ou de furo) já aberto: asserção em debug, escrita fora do
   vetor em release. Comum em malhas de triângulos. Precisa de tratamento próprio.
-- **I2 (alta)** `isBorder` entra em laço infinito se a entrada contém half-edge de elemento de interface (a rejeição
-  vem depois de `computeNumberOfNewVertices`).
-- **I3** entrada sem validação de índice (índice no espaço reservado é aceito). **I4 (parcial)** as cópias criadas
-  pelos operadores ainda nascem na origem; a parte de `addPoint`/`reserveSpaceForNodes` (B2) já foi corrigida.
-  **I5–I10**: ver relatório. Correções feitas desde a v0.2: `doc/report/historico/HISTORICO.md`.
+- **I2 (mitigado)** `isBorder` tem um defeito latente (o desvio da aresta colapsada pode pular a parada), mas desde a
+  correção do I5 o construtor não chega mais a esse caminho: arestas de elementos de interface são descartadas antes.
+- **I6, I7, I9–I11**: ver relatório.
+- **Já corrigidos:** I3 (índices fora de `[0, numberOfHalfEdges())` rejeitados na inserção e na contagem; `O[]`
+  reservado começa com `BORDER`), I4 (cópias nascem com as coordenadas do original, via `IBHM::duplicatePoint`), I5
+  (contagem exata de vértices novos), I8 e a parte de includes do I10. Correções feitas desde a última versão do
+  relatório: `doc/report/historico/HISTORICO.md`.
 - **Memória é prioridade:** reservas devem ser exatas (sem crescimento geométrico); quem usa a IBHM pode reservar mais
   espaço de uma vez. Não assumir número máximo fixo de coordenadas: `addPoint` recebe `const std::vector<float>&`
-  (vazio = origem), nunca ponteiro para o vetor interno.
+  (vazio = origem), nunca ponteiro para o vetor interno. Para copiar um vértice, usar `duplicatePoint(vertex)` (sem
+  vetor temporário).
 
 ## Build e testes
 
@@ -67,14 +71,15 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
       core/InterfaceElementsBuilder/IBHMInterfaceElementBuilder.cpp -o $W/driver
   ```
 - `doc/report/tools/driver.cpp`: insere arestas (`--batch` para lote), imprime o operador por vértice, valida a
-  topologia (V1–V6: opostas simétricas, vértices consistentes, colapsadas degeneradas, um leque por vértice, todo
-  vértice usado, contagem prevista = criada) e grava JSON. Exemplo dos slides:
+  topologia (V1–V7: opostas simétricas, vértices consistentes, colapsadas degeneradas, um leque por vértice, todo
+  vértice usado, contagem prevista = criada, cópias com as coordenadas do original) e grava JSON. Exemplo dos slides:
   `$W/driver malha2Hyb.txt $W/ex.json 31 34 11 26 47 38 23 19 30 42 29 45` → 19 vértices novos, `TOTAL ERRORS: 0`.
 - `doc/report/tools/stress.py <driver> <seed> <casos> <dir> [--skip-border-multi]`: malhas aleatórias (quad, tri,
   híbrida, polígonos), 3 ordens + lote. Referência v0.2: seed 21/400 → 259 ok e 141 abortos (todos I1); seed 22/400
   com `--skip-border-multi` → 400/400 ok. Após corrigir I1, a primeira rodada deve passar inteira.
 - `doc/report/tools/compare.py`: compara topologias (partição dos cantos dos elementos originais).
-- `doc/report/tools/test_coordinates.cpp`: teste de unidade de `reserveSpaceForNodes`/`addPoint`. As ferramentas
+- `doc/report/tools/test_coordinates.cpp` e `test_vertex_count.cpp`: testes de unidade (pontos e contagem de
+  vértices novos). As ferramentas
   são explicadas no apêndice A do relatório.
 - Formato de malha (`malha2Hyb.txt`, `meshIBHM.txt`): `np ne`, `np` linhas `x y`, `ne` linhas `n v0 ... v(n-1)`.
   Obs.: em `malha2Hyb.txt` o vértice 18 deveria estar em (4,3), não (3,4) (só afeta geometria).
@@ -94,6 +99,11 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
 
 - C++17, comentários e identificadores em inglês, Doxygen (`/** ... */`, `@param`, `@return`), indentação de 4 espaços,
   chaves em linha própria, linhas de até 120 colunas, `[[nodiscard]]` em consultas.
+- Funções e tipos herdados de C são usados **sem** `std::` (`printf`, `memset`, `size_t`), com os cabeçalhos `<cstdio>`
+  e `<cstring>` (regra do autor). Incluir diretamente o cabeçalho de tudo o que o arquivo usa (`<cstdio>`, `<cstring>`,
+  `<algorithm>`...) e não usar comentários para suprimir avisos da IDE. A inspeção de includes do CLion pode marcar
+  esses cabeçalhos como desnecessários, porque no libc++ eles chegam por inclusão indireta; não removê-los (o projeto
+  também mira Windows/MSVC).
 - Qualquer correção deve valer para malhas híbridas (triângulos, quadriláteros, polígonos) e ser verificada com o
   driver e o stress test antes de ser dada como pronta.
 

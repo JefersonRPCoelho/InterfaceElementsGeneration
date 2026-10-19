@@ -15,7 +15,72 @@ Para publicar uma nova versão:
 Itens pedidos pelo autor para entrar quando o relatório for gerado novamente. **Não gerar o relatório antes de o autor
 pedir.**
 
-- (nenhum por enquanto)
+- [ ] Refletir no relatório as modificações de código feitas desde a v0.3 (lista abaixo): seção 7.4 (I3, I4 e I5
+  resolvidos; texto de I2 atualizado), seção 2 (`numberOfHalfEdges()` e `O[]` reservado começando com `BORDER`),
+  seções 2.4/2.5 e pseudocódigos da seção 4 (`addPoint()` → `duplicatePoint(v)`), verificação V7 na seção 6 e no
+  apêndice A, teste de coordenadas com 13 verificações e o novo `test_vertex_count.cpp` (11 casos).
+
+### Modificações de código desde a v0.3
+
+- I4 corrigido (`IBHM.{h,cpp}`, `IBHMInterfaceElementBuilder.cpp`): novo método `IBHM::duplicatePoint(vertex)`, que
+  acrescenta um ponto com as coordenadas de um vértice existente. Lê a origem por índice e copia cada valor para uma
+  variável local antes do `push_back`, então não precisa de vetor temporário e continua correto se o vetor for
+  realocado. Os quatro operadores (Canônico de borda, Split, Expand, Open Hole) usam `duplicatePoint(v)` em vez de
+  `addPoint()`: as cópias passam a nascer na posição do vértice original. Escolhido em vez de montar um
+  `std::vector` com as coordenadas a cada cópia, para não alocar memória temporária no caminho crítico.
+  - Ferramentas: o `driver` ganhou a verificação **V7** (toda cópia tem as coordenadas do vértice original);
+    `test_coordinates.cpp` ganhou 3 verificações de `duplicatePoint` (dentro da reserva, com realocação durante a cópia
+    e em 3D), total de 13.
+  - Verificação: teste de coordenadas 13/13; exemplo dos slides com a mesma topologia (incremental e lote) e V7 ok;
+    rodadas do estresse com os mesmos números (259/141 e 400/400), agora também com V7 em todos os casos válidos.
+    Controle negativo: com o construtor antigo, a V7 falha já na primeira aresta do exemplo.
+- I8 corrigido (pelo autor, revisado): as mensagens de operador indefinido em `insertInterfaceElements` usam `%u`, e
+  a do vértice B imprime `b` em vez de `a`. Compila sem avisos; exemplo e 100 casos do estresse sem alteração.
+- I10, parte dos includes, corrigida: `IBHM.cpp` inclui `<cassert>`, `<cstdio>` (`printf` em `print()`), `<cstring>`
+  (`memset`) e `<algorithm>` (`std::upper_bound`); `IBHMInterfaceElementBuilder.cpp` inclui `<cassert>` e `<cstdio>`
+  (`printf`). Saíram os includes sem uso (`<map>` em `IBHM.cpp` e `<iostream>` no construtor). Compila sem avisos;
+  exemplo, teste de coordenadas e 100 casos do estresse sem alteração. A parte do `CMakeLists.txt` (exige Qt) continua
+  em aberto.
+- Convenção definida pelo autor: funções e tipos herdados de C (`printf`, `memset`, `size_t`) são usados sem `std::`,
+  com `<cstdio>` e `<cstring>`. (Uma versão intermediária com `std::` foi descartada.) A inspeção do CLion pode marcar
+  `<cstdio>`/`<cstring>` como desnecessários por inclusão indireta no libc++; o `misc-include-cleaner` do clang-tidy os
+  considera necessários, e eles são mantidos.
+- I5 corrigido (`IBHMInterfaceElementBuilder.{h,cpp}`): `computeNumberOfNewVertices` agora devolve o número **exato**
+  de vértices novos. Em duas etapas: (1) seleciona só as arestas que `insertInterfaceElements` vai abrir, com os mesmos
+  testes (pula arestas de borda, de elementos de interface e repetidas, identificadas por `min(a, O[a])`) e conta, por
+  vértice, quantas o tocam; (2) aplica a regra uma vez por vértice: em elemento de interface → n; fora, na borda → n;
+  fora, interno → n − 1. O teste de borda roda uma vez por vértice distinto (antes: duas vezes por aresta). Código e
+  cabeçalho comentados em detalhe.
+  - Efeito colateral: como as arestas de elementos de interface são descartadas antes de `isBorder`, a entrada que
+    travava o programa (I2, ex.: `34` e depois `48`) agora é rejeitada normalmente. O defeito latente de `isBorder` (o
+    desvio da aresta colapsada pula a parada) continua, mas o construtor não chega mais a esse caminho.
+  - Novo teste `doc/report/tools/test_vertex_count.cpp` (8 casos: exemplo em lote, aresta repetida inclusive pela outra
+    meia-aresta, aresta de borda, combinação, vértice já em elemento de interface, aresta de elemento de interface e
+    vértice de borda com duas arestas). Código novo: 8/8. Código antigo: 5 contagens erradas e trava no caso da aresta
+    de elemento de interface.
+  - Estresse: mesmos números (259/141 e 400/400) e nenhuma contagem diferente da criada, inclusive no lote.
+- I3 corrigido (`IBHM.{h,cpp}`, `IBHMInterfaceElementBuilder.{h,cpp}`), como sugerido na seção 7.4:
+  - Novo `IBHM::numberOfHalfEdges()` (= `Of[n_c]`, o número de half-edges dos elementos válidos; ao contrário de
+    `numberReservedElements()`, não conta o espaço reservado).
+  - `reserveSpaceForElements` inicializa as posições reservadas de `O[]` com `BORDER` (antes, 0, que é uma half-edge
+    válida). Os operadores sempre definem a oposta das quatro half-edges novas, então a inserção não muda.
+  - `insertInterfaceElements` lê o limite `numberOfHalfEdges()` **no início da chamada** e rejeita, com mensagem no
+    console como as outras rejeições, todo índice `>=` limite (fora do vetor ou no espaço reservado). É o primeiro
+    teste, antes de `heOpposite`. `computeNumberOfNewVertices` aplica o mesmo teste (teste 0), então a contagem
+    continua exata. Um índice de elemento de interface criado na própria chamada também fica fora do limite e é
+    rejeitado; criado em chamada anterior, continua rejeitado pelo teste de elemento de interface.
+  - Custo: uma comparação por aresta da entrada, fora dos operadores.
+  - O `@warning` de `insertInterfaceElements` (índices não validados e laço infinito, este já resolvido pelo I5) foi
+    substituído pela lista de rejeições, que agora inclui os índices fora da malha.
+  - Ferramentas: o `driver` não consulta mais índices fora da malha antes de passá-los ao construtor (imprime os
+    vértices como `BORDER`); `test_vertex_count.cpp` ganhou 3 casos (índice fora do vetor, índice no espaço reservado
+    com verificação de `O[]` = `BORDER`, e índices inválidos misturados a uma aresta válida no mesmo lote): 11 casos,
+    15 verificações, todas ok.
+  - Controle com o código antigo: `999` para na asserção de `heOpposite`; `48` no espaço reservado (após uma chamada
+    só com aresta de borda) é contado como 2 vértices novos e a inserção para na asserção de `openHole`. Código novo:
+    ambos rejeitados, nenhum vértice ou elemento criado.
+  - Verificação: exemplo dos slides com 19 vértices novos, mesma partição incremental e em lote; estresse com os
+    mesmos números (259/141, abortos todos I1, e 400/400) e `prediction_mismatch` 0.
 
 ## v0.3 — 18/10/2026
 

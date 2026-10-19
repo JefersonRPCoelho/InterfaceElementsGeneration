@@ -8,7 +8,8 @@
 //     driver [--batch] <meshfile> <out.json> <he0> <he1> ...
 //   meshfile  "np ne", then np lines "x y", then ne lines "n v0 ... v(n-1)" (the format of malha2Hyb.txt).
 //   out.json  output file (format below).
-//   he0 ...   one half-edge index per edge to open (either half-edge of the edge).
+//   he0 ...   one half-edge index per edge to open (either half-edge of the edge). An index that is not a half-edge of
+//             the mesh is passed to the builder as it is, to test its validation (its vertices are printed as BORDER).
 //   --batch   insert all edges with a single insertInterfaceElements() call instead of one call per edge.
 //
 // Console output: one line per call, e.g.
@@ -22,11 +23,12 @@
 //   V3  a COLLAPSED half-edge has zero length: V[h] = V[next(h)];
 //   V4  manifold: the corners of every vertex form a single fan, connected through h ~ O[prev(h)];
 //   V5  every vertex is used by some element;
-//   V6  the number of created vertices equals the prediction (printed and stored in the JSON; checked by stress.py).
+//   V6  the number of created vertices equals the prediction (printed and stored in the JSON; checked by stress.py);
+//   V7  every copy of a vertex has the same coordinates as its original vertex.
 //
 // JSON: {"points": [[x, y], ...], "steps": [step 0 = input mesh, step k = after the k-th call]}, where each step has
 //   edge, A, B, opA, opB           the inserted half-edge, its vertices and the operators (empty in batch mode);
-//   predicted, created, errors, msgs, nPoints;
+//   predicted, created, errors, msgs (V1-V5 and V7), nPoints;
 //   elements, first, opp, isIE     the mesh: vertices of each element, first half-edge of each element (offsets),
 //                                  opposite of each half-edge (-1 = BORDER, -2 = COLLAPSED), interface element flags;
 //   root                           for each vertex, the original vertex it was copied from;
@@ -145,6 +147,29 @@ static int validate(const View &v, std::vector<std::string> &msgs)
     return errors;
 }
 
+// ---- V7: coordinates of the copies --------------------------------------------------------------------------------
+// Every vertex must have exactly the coordinates of its original vertex (root). Returns the number of problems.
+static int checkCoordinates(const IBHM *m, const std::vector<unsigned> &root, std::vector<std::string> &msgs)
+{
+    int errors = 0;
+    const std::vector<float> &points = m->points();
+    const unsigned dim = m->numberCoordinatesByVertex();
+    for (unsigned w = 0; w < m->numberPoints(); w++)
+    {
+        for (unsigned i = 0; i < dim; i++)
+        {
+            if (points[w * dim + i] != points[root[w] * dim + i])
+            {
+                msgs.push_back("vertex " + std::to_string(w) + " does not have the coordinates of its original vertex " +
+                               std::to_string(root[w]));
+                errors++;
+                break;
+            }
+        }
+    }
+    return errors;
+}
+
 // Name of an IBHMInterfaceElementBuilder::OperatorType value.
 static const char *opName(int op)
 {
@@ -224,8 +249,11 @@ static int run(IBHM *m, const std::vector<double> &coords, const std::vector<uns
         View before = view(m);
         HE hb(before);
         unsigned a = g[0];
-        unsigned bb = m->heOpposite(a);
-        unsigned A = hb.vert(a), B = hb.vert(hb.next(a));
+        // An index that is not a half-edge of the mesh is not queried here: it only goes to the builder, which must
+        // reject it (I3).
+        const bool inMesh = a < m->numberOfHalfEdges();
+        unsigned bb = inMesh ? m->heOpposite(a) : BORDER;
+        unsigned A = inMesh ? hb.vert(a) : BORDER, B = inMesh ? hb.vert(hb.next(a)) : BORDER;
         const char *opA = "", *opB = "";
         // Log the operators only for edges the builder accepts (it rejects border edges and interface element edges).
         if (g.size() == 1 && bb != BORDER && bb != COLLAPSED && !b._isInterfaceElement[hb.elemOf[a]] &&
@@ -249,6 +277,7 @@ static int run(IBHM *m, const std::vector<double> &coords, const std::vector<uns
             }
         std::vector<std::string> msgs;
         int errors = validate(after, msgs);
+        errors += checkCoordinates(m, root, msgs);
         total += errors;
         printf("step %2d edge he=%u (%u-%u)  A:%-13s B:%-13s new=%u predicted=%u %s\n", step, a, A, B, opA, opB,
                created, predicted, errors ? "INVALID" : "ok");

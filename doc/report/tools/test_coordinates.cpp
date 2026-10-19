@@ -1,10 +1,11 @@
-// Unit test for the point storage of the IBHM class: IBHM::reserveSpaceForNodes() and IBHM::addPoint().
+// Unit test for the point storage of the IBHM class: reserveSpaceForNodes(), addPoint() and duplicatePoint().
 //
 // Checks that (1) the reservation only changes the capacity of the coordinate's vector, and exactly to the requested
 // amount; (2) addPoint() stores the coordinates at the index it returns; (3) a point can be built from the coordinates
 // of a vertex of the same mesh (copy of a vertex); (4) the default point is the origin; (5) no reallocation happens
 // inside the reserved space; (6) the size always matches numberPoints(); (7) points can still be added beyond the
-// reservation; (8) the number of coordinates is not fixed (a 3D mesh with 3 coordinates).
+// reservation; (8) duplicatePoint() copies a vertex, also when the vector is reallocated during the copy; (9) the
+// number of coordinates is not fixed (a 3D mesh with 3 coordinates).
 //
 // Build and run (from the repository root):
 //     c++ -std=c++17 -Icore/TopologyDataStructures doc/report/tools/test_coordinates.cpp \
@@ -50,6 +51,22 @@ int main()
 
     unsigned d = m.addPoint(p);
     check(d == 7 && m.points().size() == 16, "addPoint beyond the reservation still works");
+
+    // duplicatePoint(): copy of an existing vertex, without a temporary vector.
+    m.reserveSpaceForNodes(1);
+    const float *before = m.points().data();
+    unsigned f = m.duplicatePoint(4);
+    m.coordinatesFromIndex(f, q);
+    check(f == 8 && q[0] == 5.0 && q[1] == 7.0 && m.points().data() == before,
+          "duplicatePoint copies a vertex inside the reserved space");
+
+    // Force a reallocation during the copy: the source is read by index, so the values must still be right.
+    while (m.points().size() < m.points().capacity()) m.addPoint();
+    const float *full = m.points().data();
+    unsigned g = m.duplicatePoint(2);
+    m.coordinatesFromIndex(g, q);
+    check(m.points().data() != full && q[0] == 1.0 && q[1] == 1.0,
+          "duplicatePoint is right when the vector is reallocated");
     // Points with another number of coordinates (3D): no fixed maximum.
     std::vector<float> c3 = {0, 0, 0, 1, 0, 0, 0, 1, 0};
     std::vector<unsigned> el3 = {0, 1, 2}, off3 = {0, 3};
@@ -60,6 +77,9 @@ int main()
     m3.coordinatesFromIndex(e, r);
     check(e == 3 && r[0] == 1.5 && r[1] == 2.5 && r[2] == 3.5 && m3.points().capacity() == 12,
           "3D mesh: exact reserve and a point with 3 coordinates");
+    unsigned h3 = m3.duplicatePoint(1);
+    m3.coordinatesFromIndex(h3, r);
+    check(h3 == 4 && r[0] == 1.0 && r[1] == 0.0 && r[2] == 0.0, "3D mesh: duplicatePoint copies the 3 coordinates");
     printf("%s\n", fails ? "FAILED" : "ALL OK");
     return fails;
 }
