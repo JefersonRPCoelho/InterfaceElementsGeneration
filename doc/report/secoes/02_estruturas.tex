@@ -144,9 +144,11 @@ Construção de $\Op$ & mapa indexado pelo par ordenado de vértices & para cada
 dele; procura-se a half-edge reversa (\code{buildOppositesLinear})\\
 Vetor $VH[\,]$ & sim & \textbf{não}; o teste de borda (\code{isBorder}) gira em torno do vértice\\
 Crescimento da malha & não previsto (``limitação'' declarada) & \code{reserveSpaceForElements} aumenta os vetores de
-elementos (\code{resize}) e \code{commitElement} valida cada novo elemento; \code{reserveSpaceForNodes} reserva
-capacidade exata para os pontos (\code{reserve}) e \code{addPoint} os acrescenta, recebendo as coordenadas num
-\code{std::vector} (vazio = origem)\\
+elementos (\code{resize}; as posições novas de $\Op[\,]$ começam com \BORDER) e \code{commitElement} valida cada novo
+elemento; \code{numberOfHalfEdges} devolve $Of[n_c]$, o número de half-edges válidas (sem o espaço reservado);
+\code{reserveSpaceForNodes} reserva capacidade exata para os pontos (\code{reserve}); \code{addPoint} acrescenta um ponto
+com as coordenadas dadas num \code{std::vector} (vazio = origem) e \code{duplicatePoint} acrescenta a cópia de um vértice
+existente, com as mesmas coordenadas\\
 \bottomrule
 \end{tabularx}
 \caption{Diferenças entre a IBHM do artigo e a classe \code{IBHM} do repositório.}
@@ -163,8 +165,9 @@ então altera a malha, sem realocações durante as operações.
 A interface usada pelo construtor de elementos de interface é pequena: \code{heVertexIndex} ($\V$), \code{heOpposite}
 ($\Op$), \code{heNext}, \code{hePrevious}, \code{heElement}, \code{isBorder}, \code{setElementVertex} (altera $\V[h]$),
 \code{setOpposite} (altera $\Op$ nos dois sentidos quando a oposta é uma half-edge válida, ou em um só sentido quando é
-\BORDER{} ou \COLLAPSED), \code{addPoint}, \code{nextAvailableHE} e \code{commitElement}. Nenhuma coordenada é
-consultada: o algoritmo é puramente topológico.
+\BORDER{} ou \COLLAPSED), \code{duplicatePoint}, \code{numberOfHalfEdges}, \code{nextAvailableHE} e
+\code{commitElement}. Nenhuma coordenada entra nas decisões: o algoritmo é puramente topológico, e as cópias criadas por
+\code{duplicatePoint} apenas herdam as coordenadas do vértice de origem.
 
 \subsection{Os vetores da IBHM durante uma inserção}
 \label{sec:ibhm-insercao}
@@ -174,20 +177,23 @@ aberta. A aresta $4$--$7$ é compartilhada pelos triângulos que contêm as half
 o vértice 4 é interno e o vértice 7 está na borda.
 \begin{enumerate}
 \item \textbf{Reserva.} Antes de qualquer alteração, \code{reserveSpaceForElements(4, 1)} acrescenta 4 posições a
-$\V[\,]$ e a $\Op[\,]$ e uma entrada a $Of[\,]$, e \code{reserveSpaceForNodes(1)} reserva capacidade exata para um
-vértice, sem mudar o tamanho do vetor de coordenadas (a pré-contagem previu um vértice novo, para a borda).
+$\V[\,]$ e a $\Op[\,]$ (estas com \BORDER) e uma entrada a $Of[\,]$, e \code{reserveSpaceForNodes(1)} reserva capacidade
+exata para um vértice, sem mudar o tamanho do vetor de coordenadas (a pré-contagem previu um vértice novo, para a
+borda).
 \item \textbf{Validação antecipada.} \code{nextAvailableHE()} devolve $Of[n_c]=20$, a primeira half-edge livre, e
 \code{commitElement(4)} já declara o elemento 6 válido, gravando $Of[7]=24$. Na IBHM isso precisa acontecer \emph{antes}
 dos operadores, porque $\nxt$ e $\prv$ das half-edges 20--23 dependem do offset do elemento.
 \item \textbf{Operador em 4} (Canônico, interno): $\V[23]=\V[20]=4$ e $\Op[23]=\COLLAPSED$ (marcado como \textsc{c}).
-\item \textbf{Operador em 7} (Canônico, borda): cria o vértice 9; $\V[21]=9$; a rotação a partir de $b$ troca $\V[19]$
-de 7 para 9 e para logo na borda; $\V[22]=7$ e $\Op[21]=\BORDER$.
+\item \textbf{Operador em 7} (Canônico, borda): cria o vértice 9, cópia de 7 (\code{duplicatePoint(7)}, mesmas
+coordenadas); $\V[21]=9$; a rotação a partir de $b$ troca $\V[19]$ de 7 para 9 e para logo na borda; $\V[22]=7$ e
+$\Op[21]=\BORDER$.
 \item \textbf{Arestas do meio}: $\Op[20]\leftrightarrow19$ e $\Op[22]\leftrightarrow9$. As antigas opostas $\Op[9]=19$ e
 $\Op[19]=9$ são sobrescritas.
 \end{enumerate}
 Ao todo, uma inserção altera poucas posições dos vetores antigos (em vermelho na figura) e preenche as quatro posições
-novas (em laranja). Note que as posições reservadas de $\Op[\,]$ começam com o valor 0, que é um índice válido de
-half-edge; no fluxo normal todas são sobrescritas, mas esse detalhe é relevante para a robustez (\cref{sec:defeitos}).
+novas (em laranja). As posições reservadas de $\Op[\,]$ começam com \BORDER: até a v0.3 começavam com 0, um índice
+válido de half-edge, e um índice do espaço reservado passado como entrada era aceito como aresta (defeito I3, corrigido;
+\cref{sec:defeitos}). No fluxo normal todas são sobrescritas pelos operadores e pela ligação das arestas do meio.
 
 \begin{figure}[ht]
 \centering

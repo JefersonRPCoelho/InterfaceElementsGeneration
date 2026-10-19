@@ -1,41 +1,85 @@
-\section{Ferramentas de teste e geração das figuras}
+\section{Testes, ferramentas e geração das figuras}
 \label{app:repro}
 
-As ferramentas ficam em \code{doc/report/tools/}. Todas usam o código do repositório sem alterações e podem ser rodadas
-a partir da raiz do repositório. Cada arquivo começa com um comentário que descreve seu uso; este apêndice explica o que
-cada uma faz e como os resultados do relatório foram obtidos.
+Os testes automatizados ficam em \code{tests/} e são compilados pelo CMake; as ferramentas do relatório ficam em
+\code{doc/report/tools/}. Todos usam o código do repositório como está e podem ser rodados a partir da raiz do
+repositório. Cada arquivo começa com um comentário que descreve seu uso; este apêndice explica o que cada um faz e como
+os resultados do relatório foram obtidos.
 
 \begin{center}\small
-\begin{tabularx}{\linewidth}{>{\ttfamily\small}p{4.0cm}X}
+\begin{tabularx}{\linewidth}{>{\ttfamily\small}p{4.6cm}X}
 \toprule
 \normalfont Arquivo & Papel\\
 \midrule
-driver.cpp & programa de teste da \code{IBHMInterfaceElementBuilder}: insere arestas, verifica a malha e grava cada estado
-em JSON;\\
-compare.py & compara a topologia final de execuções diferentes;\\
-stress.py & teste com malhas aleatórias, várias ordens e inserção em lote;\\
-gen.py & gera as figuras de malha do relatório (\code{doc/report/figs/});\\
-test\_coordinates.cpp & teste de unidade da reserva e da inclusão de pontos na \code{IBHM}.\\
+tests/test\_*.cpp & suítes do Google Test (\cref{tab:suites});\\
+tests/support/ & malhas de teste, verificações V1--V7 e acesso de leitura ao estado do construtor, usados pelos testes e
+pelo \code{driver};\\
+tests/CMakeLists.txt & registra as suítes e o teste com malhas aleatórias no CTest;\\
+tools/driver.cpp & programa de teste da \code{IBHMInterfaceElementBuilder}: insere arestas, verifica a malha e grava cada
+estado em JSON;\\
+tools/compare.py & compara a topologia final de execuções diferentes;\\
+tools/stress.py & teste com malhas aleatórias, várias ordens e inserção em lote;\\
+tools/gen.py & gera as figuras de malha do relatório (\code{doc/report/figs/}).\\
 \bottomrule
 \end{tabularx}
 \end{center}
 
 \subsection{Como compilar e rodar}
 
-Os comandos abaixo partem da raiz do repositório; \code{\$W} é um diretório de trabalho qualquer. O \code{driver} e o
-teste de coordenadas não precisam de Qt nem de CMake.
+Os comandos abaixo partem da raiz do repositório; \code{\$W} é um diretório de trabalho qualquer, fora do repositório.
+O CMake não depende de Qt. O Google Test vem do pacote instalado, se houver; senão, a versão 1.17.0 é baixada na
+configuração, com o hash SHA256 fixado no \code{CMakeLists.txt}. (No macOS, o \code{cmake} e o \code{ninja} do CLion
+ficam em \code{/Applications/CLion.app/Contents/bin/}.) O tipo de build pode ser \code{Debug} ou \code{Release}: nos
+dois, os testes rodam com as asserções ligadas.
 \begin{lstlisting}[language=bash]
-c++ -std=c++17 -Icore/TopologyDataStructures -Icore/InterfaceElementsBuilder \
-    doc/report/tools/driver.cpp core/TopologyDataStructures/IBHM.cpp \
-    core/InterfaceElementsBuilder/IBHMInterfaceElementBuilder.cpp -o $W/driver
-c++ -std=c++17 -Icore/TopologyDataStructures doc/report/tools/test_coordinates.cpp \
-    core/TopologyDataStructures/IBHM.cpp -o $W/test_coordinates && $W/test_coordinates
-$W/driver malha2Hyb.txt $W/ex.json 31 34 11 26 47 38 23 19 30 42 29 45     # exemplo dos slides
-python3 doc/report/tools/stress.py $W/driver 21 400 $W/s1                       # rodada 1
-python3 doc/report/tools/stress.py $W/driver 22 400 $W/s2 --skip-border-multi   # rodada 2
-python3 doc/report/tools/gen.py $W/driver doc/report/figs $W/work                # figuras
-cd doc/report && tectonic -X compile relatorio.tex                              # relatório (ou xelatex)
+cmake -S . -B $W/build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build $W/build
+cd $W/build && ctest -j8                      # ou: ctest -L unit; ctest -L stress
+D=$W/build/tests/driver
+$D malha2Hyb.txt $W/ex.json 31 34 11 26 47 38 23 19 30 42 29 45         # exemplo dos slides
+python3 doc/report/tools/stress.py $D 21 400 $W/s1                       # rodada 1
+python3 doc/report/tools/stress.py $D 22 400 $W/s2 --skip-border-multi   # rodada 2
+python3 doc/report/tools/gen.py $D doc/report/figs $W/work               # figuras
+cd doc/report && tectonic -X compile relatorio.tex                       # relatório
 \end{lstlisting}
+Sem CMake, o \code{driver} também pode ser compilado diretamente:
+\begin{lstlisting}[language=bash]
+c++ -std=c++17 -Icore/TopologyDataStructures -Icore/InterfaceElementsBuilder -Itests/support \
+    doc/report/tools/driver.cpp tests/support/MeshValidation.cpp \
+    core/TopologyDataStructures/IBHM.cpp \
+    core/InterfaceElementsBuilder/IBHMInterfaceElementBuilder.cpp -o $W/driver
+\end{lstlisting}
+
+\subsection{Os testes automatizados (\code{tests/})}
+
+O alvo \code{InterfaceElementsTests} reúne as suítes da \cref{tab:suites}, e \code{gtest\_discover\_tests} registra
+cada \code{TEST} como um teste do CTest, com o rótulo \code{unit} e limite de 60\,s. Como cada teste roda num processo
+próprio, uma asserção ou um laço infinito faz falhar apenas aquele teste. O teste com malhas aleatórias entra como
+\code{stress\_supported} (rótulo \code{stress}), que chama o \code{stress.py} com o \code{driver}; o
+\code{stress\_all} está registrado, mas desativado até o I1 ser corrigido.
+
+\textbf{Asserções ligadas.} Alguns defeitos só aparecem como asserção, e o teste de morte de \code{addPoint} espera uma.
+Por isso o \code{tests/CMakeLists.txt} retira o \code{NDEBUG} das opções do diretório e compila o núcleo de novo
+(\code{InterfaceElementsLibChecked}), qualquer que seja o tipo de build; a biblioteca \code{InterfaceElementsLib}
+continua compilada normalmente.
+
+\textbf{Código de apoio} (\code{tests/support/}):
+\begin{itemize}
+\item \code{TestMeshes}: a malha base (\code{malha2Hyb.txt}, com o vértice $T$ em $(4,3)$) e a lista das 12 arestas do
+exemplo, a malha em leque do caso de borda com duas arestas e uma malha de dois triângulos;
+\item \code{MeshValidation}: a ``foto'' da malha (lida pela interface pública da \code{IBHM}, com $\nxt$/$\prv$
+recalculados), as verificações V1--V5, a origem de cada cópia e a V7, e a partição dos cantos usada para comparar
+topologias;
+\item \code{BuilderInspector}: acesso de leitura ao estado privado do construtor (o operador que seria escolhido,
+\code{\_isInterfaceElement}, \code{\_inInterfaceElement} e \code{\_collapsed}). O construtor a declara como classe
+amiga. A alternativa usada até a v0.3, \code{\#define private public}, foi abandonada: no MSVC o nível de acesso faz
+parte do nome decorado das funções, e a ligação falha.
+\end{itemize}
+
+\textbf{Defeitos em aberto.} Os testes de \code{test\_known\_defects.cpp} têm o prefixo \code{DISABLED\_}: aparecem como
+desativados em toda execução e descrevem o comportamento correto, de modo que, corrigido o defeito, basta tirar o
+prefixo. Para rodá-los mesmo assim: \code{InterfaceElementsTests --gtest\_also\_run\_disabled\_tests
+--gtest\_filter='KnownDefects*'}.
 
 \subsection{O programa de teste (\code{driver.cpp})}
 
@@ -53,13 +97,16 @@ registrá-lo (a decisão não muda nada na malha);
 \item chama \code{computeNumberOfNewVertices} e \code{insertInterfaceElements};
 \item descobre o vértice de origem de cada vértice novo: todo vértice novo substitui, em algum canto de um elemento que
 já existia, o vértice que estava lá antes; esse vértice antigo (ou a origem dele) é a origem do novo;
-\item aplica as verificações V1--V5 da \cref{sec:verificacao} e compara o número de vértices criados com o previsto
-(V6);
+\item aplica as verificações V1--V5 e V7 da \cref{sec:verificacao} e compara o número de vértices criados com o
+previsto (V6);
 \item imprime uma linha e grava o estado no JSON.
 \end{enumerate}
-As verificações são feitas sobre a ``foto'', com consultas $\nxt$/$\prv$ recalculadas pelo próprio \code{driver}, para não
-depender do código que está sendo testado. Para ler o estado privado do construtor (\code{\_collapsed},
-\code{\_isInterfaceElement}), o \code{driver} usa \code{\#define private public} apenas na sua unidade de compilação.
+As verificações são feitas sobre a ``foto'', com consultas $\nxt$/$\prv$ recalculadas, para não depender do código que
+está sendo testado; a foto, as verificações e a origem das cópias vêm de \code{tests/support/MeshValidation}, as mesmas
+dos testes automatizados. O estado privado do construtor (\code{\_collapsed}, \code{\_isInterfaceElement} e o operador
+escolhido) é lido por \code{BuilderInspector}. Na v0.4 o \code{driver} passou a usar esse código compartilhado; sua saída
+(console e JSON) continuou idêntica, byte a byte, no exemplo, nos casos de entrada inválida e em 834 execuções do
+estresse (120 malhas de cada rodada, inclusive as que abortam).
 
 \textbf{Saída no console:} uma linha por chamada, como
 \begin{lstlisting}[language={}]
@@ -119,8 +166,10 @@ Um caso é marcado como ``vértice de borda com 2+ arestas'' quando a seleção 
 mais arestas (a configuração do defeito I1). Com \code{--skip-border-multi}, essas seleções são sorteadas de novo. No
 fim, o script imprime os contadores (casos válidos, inválidos e abortados, quantos abortados tinham a configuração do I1,
 casos dependentes da ordem, casos em que o lote difere, contagens erradas, operadores aplicados), a asserção que causou
-cada aborto e o número de casos válidos por tipo de malha. A semente fixa o gerador aleatório: a mesma semente sempre
-gera as mesmas malhas, seleções e ordens (o relatório usa as sementes 21 e 22, com 400 casos cada).
+cada aborto e o número de casos válidos por tipo de malha. O código de saída é 0 se todos os casos passaram e 1 se
+houve aborto, caso inválido, dependência da ordem ou do lote, ou contagem errada; é ele que o CTest usa. A semente fixa
+o gerador aleatório: a mesma semente sempre gera as mesmas malhas, seleções e ordens (o relatório usa as sementes 21 e
+22, com 400 casos cada).
 
 \begin{figure}[ht]
 \centering
@@ -140,8 +189,8 @@ uma malha pequena (ou lê uma do repositório), roda o \code{driver}, carrega o 
 \code{tikzpicture}, gravado em \code{figs/<nome>.tex}. Assim, toda figura de malha mostra o que o código realmente
 produz; as figuras não devem ser editadas à mão, e sim regeneradas. Três detalhes do desenho:
 \begin{itemize}
-\item \textbf{Vista explodida.} O código cria os vértices novos na origem, e as cópias de um vértice coincidem por
-definição. Para a topologia ficar visível, cada cópia de um vértice dividido é desenhada um pouco afastada da posição
+\item \textbf{Vista explodida.} As cópias de um vértice coincidem por definição (o código lhes dá as coordenadas do
+original). Para a topologia ficar visível, cada cópia de um vértice dividido é desenhada um pouco afastada da posição
 original, na direção média dos centróides dos elementos contínuos que a usam; como cada cópia é usada pelos elementos
 de um setor, as cópias se afastam, cada uma para o seu setor.
 \item \textbf{Arestas colapsadas.} Os dois cantos de um elemento de interface sobre uma aresta colapsada são afastados na
@@ -152,12 +201,3 @@ negativa) é um buraco e é hachurado.
 Os nomes dos vértices seguem a regra das figuras: o vértice original mantém o nome e suas cópias recebem índices
 ($K$, $K_1$, $K_2$, \dots) na ordem de criação. As figuras desenhadas à mão (gabarito, árvore de decisão, estados,
 hipóteses $x_1$/$x_3$) ficam no próprio texto, em TikZ, e usam os estilos de \code{styles.tex}.
-
-\subsection{Teste das coordenadas (\code{test\_coordinates.cpp})}
-
-Teste de unidade da \code{IBHM}, sem o construtor de elementos de interface. Verifica que \code{reserveSpaceForNodes}
-muda só a capacidade do vetor de coordenadas, e exatamente o pedido; que \code{addPoint} grava as coordenadas no índice
-que devolve; que é possível criar a cópia de um vértice a partir das coordenadas da própria malha; que o ponto padrão é
-a origem; que não há realocação dentro do espaço reservado; que o tamanho do vetor acompanha \code{numberPoints()}; que é
-possível passar da reserva; e que o número de coordenadas não é fixo (uma malha 3D com 3 coordenadas). Imprime uma linha
-por verificação e \code{ALL OK}; o código de saída é o número de verificações que falharam.

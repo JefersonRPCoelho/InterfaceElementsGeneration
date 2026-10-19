@@ -16,8 +16,9 @@ operadores.
 aresta?). Não há análise de combinações de arestas nem dependência da ordem de chegada.
 \item \textbf{Localidade.} Cada operador altera somente a estrela de um vértice; o custo é $O(1)$ ou proporcional à
 valência.
-\item \textbf{Puramente topológico.} Nenhuma coordenada, ângulo ou produto vetorial é usado: só $\V$, $\Op$, $\nxt$ e
-$\prv$. A apresentação justifica explicitamente essa escolha pela futura extensão a 3D.
+\item \textbf{Puramente topológico.} Nenhuma coordenada, ângulo ou produto vetorial é usado nas decisões: só $\V$,
+$\Op$, $\nxt$ e $\prv$. As cópias de um vértice apenas herdam as coordenadas do original. A apresentação justifica
+explicitamente essa escolha pela futura extensão a 3D.
 \item \textbf{Duplicação adiada.} O primeiro contato com um vértice interno \emph{não} cria vértice novo: o elemento de
 interface ganha uma aresta \emph{colapsada} (de comprimento zero) naquele vértice. A cópia só é criada quando, e se,
 uma segunda aresta chegar. É isso que faz uma ponta de trinca ficar fechada e que torna a contagem de vértices exata.
@@ -50,7 +51,8 @@ para $v$).\\
 
 Como esse estado não está guardado na malha, deve existir um único construtor por malha durante toda a sessão de
 edição; os comentários da classe registram essa restrição, ainda sem um mecanismo que a garanta (há um \code{@todo}).
-Os métodos se dividem em quatro grupos:
+A classe declara como amiga a classe \code{BuilderInspector} (\code{tests/support}), que dá aos testes acesso de leitura
+a esse estado e ao operador escolhido; a biblioteca não a usa. Os métodos se dividem em quatro grupos:
 
 \begin{itemize}
 \item \textbf{travessia}: \code{insertInterfaceElements} valida e percorre as arestas de entrada (\cref{sec:travessia});

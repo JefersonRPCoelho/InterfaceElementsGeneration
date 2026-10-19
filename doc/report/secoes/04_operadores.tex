@@ -5,7 +5,7 @@ Esta seção descreve os quatro operadores tal como implementados. Cada um receb
 vértice $v$ (chamada \code{edgeHE} ou \code{he} no código) e a half-edge do lado curto correspondente do novo elemento
 (\code{elementHE}, $h_3$ ou $h_1$). Nos pseudocódigos, $\V[h]\leftarrow w$ corresponde a \code{setElementVertex(h, w)},
 ``$\Op[x]\leftrightarrow y$'' a \code{setOpposite(x, y)} com $y$ uma half-edge válida (liga nos dois sentidos) e
-\code{addPoint()} cria um vértice novo (sem coordenadas: hoje ele é colocado na origem).
+\code{duplicatePoint}$(v)$ cria um vértice novo, cópia de $v$, com as mesmas coordenadas.
 
 As figuras desta seção foram geradas executando o código em malhas pequenas (\cref{app:repro}). Convenções visuais:
 elementos contínuos em azul, elementos de interface em laranja, aresta a inserir em vermelho; vértices com aresta
@@ -47,7 +47,7 @@ fica na borda (\cref{alg:canonical,fig:canonico}).
 \begin{algorithmic}[1]
 \State $v\gets\V[e]$
 \If{\code{isBorder}$(e)$} \Comment{gira em torno de $v$ procurando uma half-edge sem oposta}
-  \State $v'\gets$ \code{addPoint}$()$
+  \State $v'\gets$ \code{duplicatePoint}$(v)$
   \State $\V[x]\gets v'$
   \State \code{reindexElementsCCW}$(e, \BORDER, v')$ \Comment{lado de $e$, até a borda}
   \State $\Op[x]\gets\BORDER$; \quad \code{\_inInterfaceElement}$[v']\gets$ \textbf{true}
@@ -182,7 +182,7 @@ constante de passos ($O(\log n_c)$ na IBHM, por causa das consultas $\nxt$/$\prv
 \EndFunction
 \Statex
 \Procedure{splitElement}{$he, \mathit{av}, \mathit{sh}, x$}
-  \State $v\gets\V[he]$; \quad $n\gets$ \code{addPoint}$()$
+  \State $v\gets\V[he]$; \quad $n\gets$ \code{duplicatePoint}$(v)$
   \State $\V[\mathit{av}]\gets n$ \Comment{canto do elemento de interface antigo}
   \State $\V[\mathit{sh}]\gets n$ \Comment{canto do elemento compartilhado}
   \If{$he=\mathit{sh}$} \Comment{hipótese $x_1$}
@@ -226,7 +226,7 @@ cruzar a aresta nova. A aresta $c$ deixa de ser colapsada e é ligada a \code{el
 \caption{\code{expandEdge}$(he, x)$}
 \label{alg:expand}
 \begin{algorithmic}[1]
-\State $v\gets\V[he]$; \quad $n\gets$ \code{addPoint}$()$; \quad $c\gets$ \code{\_collapsed}$[v]$
+\State $v\gets\V[he]$; \quad $n\gets$ \code{duplicatePoint}$(v)$; \quad $c\gets$ \code{\_collapsed}$[v]$
 \State \code{reindexElementsCCW}$(c, he, n)$ \Comment{de $c$ até $he$ (exclusive)}
 \State $\Op[c]\leftrightarrow x$
 \State $\V[x]\gets v$; \quad $\V[\nxt(x)]\gets n$
@@ -270,7 +270,7 @@ lados encontrados já são de borda e o buraco ganha um vértice (\cref{fig:hole
 \caption{\code{openHole}$(he, x)$}
 \label{alg:hole}
 \begin{algorithmic}[1]
-\State $v\gets\V[he]$; \quad $n\gets$ \code{addPoint}$()$; \quad $h\gets he$
+\State $v\gets\V[he]$; \quad $n\gets$ \code{duplicatePoint}$(v)$; \quad $h\gets he$
 \Repeat \Comment{laço 1: anti-horário, reindexando}
   \State $\V[h]\gets n$; \quad $h\gets\Op[\prv(h)]$
 \Until{$h=\BORDER$ \textbf{ou} \code{\_isInterfaceElement}$[\mathrm{elem}(h)]$}
@@ -333,8 +333,15 @@ onde talvez valha começar pela versão geral (rotação) e só depois especiali
 \subsection{Contagem prévia de vértices}
 \label{sec:contagem}
 
-Para reservar memória de uma vez, \code{computeNumberOfNewVertices} conta, para cada vértice $v$ tocado pelo lote de
-arestas, o número $n_v$ de arestas do lote que o tocam, e aplica:
+Para reservar memória de uma vez, \code{computeNumberOfNewVertices} calcula, antes de alterar a malha, quantos vértices
+a chamada vai criar. A contagem tem duas etapas:
+\begin{enumerate}
+\item \textbf{Seleção.} Percorre as arestas do lote e descarta as mesmas que \code{insertInterfaceElements} vai
+rejeitar, com os mesmos testes e na mesma ordem: índice que não é half-edge da malha ($h\ge Of[n_c]$), aresta de borda,
+aresta de elemento de interface e aresta repetida no lote (inclusive quando vem uma vez por cada uma de suas
+half-edges; a aresta é identificada pela menor das duas). Para cada vértice tocado pelas arestas que sobram, guarda o
+número $n_v$ dessas arestas e uma half-edge que parte dele.
+\item \textbf{Regra por vértice.} Aplica, uma vez por vértice,
 \[
 \text{novos}(v)=
 \begin{cases}
@@ -343,7 +350,11 @@ n_v, & v \text{ fora de EI e na borda (o primeiro contato já duplica)},\\
 n_v, & v \text{ já em algum EI (todo contato duplica)}.
 \end{cases}
 \]
-No código, a regra da borda é implementada somando 1 ao contador \emph{por aresta} que toca um vértice de borda; por
-isso um vértice de borda com duas arestas no mesmo lote é contado em excesso (\cref{sec:documentacao}). Fora esse caso,
-a contagem foi exata em todos os testes (\cref{sec:verificacao}). Os elementos são reservados à razão de um por aresta
-do lote.
+\end{enumerate}
+Como a regra é aplicada por vértice, e não por aresta, o teste de borda (\code{isBorder}, que gira em torno do vértice)
+roda uma vez por vértice distinto, e um vértice tocado por várias arestas do lote é contado corretamente. Por descartar
+as arestas de elementos de interface antes do teste de borda, a contagem também deixou de chegar ao caminho em que
+\code{isBorder} não termina (I2). O resultado é exatamente o número de vértices criados, em todos os testes
+(\cref{sec:verificacao}); até a v0.3 a contagem era um limite superior (defeito I5, corrigido). Num vértice de borda com
+duas ou mais arestas, ela dá o valor correto ($n_v$), embora a inserção ainda não trate esse caso (I1). Os elementos
+são reservados à razão de um por aresta do lote.

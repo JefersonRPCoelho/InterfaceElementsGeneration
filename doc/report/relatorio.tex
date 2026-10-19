@@ -76,12 +76,12 @@
   top=4pt, bottom=4pt, fonttitle=\bfseries\small, title={#1}}
 
 % Versão do relatório: incrementar a cada nova versão e registrar em historico/ e na tabela de histórico.
-\newcommand{\versao}{0.3}
+\newcommand{\versao}{0.4}
 
 \title{\textbf{Inserção adaptativa de elementos de interface}\\ \textbf{em malhas 2D}\\[4pt]
   \large Operadores topológicos sobre estruturas de dados compactas baseadas em índices}
 \author{Jeferson Coelho\\ \small Tecgraf/PUC-Rio\thanks{Texto redigido com o auxílio do Claude Code a partir do
-  código do ramo \code{feature/edge-element-insertion} (commit \code{066cbde}), da apresentação
+  código do ramo \code{feature/edge-element-insertion} (commit \code{f4a5a83}), da apresentação
   \code{doc/ppt/Operators\_Template} e do artigo da IBHM~\cite{ibhm}. As figuras de malha foram geradas executando o
   próprio código (\cref{app:repro}). As versões anteriores estão em \code{doc/report/historico/}.}}
 \date{Relatório técnico — versão \versao{} — outubro de 2026}
@@ -98,11 +98,12 @@ de seus dois vértices aplicando um entre quatro operadores --- \opname{Canônic
 Descrevemos o problema, a estrutura IBHM, a arquitetura do algoritmo, cada operador com seus detalhes de implementação e
 o algoritmo de travessia, tal como implementados na classe \code{IBHMInterfaceElementBuilder}, que é a base a ser
 evoluída. Cada caso é ilustrado com figuras produzidas pelo próprio código. Em seguida, confrontamos a implementação com
-seus comentários e com o artigo da IBHM e listamos os defeitos em aberto. Uma verificação
+seus comentários e com o artigo da IBHM e listamos os defeitos corrigidos e os em aberto. Uma verificação
 experimental com 800 malhas aleatórias (triângulos, quadriláteros, malhas híbridas e polígonos de seis lados) confirma, em
-todas as configurações suportadas, a validade topológica, a contagem exata de vértices novos e a independência da ordem
-de inserção (inclusive na inserção em lote). Ela também revela falhas que precisam ser corrigidas: vértices de borda com
-mais de uma aresta selecionada, entradas que contêm arestas de elementos de interface e índices de half-edge inválidos.
+todas as configurações suportadas, a validade topológica, a contagem exata de vértices novos, as coordenadas das cópias e
+a independência da ordem de inserção (inclusive na inserção em lote); os cenários de verificação viraram testes
+automatizados (Google Test e CTest). A falha que resta é o vértice de borda com mais de uma aresta selecionada; as
+entradas inválidas, que também falhavam, passaram a ser rejeitadas.
 \end{abstract}
 
 \begin{center}\small
@@ -120,6 +121,11 @@ hipóteses $x_1$ e $x_3$ do Split Element. Comentários do código corrigidos (B
 em \code{reserveSpaceForNodes} com \code{addPoint} recebendo um \code{std::vector} (B2, parte do I4); defeitos
 atualizados (seção~7.4, antiga 7.5). Ferramentas de teste documentadas e explicadas no apêndice, com um teste novo para
 as coordenadas.\\
+0.4 & 19/10/2026 & Reflete as correções I3 (validação dos índices de entrada, $\Op[\,]$ reservado com \BORDER), I4 (cópias
+com as coordenadas do original, \code{duplicatePoint}), I5 (contagem exata, em duas etapas), I8 e I10 (includes; CMake
+sem Qt); nova tabela de defeitos corrigidos e I2 rebaixado a latente. Verificação com a V7 e nova seção de testes
+automatizados (Google Test e CTest), com controle negativo contra versões anteriores do núcleo. Apêndice reescrito para
+os testes, o código de apoio compartilhado com o \code{driver} e o novo build.\\
 \bottomrule
 \end{tabular}
 \end{center}

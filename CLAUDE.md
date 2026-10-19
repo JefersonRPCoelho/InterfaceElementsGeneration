@@ -46,7 +46,7 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
   reservadas de `O[]` começam com `BORDER` (antes do I3, com 0). Entrada válida: `h < numberOfHalfEdges()` lido no
   início da chamada (`= Of[n_c]`); `numberReservedElements()` inclui o espaço reservado.
 
-## Defeitos conhecidos da IBHM (relatório v0.3, seção 7.4) — ainda não corrigidos
+## Defeitos conhecidos da IBHM (relatório v0.4, seção 7.4: tabela de abertos e de corrigidos)
 
 - **I1 (alta)** `openHole` em vértice de borda (externa ou de furo) já aberto: asserção em debug, escrita fora do
   vetor em release. Comum em malhas de triângulos. Precisa de tratamento próprio.
@@ -109,7 +109,7 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
 - Compilar com `tectonic -X compile relatorio.tex` (instalado via Homebrew) ou xelatex.
 - **Versionamento obrigatório:** nunca sobrescrever versões anteriores. A cada nova versão: incrementar `\versao` em
   `relatorio.tex`, acrescentar linha na tabela de histórico (após o resumo) e em `historico/HISTORICO.md`, compilar e
-  copiar o PDF para `historico/relatorio_vX.Y.pdf`. Versão atual: **0.3**.
+  copiar o PDF para `historico/relatorio_vX.Y.pdf`. Versão atual: **0.4**.
 - **Só gerar uma nova versão quando o autor pedir.** Os itens pedidos para a próxima versão ficam na seção
   "Pendências para a próxima versão" de `historico/HISTORICO.md`; consulte-a ao gerar o relatório.
 

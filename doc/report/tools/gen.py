@@ -25,12 +25,12 @@ Usage
 
 JSON written by the driver
 --------------------------
-    {"points": [[x, y], ...],                 original coordinates (new vertices have no geometry in the code)
+    {"points": [[x, y], ...],                 coordinates of the input points (a copy has those of its root)
      "steps": [                               step 0 is the input mesh; step k is the state after the k-th call
         {"step": k, "edge": he, "A": vA, "B": vB,     inserted half-edge and the vertices of its edge
          "opA": "CANONICAL", "opB": "...",           operator chosen for A and B (empty in batch mode)
          "predicted": n, "created": m,               computeNumberOfNewVertices() and vertices actually created
-         "errors": e, "msgs": [...],                 result of the validation checks V1-V5
+         "errors": e, "msgs": [...],                 result of the validation checks V1-V5 and V7
          "nPoints": n,
          "elements": [[v0, v1, ...], ...],           vertices of each element (the IBHM element list)
          "first": [...],                             first half-edge of each element (the IBHM offsets)
@@ -42,8 +42,8 @@ JSON written by the driver
 
 Exploded view
 -------------
-New vertices are created at the origin by the code, and copies of a vertex are coincident by definition. To make the
-topology visible, every copy of a vertex that was split is drawn slightly away from the original position, towards the
+The copies of a vertex are coincident by definition (the code gives them the coordinates of the original vertex). To
+make the topology visible, every copy of a vertex that was split is drawn slightly away from the original position, towards the
 continuum elements that use that copy (`State.positions`). Interface element corners on a collapsed edge are also
 pushed apart (`corner_positions`), so the zero-length edge is visible. These positions are only for drawing.
 """

@@ -10,20 +10,39 @@ Para publicar uma nova versão:
 3. regenerar as figuras (`tools/gen.py`, ver Apêndice A do relatório) e compilar;
 4. copiar o PDF compilado para `historico/relatorio_vX.Y.pdf`, sem apagar as versões anteriores.
 
-## Pendências para a próxima versão (v0.4)
+## Pendências para a próxima versão (v0.5)
 
 Itens pedidos pelo autor para entrar quando o relatório for gerado novamente. **Não gerar o relatório antes de o autor
 pedir.**
 
-- [ ] Refletir no relatório as modificações de código feitas desde a v0.3 (lista abaixo): seção 7.4 (I3, I4, I5 e
-  I10 resolvidos; texto de I2 atualizado), seção 2 (`numberOfHalfEdges()` e `O[]` reservado começando com `BORDER`),
-  seções 2.4/2.5 e pseudocódigos da seção 4 (`addPoint()` → `duplicatePoint(v)`), verificação V7 na seção 6.
-- [ ] Apêndice A: trocar `test_coordinates.cpp`/`test_vertex_count.cpp` (removidos de `tools/`) pelos testes
-  automatizados em `tests/` (Google Test + CTest, `tests/support/`, testes desativados dos defeitos em aberto, rótulos
-  `unit` e `stress`); o driver passa a usar `tests/support/MeshValidation` e `BuilderInspector`; `stress.py` devolve
-  código de saída; comando de build do driver mudou. Seção 6 (verificação) pode citar o `ctest` e o controle negativo.
+- (nenhum por enquanto)
 
-### Modificações de código desde a v0.3
+### Modificações de código desde a v0.4
+
+- (nenhuma por enquanto)
+
+## v0.4 — 19/10/2026
+
+- Reflete as correções feitas desde a v0.3 (lista abaixo): seção 2 (`numberOfHalfEdges()`, `duplicatePoint()`,
+  `O[]` reservado começando com `BORDER`, passo a passo da inserção), seção 3 (decisões puramente topológicas, cópias
+  herdam as coordenadas; `BuilderInspector` como classe amiga), seção 4 (pseudocódigos com `duplicatePoint(v)`;
+  contagem prévia reescrita em duas etapas, exata), seção 5 (teste do índice no Algoritmo de travessia, rejeições,
+  memória exata, coordenadas das cópias).
+- Seção 6: verificação V7; rodadas do estresse refeitas com o código desta versão (mesmos números: 259/141 e 400/400);
+  experimento Split → Expand refeito (791 ocorrências, topologia idêntica nas 1600 execuções); tabela de cenários
+  atualizada (marcados com † os que mudaram); nova seção 6.3 de testes automatizados, com a tabela das suítes e o
+  controle negativo contra o núcleo antes do I3, do I5 e do I4.
+- Seção 7: B7 e B9 atualizados; tabela de defeitos dividida em "em aberto" (I1, I2 latente, I6, I7, I9, I11) e
+  "corrigidos desde a v0.3" (I3, I4, I5, I8, I10, com a correção e os testes de cada um).
+- Seção 8: próximos passos atualizados (I1 primeiro e reativação dos testes desativados; ampliar testes; mapa vértice
+  novo → origem).
+- Apêndice A reescrito: testes automatizados (`tests/`, Google Test + CTest, asserções ligadas, código de apoio,
+  testes desativados), build com CMake e direto do `driver`, `driver` sobre o código compartilhado (saída idêntica),
+  código de saída do `stress.py`; saiu a seção do `test_coordinates.cpp`.
+- Resumo, nota de rodapé (commit `f4a5a83`) e tabela de histórico atualizados. Figuras regeneradas com o `driver` atual:
+  idênticas às da v0.3. Docstring do `gen.py` corrigida (cópias com as coordenadas do original, V7).
+
+### Modificações de código entre a v0.3 e a v0.4
 
 - I4 corrigido (`IBHM.{h,cpp}`, `IBHMInterfaceElementBuilder.cpp`): novo método `IBHM::duplicatePoint(vertex)`, que
   acrescenta um ponto com as coordenadas de um vértice existente. Lê a origem por índice e copia cada valor para uma

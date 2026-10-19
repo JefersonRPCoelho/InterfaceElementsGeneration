@@ -33,12 +33,14 @@ B5 & \code{splitElement} & Agora descreve as duas posições do elemento compart
 corrigido\\
 B6 & \code{heOpposite}, \code{\_opposite\allowbreak{}HalfEdge}, enum \code{OPPOSITE} & Documentam \BORDER{} ($-1$) e \COLLAPSED{} ($-2$).
 & corrigido\\
-B7 & \code{computeNumber\allowbreak{}OfNewVertices} & O comentário explica as regras e diz que o resultado é um limite
-superior (arestas rejeitadas e regra de borda aplicada por aresta). O excesso em si continua (I5). & corrigido\\
+B7 & \code{computeNumber\allowbreak{}OfNewVertices} & O comentário explicava as regras e dizia que o resultado era um
+limite superior. Com a correção do I5, código e comentário descrevem a contagem exata em duas etapas
+(\cref{sec:contagem}). & corrigido\\
 B8 & \code{reindexElements\allowbreak{}CCW} & Documenta a pré-condição de não chegar à half-edge que segue uma aresta
 colapsada. & corrigido\\
-B9 & \code{insertInterface\allowbreak{}Elements} & Documenta as arestas ignoradas, a falta de relato a quem chama e um
-\code{@warning} sobre índices não validados (I2, I3). & corrigido\\
+B9 & \code{insertInterface\allowbreak{}Elements} & Documenta as entradas ignoradas e a falta de relato a quem chama. O
+\code{@warning} sobre índices não validados saiu com a correção do I3; a lista de rejeições inclui os índices fora da
+malha. & corrigido\\
 B10 & operadores & O \code{@return} promete \code{false} em caso de falha, mas os operadores sempre devolvem \code{true},
 e o valor é ignorado. Uma solução (verificar antes de alterar a malha e tratar o retorno com \code{assert}) foi testada e
 revertida, por acrescentar verificações ao caminho crítico; o tema será retomado. & \textbf{aberto}\\
@@ -97,9 +99,10 @@ saída em malhas grandes.
 
 A \cref{tab:defeitos} reúne os problemas de \code{IBHMInterfaceElementBuilder} e \code{IBHM} que continuam em aberto,
 confirmados com o programa de teste, com uma sugestão de correção. Como esta é a implementação que será evoluída, todos
-devem ser corrigidos; os de gravidade alta impedem o uso em malhas gerais (de triângulos, ou com trincas que chegam à
-borda). Desde a v0.2, a parte do I4 sobre a posição das coordenadas foi resolvida junto com o B2, e entrou o item I11,
-sobre a política de memória.
+devem ser corrigidos; o de gravidade alta impede o uso em malhas gerais (de triângulos, ou com trincas que chegam à
+borda). Os defeitos I1 e I2 têm testes desativados que descrevem o comportamento correto
+(\code{tests/test\_known\_defects.cpp}, \cref{sec:testes}): ao corrigi-los, basta reativá-los. A \cref{tab:corrigidos}
+lista os defeitos corrigidos desde a v0.3; os números foram mantidos.
 
 \begin{table}[ht]
 \centering\small
@@ -113,19 +116,10 @@ I1 & alta & \code{openHole} & Vértice de borda (externa ou de furo) já aberto 
 em release; 141 das 400 malhas da rodada 1. \emph{Sugestão:} permitir que os dois laços parem na borda; se o laço
 anti-horário parar na borda, não há canto de elemento de interface a mover; no laço horário, testar $\Op[h]=\BORDER$
 \emph{antes} de aplicar $\nxt$. Nos vértices de borda os lados curtos já são de borda, então nada mais muda.\\
-I2 & alta & \code{isBorder}, \code{insertInterface\allowbreak{}Elements} & Laço infinito quando a half-edge inicial vem
-logo após uma aresta colapsada: o desvio ``pula'' exatamente a half-edge de parada. Acontece quando a entrada contém uma
-half-edge de elemento de interface, porque a rejeição dessas arestas vem \emph{depois} da pré-contagem. \emph{Sugestão:}
-validar a entrada antes de contar e testar a parada também após o desvio.\\
-I3 & média & \code{insertInterface\allowbreak{}Elements}, \code{reserveSpace\allowbreak{}ForElements} & Entrada sem
-validação de índice: um índice maior que o vetor dispara uma asserção; um índice no espaço reservado e ainda não validado
-é aceito, porque as posições reservadas de $\Op[\,]$ começam com 0 (uma half-edge válida). \emph{Sugestão:} aceitar só
-$h<Of[n_c]$ e inicializar as posições reservadas de $\Op[\,]$ com \BORDER.\\
-I4 & média & operadores & As cópias criadas pelos operadores nascem na origem (\code{addPoint()} sem coordenadas).
-\emph{Sugestão:} passar a \code{addPoint} as coordenadas do vértice de origem; com \code{addPoint} recebendo um
-\code{std::vector}, a cópia é segura. (A parte de \code{addPoint}/\code{reserveSpaceForNodes} já foi corrigida, B2.)\\
-I5 & baixa & \code{computeNumber\allowbreak{}OfNewVertices} & Contagem em excesso na borda, para arestas rejeitadas e
-para arestas repetidas no lote (B7). Só desperdiça memória.\\
+I2 & latente & \code{isBorder} & Laço infinito quando a half-edge inicial vem logo após uma aresta colapsada: o desvio
+``pula'' exatamente a half-edge de parada. Desde a correção do I5 o construtor não chega mais a esse caminho (as arestas
+de elementos de interface são descartadas antes do teste de borda), mas o método continua público. \emph{Sugestão:}
+testar a parada também após o desvio.\\
 I6 & baixa & \code{retrieveAvailable\allowbreak{}Vertex}, \code{openHole}, \code{reindexElements\allowbreak{}CCW} & Os
 sentinelas \BORDER{} e \COLLAPSED{} podem chegar a $\nxt$/$\prv$ (B8; segundo laço do Open Hole; \COLLAPSED{} não é
 testado em $x_1$/$x_3$). Na IBHM isso vira uma busca binária com índice inválido. \emph{Sugestão:} testes explícitos
@@ -133,13 +127,8 @@ antes de cada $\nxt$/$\prv$ aplicado a uma oposta.\\
 I7 & baixa & operadores, \code{insertInterface\allowbreak{}Elements} & Não há relato de erro: os operadores sempre
 devolvem \code{true} (B10) e o método devolve \code{void}; rejeições só aparecem no console. \emph{Sugestão:} devolver a
 lista de arestas inseridas/rejeitadas e um estado de erro.\\
-I8 & baixa & \code{insertInterface\allowbreak{}Elements} & A mensagem de operador indefinido para $B$ imprime \code{a}
-em vez de \code{b}; \code{\%d} com \code{unsigned}.\\
 I9 & manut. & \code{IBHM} & Toda consulta $\nxt$/$\prv$ refaz a busca binária; nas rotações, o elemento corrente já é
 conhecido e o intervalo dele poderia ser reaproveitado.\\
-I10 & manut. & build & \code{IBHM.cpp} usa \code{memset} e \code{std::upper\_bound} sem incluir \code{<cstring>} e
-\code{<algorithm>} (compila por inclusão transitiva, o que não é garantido em outros compiladores);
-\code{CMakeLists.txt} exige Qt, que o código atual não usa.\\
 I11 & memória & \code{reserveSpace\allowbreak{}ForElements}, construtor & A política adotada é reservar memória exata.
 \code{reserveSpaceForNodes} já segue essa política, mas \code{reserveSpaceForElements} usa \code{resize}, que cresce
 geometricamente e pode alocar até o dobro do necessário em \code{\_halfEdgeVertex}, \code{\_oppositeHalfEdge} e
@@ -149,4 +138,33 @@ geometricamente e pode alocar até o dobro do necessário em \code{\_halfEdgeVer
 \end{tabularx}
 \caption{Defeitos em aberto em \code{IBHMInterfaceElementBuilder} e \code{IBHM}, por gravidade.}
 \label{tab:defeitos}
+\end{table}
+
+\begin{table}[ht]
+\centering\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\linewidth}{c >{\raggedright}p{3.4cm} X}
+\toprule
+ID & Defeito na v0.3 & Correção e teste\\
+\midrule
+I3 & Entrada sem validação de índice; índice no espaço reservado aceito como aresta ($\Op[\,]$ reservado valia 0). &
+\code{insertInterfaceElements} lê \code{numberOfHalfEdges()}, isto é, $N=Of[n_c]$, no início da chamada e rejeita
+todo $h\ge N$, antes de qualquer consulta; a pré-contagem aplica o mesmo teste; \code{reserveSpaceForElements} inicializa as
+posições novas de $\Op[\,]$ com \BORDER. Custo: uma comparação por aresta. Testes: \code{test\_invalid\_input},
+\code{test\_ibhm}.\\
+I4 & Cópias nascendo na origem. & Novo \code{IBHM::duplicatePoint(v)}, que acrescenta um ponto com as coordenadas de $v$
+lendo a origem por índice (correto mesmo se o vetor for realocado durante a cópia, sem vetor temporário); os quatro
+operadores o usam. Testes: V7 em \code{test\_base\_mesh} e no estresse; \code{test\_ibhm}.\\
+I5 & Pré-contagem em excesso (borda, arestas rejeitadas, repetidas) e laço infinito com aresta de elemento de
+interface na entrada (gatilho do I2). & Contagem em duas etapas: seleção com os mesmos testes da inserção e regra
+aplicada uma vez por vértice (\cref{sec:contagem}). A contagem é exata. Testes: \code{test\_vertex\_count} e a V6 em
+todos os testes do exemplo e do estresse.\\
+I8 & Mensagem do vértice $B$ imprimia \code{a}; \code{\%d} com \code{unsigned}. & \code{\%u} e \code{b}.\\
+I10 & Includes por inclusão transitiva; CMake exigia Qt. & Cada arquivo inclui o que usa (\code{<cassert>},
+\code{<cstdio>}, \code{<cstring>}, \code{<algorithm>}); funções herdadas de C são usadas sem \code{std::}. O CMake não
+depende mais de Qt: alvos \code{InterfaceElementsLib}, \code{InterfaceElementsPrototype} e os testes em \code{tests/}.\\
+\bottomrule
+\end{tabularx}
+\caption{Defeitos corrigidos desde a v0.3.}
+\label{tab:corrigidos}
 \end{table}

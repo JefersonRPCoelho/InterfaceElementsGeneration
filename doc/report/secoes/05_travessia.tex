@@ -14,10 +14,13 @@ e, por fim, liga as arestas do meio. A \cref{sec:ibhm-insercao} mostra o efeito 
 \label{alg:insert}
 \begin{algorithmic}[1]
 \Require lista $E$ de half-edges, uma por aresta a abrir
+\State $N\gets$ \code{numberOfHalfEdges}$()$ \Comment{$Of[n_c]$ antes da chamada}
 \State $n_v\gets$ \code{computeNumberOfNewVertices}$(E)$
 \State \code{reserveSpaceForElements}$(4|E|, |E|)$; \code{reserveSpaceForNodes}$(n_v)$; aumenta
 \code{\_isInterfaceElement} e \code{\_inInterfaceElement}
 \ForAll{$a\in E$}
+  \If{$a\ge N$} \textbf{continue} \Comment{não é half-edge da malha: rejeitada}
+  \EndIf
   \State $b\gets\Op[a]$
   \If{$b=\BORDER$ \textbf{ou} $b=\COLLAPSED$} \textbf{continue} \Comment{aresta de borda: rejeitada}
   \EndIf
@@ -35,13 +38,15 @@ e, por fim, liga as arestas do meio. A \cref{sec:ibhm-insercao} mostra o efeito 
 
 Alguns detalhes de implementação merecem atenção:
 \begin{itemize}
-\item \textbf{Rejeições.} Arestas de borda e arestas que já pertencem a um elemento de interface (por exemplo, a mesma
-aresta pedida duas vezes, no mesmo lote ou em chamadas diferentes) são ignoradas com uma mensagem no console. Nada é
-devolvido a quem chamou, e o espaço reservado para elas fica sem uso. A validação, porém, acontece \emph{depois} da
-pré-contagem, e é aí que mora o defeito I2 (\cref{sec:defeitos}).
+\item \textbf{Rejeições.} Índices que não são half-edges da malha, arestas de borda e arestas que já pertencem a um
+elemento de interface (por exemplo, a mesma aresta pedida duas vezes, no mesmo lote ou em chamadas diferentes) são
+ignorados com uma mensagem no console. Nada é devolvido a quem chamou (I7), e o espaço reservado para eles fica sem uso.
+O teste do índice vem primeiro, porque as consultas seguintes só valem para half-edges de elementos validados. O limite
+$N$ é lido no início da chamada: os elementos criados pela própria chamada não contam, e uma half-edge deles na entrada
+também é rejeitada. A pré-contagem aplica os mesmos testes (\cref{sec:contagem}), por isso a contagem é exata.
 \item \textbf{Validação antecipada do elemento.} \code{commitElement(4)} grava o offset do novo elemento antes de os
 operadores rodarem, porque na IBHM $\nxt$ e $\prv$ das half-edges $h_0,\dots,h_3$ dependem dele. Durante os operadores,
-as posições $\Op[h_0]$ e $\Op[h_2]$ ainda contêm o valor 0 da reserva; nenhuma rotação chega a elas porque nenhuma
+as posições $\Op[h_0]$ e $\Op[h_2]$ ainda contêm o \BORDER{} da reserva; nenhuma rotação chega a elas porque nenhuma
 half-edge antiga aponta para o novo elemento até o fim da iteração.
 \item \textbf{Ordem $A$, depois $B$.} O operador de $B$ é escolhido depois de o operador de $A$ ter sido aplicado. Como
 os operadores só mexem na estrela do próprio vértice, isso não altera a decisão em $B$.
@@ -97,8 +102,8 @@ $KL$ e $KQ$ compartilham o elemento $KLRQ$.}
 \caption{Resultado final do exemplo, com os nomes de todos os vértices. Os vértices $K$, $L$ e $M$ terminam com 4, 3 e 6
 cópias e com buracos de 4, 3 e 6 lados; $G$ (duas arestas) termina com duas cópias coladas; $F$ (uma aresta, interno)
 continua com uma aresta colapsada (contorno vermelho); os vértices de borda $C$, $H$, $I$, $J$, $N$, $Q$, $S$ e $T$
-foram duplicados uma vez. A posição das cópias é apenas ilustrativa: no código todas as cópias novas recebem a
-coordenada $(0,0)$.}
+foram duplicados uma vez. A posição das cópias é apenas ilustrativa: no código cada cópia tem exatamente as
+coordenadas do seu vértice de origem.}
 \label{fig:final}
 \end{figure}
 
@@ -109,17 +114,17 @@ cada aresta, nem de as arestas virem em lote ou uma a uma. A razão é que a top
 \emph{conjunto} de arestas: as arestas selecionadas cortam a estrela de cada vértice em setores, e cada setor termina com
 uma cópia própria (salvo no vértice interno com uma única aresta, que fica colapsado). Os operadores sempre dividem a
 estrela exatamente ao longo das arestas selecionadas, de modo que qualquer ordem leva à mesma partição. Verificamos isso
-para três ordens do exemplo (a dos slides, a de \code{main.cpp} e o lote inteiro em uma única chamada) e, nos 659 casos
-aleatórios que terminaram (\cref{sec:verificacao}), para três ordens aleatórias e uma inserção em lote.
+para três ordens do exemplo (a dos slides, a de \code{main.cpp} e o lote inteiro em uma única chamada), para outras
+21 ordens nos testes automatizados (\cref{sec:testes}) e, nos 659 casos aleatórios que terminaram
+(\cref{sec:verificacao}), para três ordens aleatórias e uma inserção em lote.
 
 \paragraph{Custo.} Cada aresta custa $O\big((\deg A+\deg B)\log n_c\big)$, dominado pelas rotações (\code{isBorder} no
 Canônico, reindexação no Expand e no Open Hole); o fator $\log n_c$ vem da busca binária em $Of[\,]$ que toda consulta
-$\nxt$/$\prv$ faz. A pré-contagem também chama \code{isBorder} para cada extremidade. O custo total é proporcional ao
+$\nxt$/$\prv$ faz. A pré-contagem também chama \code{isBorder}, uma vez por vértice distinto. O custo total é proporcional ao
 número de arestas inseridas para malhas de valência limitada, e só depende do tamanho da malha pelo fator logarítmico.
 
-\paragraph{Memória.} O número de vértices novos é exatamente o previsto, exceto quando há arestas rejeitadas ou um
-vértice de borda com mais de uma aresta no lote (casos em que sobra espaço reservado). É reservado um elemento por aresta
-do lote.
+\paragraph{Memória.} O número de vértices novos é exatamente o previsto, inclusive com arestas rejeitadas ou repetidas
+no lote. É reservado um elemento por aresta do lote, e o espaço das arestas rejeitadas fica sem uso.
 
 \paragraph{O exemplo no \code{main.cpp}.} Hoje o \code{main.cpp} executa este construtor sobre \code{malha2Hyb.txt},
 com as mesmas 12 arestas dos slides em outra ordem (9, 1, 2, 8, 6, 7, 3, 10, 4, 5, 11, 12, na numeração dos slides); o
