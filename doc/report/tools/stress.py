@@ -31,6 +31,9 @@ One JSON line with the counters:
 then the assertion that caused each crash, and (cases, ok) per kind of mesh. Lines starting with INVALID, CRASH,
 ORDER DEPENDENT or BATCH DIFFERS describe individual problems.
 
+Exit code: 0 if every case passed (no crash, invalid run, order or batch dependence, or wrong prediction), 1 otherwise.
+CTest uses it to run the stress test (tests/CMakeLists.txt).
+
 The random generator is seeded, so the same seed always produces the same meshes, selections and orders (the report
 uses seeds 21 and 22 with 400 cases).
 """
@@ -195,6 +198,9 @@ def main():
     print('crashes by assertion:', json.dumps(asserts))
     print('per kind (cases, ok):', json.dumps(per_kind))
 
+    problems = ('crash', 'invalid', 'order_dependent', 'batch_differs', 'prediction_mismatch')
+    return 1 if any(stats[k] for k in problems) else 0
+
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

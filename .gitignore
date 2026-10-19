@@ -2,3 +2,4 @@
 cmake-build-release
 cmake-build-debug
 .DS_Store
+__pycache__/

@@ -15,10 +15,13 @@ Para publicar uma nova versão:
 Itens pedidos pelo autor para entrar quando o relatório for gerado novamente. **Não gerar o relatório antes de o autor
 pedir.**
 
-- [ ] Refletir no relatório as modificações de código feitas desde a v0.3 (lista abaixo): seção 7.4 (I3, I4 e I5
-  resolvidos; texto de I2 atualizado), seção 2 (`numberOfHalfEdges()` e `O[]` reservado começando com `BORDER`),
-  seções 2.4/2.5 e pseudocódigos da seção 4 (`addPoint()` → `duplicatePoint(v)`), verificação V7 na seção 6 e no
-  apêndice A, teste de coordenadas com 13 verificações e o novo `test_vertex_count.cpp` (11 casos).
+- [ ] Refletir no relatório as modificações de código feitas desde a v0.3 (lista abaixo): seção 7.4 (I3, I4, I5 e
+  I10 resolvidos; texto de I2 atualizado), seção 2 (`numberOfHalfEdges()` e `O[]` reservado começando com `BORDER`),
+  seções 2.4/2.5 e pseudocódigos da seção 4 (`addPoint()` → `duplicatePoint(v)`), verificação V7 na seção 6.
+- [ ] Apêndice A: trocar `test_coordinates.cpp`/`test_vertex_count.cpp` (removidos de `tools/`) pelos testes
+  automatizados em `tests/` (Google Test + CTest, `tests/support/`, testes desativados dos defeitos em aberto, rótulos
+  `unit` e `stress`); o driver passa a usar `tests/support/MeshValidation` e `BuilderInspector`; `stress.py` devolve
+  código de saída; comando de build do driver mudou. Seção 6 (verificação) pode citar o `ctest` e o controle negativo.
 
 ### Modificações de código desde a v0.3
 
@@ -81,6 +84,36 @@ pedir.**
     ambos rejeitados, nenhum vértice ou elemento criado.
   - Verificação: exemplo dos slides com 19 vértices novos, mesma partição incremental e em lote; estresse com os
     mesmos números (259/141, abortos todos I1, e 400/400) e `prediction_mismatch` 0.
+- I10 concluído (`CMakeLists.txt`): o CMake não depende mais de Qt (saíram `find_package(Qt5/Qt6)`, `AUTOMOC/UIC/RCC`,
+  a ligação com Qt e o ícone de Windows inexistente). `InterfaceElementsLib` (núcleo) tem includes `PUBLIC`; o
+  executável `InterfaceElementsPrototype` liga com ela e compila só `main.cpp` e o CHE legado. Mínimo do CMake: 3.16.
+- Testes automatizados com Google Test + CTest (`tests/`, opção `INTERFACE_ELEMENTS_BUILD_TESTS`, ligada por padrão):
+  - Google Test: pacote instalado (`find_package(GTest CONFIG)`) ou v1.17.0 baixado pelo `FetchContent` (URL do
+    GitHub com SHA256 fixo). Cada `TEST` vira um teste do CTest em processo próprio (`gtest_discover_tests`, timeout
+    60 s), então um `assert` ou um laço infinito falha só aquele teste.
+  - Os testes dependem dos `assert`: o núcleo é recompilado em `tests/` (`InterfaceElementsLibChecked`) sem `NDEBUG`,
+    em qualquer tipo de build (conferido no Release: `InterfaceElementsLib` com `NDEBUG`, testes e driver sem).
+  - `tests/support/`: `TestMeshes` (malha base, leque, dois triângulos), `MeshValidation` (cópia da malha pela
+    interface pública, V1–V5, origem das cópias e V7, partição dos cantos de `compare.py`) e `BuilderInspector`
+    (acesso de leitura ao estado privado; o construtor ganhou só a linha `friend class BuilderInspector;`, sem custo).
+  - Suítes: `test_ibhm` (13: pontos, reserva exata, `duplicatePoint` com realocação, 3D, teste de morte do
+    `addPoint` com tamanho errado, `numberOfHalfEdges`, `O[]` reservado = `BORDER`), `test_vertex_count` (6, os casos
+    1–8 do teste antigo), `test_base_mesh` (5: os 24 operadores e os vértices novos de cada uma das 12 inserções do
+    exemplo, com V1–V7 a cada passo; malha final; lote = incremental; duas chamadas = uma; 21 ordens com a meia-aresta
+    sorteada), `test_invalid_input` (7: I3 e rejeições sem alterar a malha), `test_known_defects` (3 desativados:
+    I1 incremental e em lote, I2 em `isBorder`; rodados à força, I1 aborta em `openHole` e I2 não termina).
+  - CTest: 31 testes de unidade (~0,2 s) com o rótulo `unit`; `stress_supported` (seed 22/400 com
+    `--skip-border-multi`, ~7 s) com o rótulo `stress`; `stress_all` (seed 21/400) registrado e desativado até o I1.
+  - Controle negativo (mesmas suítes compiladas contra o núcleo antigo): antes do I3 (`3b991e3`), 4 falhas; antes
+    do I5 (`2a4eb0e`), 12 falhas, 3 delas por travamento; antes do I4 (`28dd85d`, sem `test_ibhm`), 15 falhas,
+    inclusive a V7 no exemplo. Núcleo atual: todas passam.
+- Driver (`tools/driver.cpp`): as verificações V1–V5 e V7 e a cópia da malha vêm de `tests/support/MeshValidation`, e
+  o estado privado do construtor é lido por `BuilderInspector`; saiu o `#define private public` (que no MSVC muda os
+  nomes decorados e quebra a ligação). Saída idêntica à anterior: console e JSON do exemplo, do lote, dos casos do
+  I3 e dos 474 arquivos de 120 casos de cada rodada do estresse. Também é o alvo `driver` do CMake.
+- `stress.py` devolve código de saída 1 se houver aborto, caso inválido, dependência de ordem ou de lote, ou contagem
+  errada (usado pelo CTest).
+- Removidos `tools/test_coordinates.cpp` e `tools/test_vertex_count.cpp`, substituídos pelas suítes em `tests/`.
 
 ## v0.3 — 18/10/2026
 

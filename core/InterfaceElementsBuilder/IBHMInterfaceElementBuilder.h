@@ -306,5 +306,11 @@ private:
      * @todo evaluate if we can get rid of it by getting this information on the fly.
      */
     std::unordered_map<unsigned int, unsigned int> _collapsed;
+
+    /**
+     * Read-only access to the private state for the tests and the test driver (tests/support/BuilderInspector.h).
+     * The library does not use it.
+     */
+    friend class BuilderInspector;
 };
 
