@@ -76,12 +76,12 @@
   top=4pt, bottom=4pt, fonttitle=\bfseries\small, title={#1}}
 
 % Versão do relatório: incrementar a cada nova versão e registrar em historico/ e na tabela de histórico.
-\newcommand{\versao}{0.4}
+\newcommand{\versao}{0.5}
 
 \title{\textbf{Inserção adaptativa de elementos de interface}\\ \textbf{em malhas 2D}\\[4pt]
   \large Operadores topológicos sobre estruturas de dados compactas baseadas em índices}
 \author{Jeferson Coelho\\ \small Tecgraf/PUC-Rio\thanks{Texto redigido com o auxílio do Claude Code a partir do
-  código do ramo \code{feature/edge-element-insertion} (commit \code{f4a5a83}), da apresentação
+  código do ramo \code{feature/edge-element-insertion} (commit \code{97dcfb7}, com os testes da v0.5), da apresentação
   \code{doc/ppt/Operators\_Template} e do artigo da IBHM~\cite{ibhm}. As figuras de malha foram geradas executando o
   próprio código (\cref{app:repro}). As versões anteriores estão em \code{doc/report/historico/}.}}
 \date{Relatório técnico — versão \versao{} — outubro de 2026}
@@ -98,12 +98,15 @@ de seus dois vértices aplicando um entre quatro operadores --- \opname{Canônic
 Descrevemos o problema, a estrutura IBHM, a arquitetura do algoritmo, cada operador com seus detalhes de implementação e
 o algoritmo de travessia, tal como implementados na classe \code{IBHMInterfaceElementBuilder}, que é a base a ser
 evoluída. Cada caso é ilustrado com figuras produzidas pelo próprio código. Em seguida, confrontamos a implementação com
-seus comentários e com o artigo da IBHM e listamos os defeitos corrigidos e os em aberto. Uma verificação
-experimental com 800 malhas aleatórias (triângulos, quadriláteros, malhas híbridas e polígonos de seis lados) confirma, em
-todas as configurações suportadas, a validade topológica, a contagem exata de vértices novos, as coordenadas das cópias e
-a independência da ordem de inserção (inclusive na inserção em lote); os cenários de verificação viraram testes
-automatizados (Google Test e CTest). A falha que resta é o vértice de borda com mais de uma aresta selecionada; as
-entradas inválidas, que também falhavam, passaram a ser rejeitadas.
+seus comentários e com o artigo da IBHM e listamos os defeitos corrigidos e os em aberto. A verificação, com testes
+automatizados (Google Test e CTest) sobre malhas de triângulos, quadriláteros, híbridas, com polígonos e com furos,
+compara o resultado com a topologia \emph{esperada}, calculada só a partir da malha de entrada (uma cópia de cada vértice
+por componente da sua estrela cortada pelas arestas), e confirma a validade topológica, a contagem exata de vértices
+novos, as coordenadas das cópias, a memória exata e a independência da ordem e do modo de inserção. Cada princípio do
+algoritmo (gabarito do elemento, decisão pelo estado do vértice, localidade, independência das coordenadas, contrato de
+cada operador e equivalência entre Split Element e Expand Edge) tem um teste próprio, e um teste de mutação mostra que
+eles detectam resultados válidos mas errados. Não há mais falha conhecida no resultado; os itens em aberto são relato à
+aplicação, desempenho e memória temporária.
 \end{abstract}
 
 \begin{center}\small
@@ -126,6 +129,12 @@ com as coordenadas do original, \code{duplicatePoint}), I5 (contagem exata, em d
 sem Qt); nova tabela de defeitos corrigidos e I2 rebaixado a latente. Verificação com a V7 e nova seção de testes
 automatizados (Google Test e CTest), com controle negativo contra versões anteriores do núcleo. Apêndice reescrito para
 os testes, o código de apoio compartilhado com o \code{driver} e o novo build.\\
+0.5 & 20/10/2026 & Reflete as correções I1 (Open Hole em vértice de borda, com figura antes/depois), I2 (\code{isBorder}),
+I6 (sentinelas com asserções) e I11 (crescimento exato da memória, \code{reserveCapacityForElements}), e o B10 tratado
+com asserções (provisório). Máquina de estados sem o estado ``não suportado''. Testes novos: topologia esperada
+(oráculo), malhas aleatórias em C++ (inclusive com furos), estado de cada vértice e do construtor, um teste por
+princípio do algoritmo e equivalência Split/Expand; teste de mutação e controle negativo ampliado. Defeitos em aberto:
+I7 (com a sugestão combinada), I9 e o novo I12.\\
 \bottomrule
 \end{tabular}
 \end{center}

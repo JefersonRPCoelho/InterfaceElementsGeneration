@@ -9,8 +9,8 @@ documentação de referência passa a ser este relatório.
 
 \subsection{Comentários do código}
 
-A v0.2 apontou 14 problemas nos comentários (B1--B14). Desde então, todos foram corrigidos, exceto o B10
-(\cref{tab:comentarios}). Os números foram mantidos para facilitar o acompanhamento.
+A v0.2 apontou 14 problemas nos comentários (B1--B14). Desde então, todos foram corrigidos; o B10 está tratado de forma
+provisória, com asserções, por decisão do autor (\cref{tab:comentarios}). Os números foram mantidos para facilitar o acompanhamento.
 
 \begin{table}[ht]
 \centering\small
@@ -37,13 +37,14 @@ B7 & \code{computeNumber\allowbreak{}OfNewVertices} & O comentário explicava as
 limite superior. Com a correção do I5, código e comentário descrevem a contagem exata em duas etapas
 (\cref{sec:contagem}). & corrigido\\
 B8 & \code{reindexElements\allowbreak{}CCW} & Documenta a pré-condição de não chegar à half-edge que segue uma aresta
-colapsada. & corrigido\\
+colapsada; desde a correção do I6, uma asserção a verifica. & corrigido\\
 B9 & \code{insertInterface\allowbreak{}Elements} & Documenta as entradas ignoradas e a falta de relato a quem chama. O
 \code{@warning} sobre índices não validados saiu com a correção do I3; a lista de rejeições inclui os índices fora da
 malha. & corrigido\\
-B10 & operadores & O \code{@return} promete \code{false} em caso de falha, mas os operadores sempre devolvem \code{true},
-e o valor é ignorado. Uma solução (verificar antes de alterar a malha e tratar o retorno com \code{assert}) foi testada e
-revertida, por acrescentar verificações ao caminho crítico; o tema será retomado. & \textbf{aberto}\\
+B10 & operadores & O \code{@return} promete \code{false} em caso de falha, mas os operadores sempre devolvem
+\code{true}. Uma solução com verificações antes de alterar a malha foi revertida por custo. Por decisão do autor, o
+chamador passou a verificar o resultado (e o operador indefinido) com \code{assert}, sem custo em \emph{release}, e o
+\code{@return} documenta isso; o relato de falhas fica para o I7. & provisório\\
 B11 & \code{numberReserved\allowbreak{}Elements} & Agora diz que devolve posições de half-edge reservadas, não elementos
 (o nome não mudou). & corrigido\\
 B12 & \code{canonical} & ``\emph{See @reindexElements}'' virou ``\emph{See reindexElementsCCW()}''. & corrigido\\
@@ -72,7 +73,8 @@ parada, e a célula de $VH[v]$ só é incluída quando o laço volta a ela (vér
 inserir primeiro a célula de $VH[v]$ e testar $\Op[\prv(he)]=0$ antes de avançar. O algoritmo não é usado pela
 implementação.
 \item \textbf{[Divergência]} A implementação não tem o vetor $VH[\,]$. Por isso \code{isBorder} precisa girar em torno
-do vértice ($O(d\log n_c)$ em vez de $O(1)$), e é nessa rotação que mora o defeito I2 (\cref{sec:defeitos}). Manter $VH[\,]$ atualizado pelos operadores é simples (cada operador sabe quais cantos mudou) e
+do vértice ($O(d\log n_c)$ em vez de $O(1)$); era nessa rotação que estava o defeito I2, já corrigido
+(\cref{sec:defeitos}). Manter $VH[\,]$ atualizado pelos operadores é simples (cada operador sabe quais cantos mudou) e
 eliminaria as rotações de teste.
 \item \textbf{[Divergência]} Convenções diferentes (índices a partir de zero, $-1$ para borda, $n_c+1$ offsets, estado
 \COLLAPSED), resumidas na \cref{tab:estruturas}. Não são erros, mas devem ser registradas para quem comparar código e
@@ -98,11 +100,11 @@ saída em malhas grandes.
 \label{sec:defeitos}
 
 A \cref{tab:defeitos} reúne os problemas de \code{IBHMInterfaceElementBuilder} e \code{IBHM} que continuam em aberto,
-confirmados com o programa de teste, com uma sugestão de correção. Como esta é a implementação que será evoluída, todos
-devem ser corrigidos; o de gravidade alta impede o uso em malhas gerais (de triângulos, ou com trincas que chegam à
-borda). Os defeitos I1 e I2 têm testes desativados que descrevem o comportamento correto
-(\code{tests/test\_known\_defects.cpp}, \cref{sec:testes}): ao corrigi-los, basta reativá-los. A \cref{tab:corrigidos}
-lista os defeitos corrigidos desde a v0.3; os números foram mantidos.
+com uma sugestão de correção. Nenhum deles afeta o resultado: são relato à aplicação, desempenho e memória
+temporária. O autor decidiu deixá-los para depois, e as sugestões combinadas estão registradas em
+\code{historico/HISTORICO.md}. Um defeito em aberto pode ganhar um teste desativado (prefixo \code{DISABLED\_}) que
+descreve o comportamento correto; hoje não há nenhum. A \cref{tab:corrigidos} lista os defeitos corrigidos desde a
+v0.3; os números foram mantidos.
 
 \begin{table}[ht]
 \centering\small
@@ -111,32 +113,25 @@ lista os defeitos corrigidos desde a v0.3; os números foram mantidos.
 \toprule
 ID & Grav. & Onde & Defeito e sugestão\\
 \midrule
-I1 & alta & \code{openHole} & Vértice de borda (externa ou de furo) já aberto recebendo nova aresta: asserção em debug
-(no primeiro laço do \code{openHole} ou em \code{heNext}, chamada pelo segundo laço com \BORDER) e escrita fora do vetor
-em release; 141 das 400 malhas da rodada 1. \emph{Sugestão:} permitir que os dois laços parem na borda; se o laço
-anti-horário parar na borda, não há canto de elemento de interface a mover; no laço horário, testar $\Op[h]=\BORDER$
-\emph{antes} de aplicar $\nxt$. Nos vértices de borda os lados curtos já são de borda, então nada mais muda.\\
-I2 & latente & \code{isBorder} & Laço infinito quando a half-edge inicial vem logo após uma aresta colapsada: o desvio
-``pula'' exatamente a half-edge de parada. Desde a correção do I5 o construtor não chega mais a esse caminho (as arestas
-de elementos de interface são descartadas antes do teste de borda), mas o método continua público. \emph{Sugestão:}
-testar a parada também após o desvio.\\
-I6 & baixa & \code{retrieveAvailable\allowbreak{}Vertex}, \code{openHole}, \code{reindexElements\allowbreak{}CCW} & Os
-sentinelas \BORDER{} e \COLLAPSED{} podem chegar a $\nxt$/$\prv$ (B8; segundo laço do Open Hole; \COLLAPSED{} não é
-testado em $x_1$/$x_3$). Na IBHM isso vira uma busca binária com índice inválido. \emph{Sugestão:} testes explícitos
-antes de cada $\nxt$/$\prv$ aplicado a uma oposta.\\
-I7 & baixa & operadores, \code{insertInterface\allowbreak{}Elements} & Não há relato de erro: os operadores sempre
-devolvem \code{true} (B10) e o método devolve \code{void}; rejeições só aparecem no console. \emph{Sugestão:} devolver a
-lista de arestas inseridas/rejeitadas e um estado de erro.\\
-I9 & manut. & \code{IBHM} & Toda consulta $\nxt$/$\prv$ refaz a busca binária; nas rotações, o elemento corrente já é
-conhecido e o intervalo dele poderia ser reaproveitado.\\
-I11 & memória & \code{reserveSpace\allowbreak{}ForElements}, construtor & A política adotada é reservar memória exata.
-\code{reserveSpaceForNodes} já segue essa política, mas \code{reserveSpaceForElements} usa \code{resize}, que cresce
-geometricamente e pode alocar até o dobro do necessário em \code{\_halfEdgeVertex}, \code{\_oppositeHalfEdge} e
-\code{\_offset}; o mesmo vale para \code{\_isInterfaceElement} e \code{\_inInterfaceElement} do construtor.
-\emph{Sugestão:} um \code{reserve} exato antes de cada \code{resize}.\\
+I7 & baixa & \code{insertInterface\allowbreak{}Elements} & Quem chama não sabe quais arestas viraram elementos, quais foram
+rejeitadas, nem por quê: o método devolve \code{void} e as rejeições só aparecem no console (\code{printf}).
+Devolver a contagem ou a lista dos elementos novos não basta, porque eles já são a faixa contígua no fim da lista; falta
+a correspondência aresta $\to$ elemento. \emph{Sugestão:} uma entrada por aresta de entrada, com o índice do elemento
+criado ou um código de rejeição (índice fora da malha, aresta de borda, aresta de elemento de interface), num vetor com
+sentinelas ou num parâmetro de saída opcional; custo de uma escrita por aresta, fora dos operadores. O mesmo padrão serve
+para o mapa ``vértice novo $\to$ vértice de origem''. O \code{printf} não é um problema de correção, mas uma
+biblioteca não deveria escrever na saída do programa hospedeiro (polui saídas, some sem console, embaralha em paralelo):
+com o I7, quem chama passa a registrar.\\
+I9 & desemp. & \code{IBHM} & Toda consulta $\nxt$/$\prv$ refaz a busca binária; nas rotações, o elemento corrente já é
+conhecido e o intervalo dele poderia ser reaproveitado. Sem o vetor $VH[\,]$ (C3), \code{isBorder} gira em torno do
+vértice. \emph{Sugestão:} reaproveitar o elemento corrente e manter $VH[\,]$ atualizado pelos operadores.\\
+I12 & memória & \code{buildOpposites\allowbreak{}Linear} & Novo. A construção usa uma tabela temporária com um
+\code{std::vector} por vértice: numa malha de um milhão de elementos, cerca de 36\,MB de pico além da malha (pico medido
+de 108,5\,MB, contra uns 72\,MB da entrada mais a IBHM pronta). \emph{Sugestão:} dois vetores planos (contagem de
+half-edges por vértice e índices, como uma matriz esparsa).\\
 \bottomrule
 \end{tabularx}
-\caption{Defeitos em aberto em \code{IBHMInterfaceElementBuilder} e \code{IBHM}, por gravidade.}
+\caption{Defeitos em aberto em \code{IBHMInterfaceElementBuilder} e \code{IBHM}.}
 \label{tab:defeitos}
 \end{table}
 
@@ -145,24 +140,41 @@ geometricamente e pode alocar até o dobro do necessário em \code{\_halfEdgeVer
 \setlength{\tabcolsep}{4pt}
 \begin{tabularx}{\linewidth}{c >{\raggedright}p{3.4cm} X}
 \toprule
-ID & Defeito na v0.3 & Correção e teste\\
+ID & Defeito & Correção e teste\\
 \midrule
+I1 & Vértice de borda já aberto recebendo nova aresta: asserção no Open Hole (escrita fora do vetor em
+\emph{release}); 141 das 400 malhas da rodada 1 na v0.4. & Tratado dentro do Open Hole, por decisão do autor: cada laço
+para no primeiro elemento de interface ou na borda; do lado da borda não há nada a descolar; uma asserção verifica que
+ao menos um lado encontra elemento de interface (\cref{sec:hole,sec:falha-borda}). Sem custo a mais. Testes:
+\code{test\_open\_hole\_border}, \code{stress\_all} (rodada 1: 400/400).\\
+I2 & Laço infinito em \code{isBorder} começando logo após uma aresta colapsada (latente desde o I5). & O passo pela
+aresta colapsada passa pela condição de parada como os demais (\cref{sec:impl-estruturas}). Testes: \code{isBorder} em
+toda half-edge, em cada passo do exemplo.\\
 I3 & Entrada sem validação de índice; índice no espaço reservado aceito como aresta ($\Op[\,]$ reservado valia 0). &
 \code{insertInterfaceElements} lê \code{numberOfHalfEdges()}, isto é, $N=Of[n_c]$, no início da chamada e rejeita
-todo $h\ge N$, antes de qualquer consulta; a pré-contagem aplica o mesmo teste; \code{reserveSpaceForElements} inicializa as
-posições novas de $\Op[\,]$ com \BORDER. Custo: uma comparação por aresta. Testes: \code{test\_invalid\_input},
+todo $h\ge N$, antes de qualquer consulta; a pré-contagem aplica o mesmo teste; \code{reserveSpaceForElements} inicializa
+as posições novas de $\Op[\,]$ com \BORDER. Custo: uma comparação por aresta. Testes: \code{test\_invalid\_input},
 \code{test\_ibhm}.\\
 I4 & Cópias nascendo na origem. & Novo \code{IBHM::duplicatePoint(v)}, que acrescenta um ponto com as coordenadas de $v$
 lendo a origem por índice (correto mesmo se o vetor for realocado durante a cópia, sem vetor temporário); os quatro
-operadores o usam. Testes: V7 em \code{test\_base\_mesh} e no estresse; \code{test\_ibhm}.\\
+operadores o usam. Testes: V7 em todos os testes.\\
 I5 & Pré-contagem em excesso (borda, arestas rejeitadas, repetidas) e laço infinito com aresta de elemento de
 interface na entrada (gatilho do I2). & Contagem em duas etapas: seleção com os mesmos testes da inserção e regra
 aplicada uma vez por vértice (\cref{sec:contagem}). A contagem é exata. Testes: \code{test\_vertex\_count} e a V6 em
-todos os testes do exemplo e do estresse.\\
+todos os testes.\\
+I6 & Sentinelas (\BORDER, \COLLAPSED) podiam chegar a $\nxt$/$\prv$/$\mathrm{elem}$, que viram uma busca binária com
+índice inválido. & Asserções, sem custo em \emph{release}: as três consultas só aceitam half-edges de elementos válidos
+($h<Of[n_c]$), e o construtor verifica que nenhuma oposta usada como half-edge é \COLLAPSED{} ($x_1$/$x_3$, rotações). A
+parte do Open Hole saiu com o I1. Teste: de morte, nas três consultas.\\
 I8 & Mensagem do vértice $B$ imprimia \code{a}; \code{\%d} com \code{unsigned}. & \code{\%u} e \code{b}.\\
 I10 & Includes por inclusão transitiva; CMake exigia Qt. & Cada arquivo inclui o que usa (\code{<cassert>},
 \code{<cstdio>}, \code{<cstring>}, \code{<algorithm>}); funções herdadas de C são usadas sem \code{std::}. O CMake não
 depende mais de Qt: alvos \code{InterfaceElementsLib}, \code{InterfaceElementsPrototype} e os testes em \code{tests/}.\\
+I11 & \code{reserveSpace\allowbreak{}ForElements} crescia os vetores por \code{resize} (até 2$\times$ a memória: 34\,MB viravam
+69\,MB ao inserir uma aresta numa malha de um milhão de elementos); posições de arestas rejeitadas se acumulavam. &
+Crescimento exato (\code{reserve} antes de \code{resize}), reserva só do que falta e novo
+\code{reserveCapacityForElements} para reservar capacidade antes (\cref{sec:travessia}). Testes: crescimento exato,
+reaproveitamento, exemplo inteiro sem realocação e memória exata depois de cada chamada nas malhas aleatórias.\\
 \bottomrule
 \end{tabularx}
 \caption{Defeitos corrigidos desde a v0.3.}

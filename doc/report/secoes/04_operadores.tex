@@ -266,6 +266,15 @@ O lado curto do novo elemento também fica na borda. Na primeira vez, os lados d
 par que unia as duas cópias, e o resultado é um buraco triangular $(v,n,w)$; nas vezes seguintes o buraco já existe, os
 lados encontrados já são de borda e o buraco ganha um vértice (\cref{fig:hole}).
 
+\textbf{Vértice de borda.} O Open Hole também é o operador de um vértice de borda (externa ou de furo) que já foi aberto,
+porque esse vértice está em um elemento de interface e não tem aresta colapsada. A estrela de um vértice de borda vai de
+borda a borda, e por isso cada laço pode terminar em uma de duas ``paredes'': um elemento de interface, como num vértice
+interno, ou a própria borda da malha. Quando um laço chega à borda, não há canto de elemento de interface a mover nem
+lado curto a descolar: o buraco está aberto para o exterior, e aquele lado faz o mesmo que o Canônico de borda (o setor
+entre a aresta nova e a borda passa para a cópia nova). Ao menos um dos lados sempre encontra um elemento de interface,
+já que o vértice pertence a um; uma asserção verifica isso. Esse caso era o defeito I1 até a v0.4
+(\cref{sec:falha-borda}).
+
 \begin{algorithm}[ht]
 \caption{\code{openHole}$(he, x)$}
 \label{alg:hole}
@@ -274,14 +283,17 @@ lados encontrados já são de borda e o buraco ganha um vértice (\cref{fig:hole
 \Repeat \Comment{laço 1: anti-horário, reindexando}
   \State $\V[h]\gets n$; \quad $h\gets\Op[\prv(h)]$
 \Until{$h=\BORDER$ \textbf{ou} \code{\_isInterfaceElement}$[\mathrm{elem}(h)]$}
-\State \textbf{assert}$(h\ne\BORDER)$
-\State $\V[h]\gets n$; \quad $\Op[\prv(h)]\gets\BORDER$ \Comment{canto e lado curto de $J$}
+\State $\mathit{achouAH}\gets(h\ne\BORDER)$
+\If{$\mathit{achouAH}$} $\V[h]\gets n$; \quad $\Op[\prv(h)]\gets\BORDER$ \Comment{canto e lado curto de $J$}
+\EndIf
 \State $h\gets he$
 \Repeat \Comment{laço 2: horário, só procura}
-  \State $h\gets\nxt(\Op[h])$
+  \State $o\gets\Op[h]$; \quad $h\gets$ (\textbf{se} $o=\BORDER$ \textbf{então} \BORDER{} \textbf{senão} $\nxt(o)$)
 \Until{$h=\BORDER$ \textbf{ou} \code{\_isInterfaceElement}$[\mathrm{elem}(h)]$}
-\State \textbf{assert}$(h\ne\BORDER)$
-\State $\Op[h]\gets\BORDER$ \Comment{lado curto de $K$}
+\State $\mathit{achouH}\gets(h\ne\BORDER)$
+\If{$\mathit{achouH}$} $\Op[h]\gets\BORDER$ \Comment{lado curto de $K$}
+\EndIf
+\State \textbf{assert}$(\mathit{achouAH}$ \textbf{ou} $\mathit{achouH})$ \Comment{o vértice está em algum EI}
 \State $\V[x]\gets n$; \quad $\V[\nxt(x)]\gets v$; \quad $\Op[x]\gets\BORDER$
 \State marca $v$ e $n$ como vértices de EI
 \end{algorithmic}
@@ -315,7 +327,7 @@ Operador & começa em & para em & lados curtos\\
 Canônico (borda) & aresta nova & borda da malha & novo lado na borda\\
 Expand Edge & aresta colapsada $c$ & aresta nova & $c$ é colada ao novo lado\\
 Split Element & aresta colapsada $c$ & aresta nova (após 1 elemento) & $c$ é colada ao novo lado\\
-Open Hole & aresta nova & primeiro elemento de interface & descolados (buraco)\\
+Open Hole & aresta nova & primeiro elemento de interface (ou a borda) & descolados (buraco)\\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -325,7 +337,8 @@ do Expand a partir de $c$ visita exatamente o canto de $c$ e o canto $\nxt(b)$ d
 alterações do Split. Na hipótese $x_1$, a rotação do Expand vai pelo outro lado e reindexa todos os elementos da estrela
 \emph{exceto} $S$; o resultado é a mesma divisão da estrela, só com os nomes $v$ e $n$ trocados. Verificamos isso
 experimentalmente: substituindo o Split pelo Expand em 791 ocorrências (400 malhas aleatórias de triângulos,
-quadriláteros, híbridas e com polígonos), a topologia final foi idêntica em todos os casos (\cref{sec:verificacao}). O
+quadriláteros, híbridas e com polígonos), a topologia final foi idêntica em todos os casos (\cref{sec:verificacao}).
+Desde a v0.5 essa equivalência é um teste automatizado, em malhas aleatórias dos cinco tipos (\cref{sec:testes}). O
 Split Element é, portanto, uma \emph{otimização}: custo $O(\log n_c)$ em vez de $O(d\log n_c)$, movendo sempre o lado
 menor. Isso não é um defeito; mas é uma informação útil para a extensão 3D,
 onde talvez valha começar pela versão geral (rotação) e só depois especializar.
@@ -356,5 +369,5 @@ roda uma vez por vértice distinto, e um vértice tocado por várias arestas do 
 as arestas de elementos de interface antes do teste de borda, a contagem também deixou de chegar ao caminho em que
 \code{isBorder} não termina (I2). O resultado é exatamente o número de vértices criados, em todos os testes
 (\cref{sec:verificacao}); até a v0.3 a contagem era um limite superior (defeito I5, corrigido). Num vértice de borda com
-duas ou mais arestas, ela dá o valor correto ($n_v$), embora a inserção ainda não trate esse caso (I1). Os elementos
+duas ou mais arestas, ela dá o valor correto ($n_v$), uma cópia por aresta (Open Hole na borda). Os elementos
 são reservados à razão de um por aresta do lote.

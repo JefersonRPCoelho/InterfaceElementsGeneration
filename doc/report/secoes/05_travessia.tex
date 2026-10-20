@@ -28,8 +28,10 @@ e, por fim, liga as arestas do meio. A \cref{sec:ibhm-insercao} mostra o efeito 
   \EndIf
   \State $h_0\gets$ \code{nextAvailableHE}$()$; \quad $h_1,h_2,h_3\gets h_0+1,h_0+2,h_0+3$
   \State $e\gets$ \code{commitElement}$(4)$ \Comment{antes dos operadores: $\nxt/\prv$ dependem de $Of[\,]$}
-  \State $\mathit{op}\gets$ \code{retrieveOperator}$(a)$; aplica $\mathit{op}$ com $(a,h_3)$ \Comment{vértice $A$}
-  \State $\mathit{op}\gets$ \code{retrieveOperator}$(b)$; aplica $\mathit{op}$ com $(b,h_1)$ \Comment{vértice $B$}
+  \State $\mathit{op}\gets$ \code{retrieveOperator}$(a)$; \textbf{assert}(aplica $\mathit{op}$ com $(a,h_3)$)
+  \Comment{vértice $A$}
+  \State $\mathit{op}\gets$ \code{retrieveOperator}$(b)$; \textbf{assert}(aplica $\mathit{op}$ com $(b,h_1)$)
+  \Comment{vértice $B$}
   \State $\Op[h_0]\leftrightarrow b$; \quad $\Op[h_2]\leftrightarrow a$ \Comment{arestas do meio}
   \State \code{\_isInterfaceElement}$[e]\gets$ \textbf{true}
 \EndFor
@@ -40,10 +42,15 @@ Alguns detalhes de implementação merecem atenção:
 \begin{itemize}
 \item \textbf{Rejeições.} Índices que não são half-edges da malha, arestas de borda e arestas que já pertencem a um
 elemento de interface (por exemplo, a mesma aresta pedida duas vezes, no mesmo lote ou em chamadas diferentes) são
-ignorados com uma mensagem no console. Nada é devolvido a quem chamou (I7), e o espaço reservado para eles fica sem uso.
+ignorados com uma mensagem no console. Nada é devolvido a quem chamou (I7), e o espaço reservado para eles fica livre e
+é usado pelas chamadas seguintes.
 O teste do índice vem primeiro, porque as consultas seguintes só valem para half-edges de elementos validados. O limite
 $N$ é lido no início da chamada: os elementos criados pela própria chamada não contam, e uma half-edge deles na entrada
 também é rejeitada. A pré-contagem aplica os mesmos testes (\cref{sec:contagem}), por isso a contagem é exata.
+\item \textbf{Resultado dos operadores (B10).} Os operadores devolvem \code{bool}, mas hoje sempre devolvem
+\code{true}: a arquitetura garante que o operador escolhido é aplicável. O resultado é verificado com uma asserção, que
+também pega um operador indefinido; por decisão do autor, é uma solução provisória, para que um erro apareça logo
+(em \emph{release} a asserção não existe).
 \item \textbf{Validação antecipada do elemento.} \code{commitElement(4)} grava o offset do novo elemento antes de os
 operadores rodarem, porque na IBHM $\nxt$ e $\prv$ das half-edges $h_0,\dots,h_3$ dependem dele. Durante os operadores,
 as posições $\Op[h_0]$ e $\Op[h_2]$ ainda contêm o \BORDER{} da reserva; nenhuma rotação chega a elas porque nenhuma
@@ -124,7 +131,12 @@ $\nxt$/$\prv$ faz. A pré-contagem também chama \code{isBorder}, uma vez por v�
 número de arestas inseridas para malhas de valência limitada, e só depende do tamanho da malha pelo fator logarítmico.
 
 \paragraph{Memória.} O número de vértices novos é exatamente o previsto, inclusive com arestas rejeitadas ou repetidas
-no lote. É reservado um elemento por aresta do lote, e o espaço das arestas rejeitadas fica sem uso.
+no lote. É reservado um elemento por aresta do lote, e o espaço das arestas rejeitadas é reaproveitado pelas chamadas
+seguintes. Os vetores crescem exatamente o necessário (sem o crescimento geométrico do \code{std::vector}); o preço é que
+cada chamada que cresce a malha realoca e copia os vetores de elementos. Numa malha de um milhão de elementos, mil
+chamadas de uma aresta levam cerca de 0,7\,s sem reserva prévia; reservando a capacidade uma vez, com
+\code{reserveCapacityForElements} e \code{reserveSpaceForNodes}, não há nenhuma realocação e as mil chamadas levam cerca
+de 26\,ms, com a memória exata (I11, \cref{sec:defeitos}).
 
 \paragraph{O exemplo no \code{main.cpp}.} Hoje o \code{main.cpp} executa este construtor sobre \code{malha2Hyb.txt},
 com as mesmas 12 arestas dos slides em outra ordem (9, 1, 2, 8, 6, 7, 3, 10, 4, 5, 11, 12, na numeração dos slides); o

@@ -50,14 +50,14 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
   reservadas de `O[]` começam com `BORDER` (antes do I3, com 0). Entrada válida: `h < numberOfHalfEdges()` lido no
   início da chamada (`= Of[n_c]`); `numberReservedElements()` inclui o espaço reservado.
 
-## Defeitos conhecidos da IBHM (relatório v0.4, seção 7.4: tabela de abertos e de corrigidos)
+## Defeitos conhecidos da IBHM (relatório v0.5, seção 7.4: tabela de abertos e de corrigidos)
 
-- **Em aberto (deixados para depois pelo autor): I7 (relato de inseridas/rejeitadas; hoje `printf`), I9 (desempenho)**,
-  mais o pico de memória da construção (`buildOppositesLinear`) e pendências menores. As sugestões combinadas estão em
-  `doc/report/historico/HISTORICO.md`, seção "Sugestões registradas para implementação futura": para o I7, devolver uma
-  entrada por aresta de entrada (elemento criado ou código de rejeição), não a contagem nem a lista (os elementos novos
-  já são a faixa contígua no fim); a biblioteca deixa de imprimir e quem chama registra. Não implementar sem o autor
-  pedir. Um defeito em aberto pode ganhar um teste desativado (prefixo `DISABLED_`) que descreve o comportamento
+- **Em aberto (deixados para depois pelo autor): I7 (relato de inseridas/rejeitadas; hoje `printf`), I9 (desempenho) e
+  I12 (pico de memória da construção, `buildOppositesLinear`)**, mais pendências menores. As sugestões combinadas estão
+  em `doc/report/historico/HISTORICO.md`, seção "Sugestões registradas para implementação futura": para o I7, devolver
+  uma entrada por aresta de entrada (elemento criado ou código de rejeição), não a contagem nem a lista (os elementos
+  novos já são a faixa contígua no fim); a biblioteca deixa de imprimir e quem chama registra. Não implementar sem o
+  autor pedir. Um defeito em aberto pode ganhar um teste desativado (prefixo `DISABLED_`) que descreve o comportamento
   correto; ao corrigir, o teste é ativado. Hoje não há nenhum.
 - **Já corrigidos:** I11 (crescimento exato: `reserve` antes de cada `resize` em `reserveSpaceForElements` e nos vetores
   de flags do construtor; reserva só o que falta; `reserveCapacityForElements` público), I2 (`isBorder`: o passo pela
@@ -92,15 +92,21 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
   `TEST` roda em processo próprio no CTest (timeout 60 s). O núcleo é recompilado sem `NDEBUG` para os testes
   (`InterfaceElementsLibChecked`), em qualquer tipo de build: os `assert` precisam estar ligados.
   - `test_ibhm.cpp` (pontos, reserva, `numberOfHalfEdges`, testes de morte, `isBorder` em toda half-edge do
-    exemplo), `test_vertex_count.cpp`,
+    exemplo), `test_vertex_count.cpp`, `test_random_meshes.cpp` (malhas aleatórias dos 5 tipos, inclusive com furos;
+    oráculo da topologia esperada, estado dos vértices e do construtor e memória exata depois de cada chamada),
+    `test_special_meshes.cpp`, `test_algorithm_structure.cpp` (um teste por princípio: gabarito, decisão pelo estado,
+    contrato dos operadores, localidade, coordenadas, Split ≡ Expand),
     `test_base_mesh.cpp` (exemplo dos slides: 24 operadores, vértices por passo, V1–V7, ordem/lote/várias chamadas),
     `test_invalid_input.cpp` (I3 e rejeições), `test_open_hole_border.cpp` (I1: vértice de borda com 2+ arestas,
     nas duas ordens, em lote, na malha com furo e com 3 arestas).
   - `tests/support/`: `TestMeshes` (malha base = `malha2Hyb.txt` com o vértice 18 em (4,3), leques com 3 e 4
-    quadriláteros, `meshIBHM.txt` com furo, dois triângulos),
+    quadriláteros, `meshIBHM.txt` com furo, dois triângulos), `RandomMeshes` (gerador determinístico, portável),
+    `InsertionChecks` (oráculo: uma cópia por componente da estrela cortada; estado dos vértices; estado do construtor),
     `MeshValidation` (snapshot, V1–V5, origem das cópias e V7, partição dos cantos), `BuilderInspector` (acesso de
-    leitura ao estado privado do construtor, que o declara `friend`; não usar `#define private public`, que quebra a
-    ligação no MSVC).
+    leitura ao estado privado do construtor, que o declara `friend`, e `insertEdge`, réplica da inserção auto-validada
+    para o teste Split ≡ Expand; não usar `#define private public`, que quebra a ligação no MSVC).
+  - Princípio do autor: todo princípio testável do projeto ganha um teste. Teste de mutação (borda tratada como
+    interna): o `stress.py` não pega (rodada 2 passa), o oráculo e os testes de estrutura pegam.
   - `stress_all` (seed 21/400, todas as configurações) e `stress_supported` (seed 22/400, sem vértice de borda com
     2+ arestas) precisam passar.
 - `doc/report/tools/driver.cpp` (alvo `driver`): insere arestas (`--batch` para lote), imprime o operador por vértice,
@@ -128,7 +134,7 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
 - Compilar com `tectonic -X compile relatorio.tex` (instalado via Homebrew) ou xelatex.
 - **Versionamento obrigatório:** nunca sobrescrever versões anteriores. A cada nova versão: incrementar `\versao` em
   `relatorio.tex`, acrescentar linha na tabela de histórico (após o resumo) e em `historico/HISTORICO.md`, compilar e
-  copiar o PDF para `historico/relatorio_vX.Y.pdf`. Versão atual: **0.4**.
+  copiar o PDF para `historico/relatorio_vX.Y.pdf`. Versão atual: **0.5**.
 - **Só gerar uma nova versão quando o autor pedir.** Os itens pedidos para a próxima versão ficam na seção
   "Pendências para a próxima versão" de `historico/HISTORICO.md`; consulte-a ao gerar o relatório.
 

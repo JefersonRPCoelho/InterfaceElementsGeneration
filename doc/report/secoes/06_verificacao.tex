@@ -19,6 +19,8 @@ As verificações V1--V5 e V7 ficam em \code{tests/support/MeshValidation} e sã
 automatizados (\cref{sec:testes}).
 Para comparar resultados de ordens diferentes, usamos a partição dos cantos dos elementos \emph{originais} em classes de
 vértices: duas execuções produzem a mesma topologia (a menos de renumeração) se e somente se essas partições coincidem.
+Essas verificações dizem que o resultado é \emph{válido} e \emph{coerente}; desde a v0.5, os testes automatizados também
+comparam o resultado com a topologia \emph{esperada}, calculada só a partir da malha de entrada (\cref{sec:testes}).
 
 \subsection{Malhas aleatórias}
 
@@ -27,38 +29,41 @@ O teste com malhas aleatórias (\code{tools/stress.py}) gera grades de $3$ a $7$
 quadriláteros fundidos) ---, sorteia até metade das arestas internas e insere esse conjunto quatro vezes: em três ordens
 aleatórias, escolhendo ao acaso qual half-edge representa cada aresta, e uma vez em lote, numa única chamada. As quatro
 execuções precisam ser válidas e produzir a mesma topologia. Foram feitas duas rodadas de 400 malhas
-(\cref{tab:estresse}), refeitas com o código desta versão: os números são os mesmos da v0.3, agora também com a V7.
+(\cref{tab:estresse}). Com a correção do I1, a rodada 1, que não exclui nenhuma configuração, passou a ter todos os casos
+válidos.
 
 \begin{table}[ht]
 \centering\small
-\begin{tabularx}{\linewidth}{>{\raggedright}X>{\centering}p{3.3cm}>{\centering\arraybackslash}p{3.3cm}}
+\begin{tabularx}{\linewidth}{>{\raggedright}X>{\centering}p{2.55cm}>{\centering}p{2.55cm}>{\centering\arraybackslash}p{2.55cm}}
 \toprule
-& Rodada 1: sem restrição & Rodada 2: sem vértice de borda com 2+ arestas\\
+& Rodada 1 (v0.4) & Rodada 1 (v0.5) & Rodada 2\\
+& \multicolumn{2}{c}{sem restrição} & sem vértice de borda com 2+ arestas\\
 \midrule
-Malhas (quad / tri / híbrida / polígonos) & 100 / 100 / 100 / 100 & 100 / 100 / 100 / 100\\
-Concluídas e válidas (V1--V7) & 259 & \textbf{400}\\
-\quad por tipo & 100 / 37 / 56 / 66 & 100 / 100 / 100 / 100\\
-Abortadas & 141 & 0\\
-\quad das quais com vértice de borda com 2+ arestas & \textbf{141} & ---\\
-\quad asserção em \code{openHole} / em \code{heNext} & 72 / 69 & ---\\
-Ordens diferentes ou lote com resultado diferente & 0 & 0\\
-Contagem de vértices diferente da prevista & 0 & 0\\
-Operadores aplicados (Canônico / Split / Expand / Hole) & 3124 / 553 / 384 / 321 & 5130 / 791 / 708 / 535\\
+Malhas (quad / tri / híbrida / polígonos) & 100 de cada & 100 de cada & 100 de cada\\
+Concluídas e válidas (V1--V7) & 259 & \textbf{400} & \textbf{400}\\
+\quad por tipo & 100 / 37 / 56 / 66 & 100 / 100 / 100 / 100 & 100 / 100 / 100 / 100\\
+Com vértice de borda com 2+ arestas & 141 & 148 & ---\\
+Abortadas & 141 & 0 & 0\\
+\quad asserção em \code{openHole} / em \code{heNext} & 72 / 69 & --- & ---\\
+Ordens diferentes ou lote com resultado diferente & 0 & 0 & 0\\
+Contagem de vértices diferente da prevista & 0 & 0 & 0\\
+Operadores (Canônico / Split / Expand / Hole) & 3124 / 553 / 384 / 321 & 6649 / 1244 / 1087 / 1650 &
+5130 / 791 / 708 / 535\\
 \bottomrule
 \end{tabularx}
-\caption{Teste com malhas aleatórias. Todas as falhas da rodada 1 são exatamente os casos em que algum vértice de borda
-recebe duas ou mais arestas. Nas malhas só de quadriláteros essa configuração não aparece (em uma grade, cada vértice de
-borda tem uma única aresta interna); nas de triângulos ela é frequente. As asserções que interrompem a execução são a
-do primeiro laço do \code{openHole} e a de \code{heNext}, chamada pelo segundo laço com \BORDER{}
-(\cref{sec:falha-borda}).}
+\caption{Teste com malhas aleatórias. Na v0.4, todas as falhas da rodada 1 eram os casos em que algum vértice de borda
+recebia duas ou mais arestas (I1, \cref{sec:falha-borda}); na v0.5 eles são tratados. Os casos da rodada 1 das duas
+versões não são os mesmos: quando uma execução aborta, o \code{stress.py} pula os sorteios que restavam naquele caso, e
+os casos seguintes mudam. A rodada 2 dá os mesmos números nas duas versões.}
 \label{tab:estresse}
 \end{table}
 
 \subsection{Casos específicos}
 
 A \cref{tab:verificacao} reúne os cenários construídos à mão: o exemplo dos slides em várias ordens, uma trinca reta e
-um laço fechado, o experimento que troca Split Element por Expand Edge e um conjunto de entradas inválidas. As linhas
-marcadas com \textdagger{} mudaram com as correções desde a v0.3 (I3, I4 e I5).
+um laço fechado, vértices de borda com mais de uma aresta, o experimento que troca Split Element por Expand Edge e um
+conjunto de entradas inválidas. As linhas marcadas com \textdagger{} mudaram com as correções desde a v0.3. Todos esses
+cenários estão nos testes automatizados.
 
 \begin{table}[ht]
 \centering\small
@@ -67,14 +72,18 @@ marcadas com \textdagger{} mudaram com as correções desde a v0.3 (I3, I4 e I5)
 Cenário & Resultado\\
 \midrule
 Exemplo dos slides (ordem dos slides) & válido em todos os passos; 24/24 operadores iguais aos slides; 19 vértices novos
-(previsto: 19); buracos em $K$, $L$ e $M$.\\
+(previsto: 19); buracos em $K$, $L$ e $M$; topologia igual à esperada.\\
 Exemplo, ordem do \code{main.cpp}, lote único e mais 21 ordens & mesma topologia da ordem dos slides.\\
-Coordenadas das cópias (V7)\,\textdagger & toda cópia tem as coordenadas do original, no exemplo e nos 659 casos
-aleatórios válidos (até a v0.3 as cópias nasciam em $(0,0)$).\\
+Coordenadas das cópias (V7)\,\textdagger & toda cópia tem as coordenadas do original, em todos os testes (até a v0.3 as
+cópias nasciam em $(0,0)$).\\
 Trinca reta $J$--$K$--$L$--$M$--$N$ em 3 ordens & válida; mesma topologia nas 3 ordens.\\
 Laço fechado em torno do elemento $FGLK$ & válido; Split Element nos quatro cantos.\\
+Vértice de borda com duas arestas (leque; vértice $H$ da malha base: $H$--$M$ e $G$--$H$)\,\textdagger & válido nas duas
+ordens e em lote, com $k+1=3$ cópias; cada ordem leva um dos laços do Open Hole à borda (até a v0.4, asserção, I1).\\
+Vértice de borda com três arestas, nas 6 ordens\,\textdagger & válido, 4 cópias; com a aresta do meio por último, os
+dois laços encontram elemento de interface.\\
 Split Element substituído por Expand Edge\textsuperscript{a} & 791 ocorrências nas 400 malhas da rodada 2: topologia
-idêntica nas 1600 execuções.\\
+idêntica nas 1600 execuções; hoje também um teste automatizado.\\
 Mesma aresta duas vezes (em chamadas separadas ou no mesmo lote)\,\textdagger & a segunda é rejeitada; a pré-contagem é
 exata (antes reservava vértices que não eram usados).\\
 Aresta de borda na entrada\,\textdagger & rejeitada; contada como 0 vértices (antes, 2).\\
@@ -84,8 +93,8 @@ infinito} em \code{isBorder}, dentro de \code{computeNumberOfNewVertices}).\\
 \code{heOpposite}; em \emph{release}, leitura fora do vetor).\\
 Índice no espaço reservado e ainda não validado\textsuperscript{b}\,\textdagger & rejeitado; a posição reservada de
 $\Op$ vale \BORDER{} (antes valia 0, a aresta era aceita e a inserção terminava numa asserção do Open Hole).\\
-Malha com furo interno (\code{meshIBHM.txt}): aresta $0$--$4$ e depois $4$--$8$ & a primeira é válida (Canônico de
-borda nas duas pontas); a segunda falha no Open Hole, porque o vértice 4 está na borda do furo (I1).\\
+Malha com furo interno (\code{meshIBHM.txt}): aresta $0$--$4$ e depois $4$--$8$\,\textdagger & válida; o vértice 4, na
+borda do furo, termina com 3 cópias (até a v0.4, a segunda aresta falhava no Open Hole, I1).\\
 \bottomrule
 \end{tabularx}
 \caption{Cenários específicos. \textsuperscript{a}Variante compilada à parte em que \code{retrieveOperator} nunca
@@ -94,63 +103,129 @@ cuja única aresta foi rejeitada: a reserva criou as posições 48--51, mas nenh
 \label{tab:verificacao}
 \end{table}
 
-Em resumo: \emph{para todas as configurações suportadas, a implementação produz topologias válidas, independentes da
-ordem e do modo de inserção, com contagem exata de vértices e cópias com as coordenadas do original}. Desde a v0.3, as
-entradas inválidas passaram a ser rejeitadas sem alterar a malha. A falha que resta é o caso de borda ainda não tratado,
-discutido no fim desta seção e na \cref{sec:defeitos}.
+Em resumo: \emph{em todas as configurações testadas, a implementação produz a topologia esperada, válida e independente
+da ordem e do modo de inserção, com contagem exata de vértices, cópias com as coordenadas do original e memória exata}.
+As entradas inválidas são rejeitadas sem alterar a malha, e o vértice de borda com mais de uma aresta, a falha que
+restava na v0.4, é tratado.
 
 \subsection{Testes automatizados}
 \label{sec:testes}
 
-Os cenários acima viraram testes automatizados do repositório (\code{tests/}), escritos com o Google Test e executados
-pelo CTest (\cref{app:repro}). Cada teste roda em um processo próprio, com limite de tempo, de modo que uma asserção da
-biblioteca ou um laço infinito faz falhar só aquele teste. O núcleo é compilado de novo para os testes com as asserções
-ligadas, qualquer que seja o tipo de build, porque alguns defeitos só aparecem como asserção. A \cref{tab:suites} lista
-as suítes; o teste com malhas aleatórias também é registrado no CTest.
+Os cenários acima, e os princípios do algoritmo, viraram testes automatizados do repositório (\code{tests/}), escritos
+com o Google Test e executados pelo CTest (\cref{app:repro}). Cada teste roda em um processo próprio, com limite de
+tempo, de modo que uma asserção da biblioteca ou um laço infinito faz falhar só aquele teste. O núcleo é compilado de
+novo para os testes com as asserções ligadas, qualquer que seja o tipo de build. A \cref{tab:suites} lista as suítes;
+os 89 testes do Google Test levam cerca de 5\,s (em paralelo), e os dois testes de estresse, cerca de 10\,s cada.
 
 \begin{table}[ht]
 \centering\small
-\begin{tabularx}{\linewidth}{>{\ttfamily\small}p{3.6cm}c X}
+\begin{tabularx}{\linewidth}{>{\ttfamily\small}p{4.5cm}c X}
 \toprule
 \normalfont Suíte & Testes & O que verifica\\
 \midrule
-test\_ibhm & 13 & reserva exata e inclusão de pontos, \code{duplicatePoint} (inclusive com realocação durante a cópia),
-3 coordenadas, um teste de morte (\code{addPoint} com número errado de coordenadas dispara a asserção),
-\code{numberOfHalfEdges} e $\Op[\,]$ reservado igual a \BORDER.\\
+test\_ibhm & 19 & pontos (reserva exata, \code{duplicatePoint} com realocação, 3 coordenadas), reserva de elementos
+(exata, só o que falta, capacidade antecipada), \code{numberOfHalfEdges}, testes de morte (\code{addPoint} e consultas
+com sentinelas, I6) e \code{isBorder} em toda half-edge do exemplo (I2).\\
 test\_vertex\_count & 6 & a pré-contagem: exemplo em lote, aresta repetida, aresta de borda, vértice já em elemento de
-interface, vértice de borda com duas arestas (só a contagem).\\
-test\_base\_mesh & 5 & o exemplo dos slides: os 24 operadores e os vértices novos de cada inserção, com V1--V7 a cada
-passo; malha final; lote igual a uma por vez; duas chamadas iguais a uma; 21 ordens com a half-edge sorteada.\\
-test\_invalid\_input & 7 & rejeições sem alterar a malha: índice fora do vetor, índice no espaço reservado, índice de
-elemento criado na mesma chamada, aresta de borda, aresta de elemento de interface, aresta já aberta, aresta repetida.\\
-test\_known\_defects & 3 & desativados: I1 (uma aresta por chamada e em lote) e I2 (\code{isBorder}). Descrevem o
-comportamento correto; hoje, rodados à força, o I1 aborta no Open Hole e o I2 não termina.\\
-stress\_supported & 1 & \code{stress.py} com a semente 22 e 400 malhas, sem a configuração do I1 (rodada 2).\\
-stress\_all & 1 & rodada 1 (semente 21, todas as configurações); desativado até o I1 ser corrigido.\\
+interface, vértice de borda com duas arestas.\\
+test\_base\_mesh & 6 & o exemplo dos slides: os 24 operadores, os vértices novos, V1--V7 e o estado do construtor a cada
+passo, a topologia esperada; lote e várias chamadas; 21 ordens; capacidade reservada sem realocação (I11).\\
+test\_invalid\_input & 8 & rejeições sem alterar a malha (I3) e sem acumular espaço reservado (I11).\\
+test\_open\_hole\_border & 6 & vértice de borda com 2 e 3 arestas, em todas as ordens e em lote, inclusive na borda de um
+furo (I1).\\
+test\_random\_meshes & 10 & malhas aleatórias dos cinco tipos (os quatro do \code{stress.py} e malhas com furos), uma
+aresta por chamada, lote e lotes com entradas rejeitadas; depois de cada chamada: V1--V7, contagem, topologia
+esperada, estado dos vértices, estado do construtor e memória exata. Também todas as arestas internas abertas.\\
+test\_special\_meshes & 4 & malha sem aresta interna, dois triângulos totalmente separados, todas as arestas da malha
+base, pontos com 3 coordenadas.\\
+test\_algorithm\_structure & 30 & os princípios do algoritmo, em malhas aleatórias dos cinco tipos
+(\cref{tab:principios}).\\
+stress\_all, stress\_supported & 2 & \code{stress.py}: rodadas 1 e 2 da \cref{tab:estresse}.\\
 \bottomrule
 \end{tabularx}
-\caption{Testes automatizados. Os 31 testes ativos das suítes do Google Test levam cerca de 0,2\,s; o
-\code{stress\_supported}, cerca de 7\,s.}
+\caption{Testes automatizados (v0.5).}
 \label{tab:suites}
 \end{table}
 
-Para saber se os testes detectam os defeitos que já foram corrigidos, as mesmas suítes foram compiladas contra o núcleo
-de versões anteriores (\cref{tab:controle}). Cada correção é detectada por mais de um teste, e o núcleo atual passa em
-todos.
+\paragraph{A topologia esperada (oráculo).} Os testes anteriores à v0.5 verificavam que o resultado é válido (V1--V7),
+coerente entre ordens e lote e com a contagem certa. Uma topologia válida e coerente, mas errada --- com uma cópia a
+menos num vértice, por exemplo ---, passaria. Por isso os testes comparam o resultado com uma referência calculada
+\emph{só a partir da malha de entrada e do conjunto de arestas}, sem os operadores: o invariante da
+\cref{sec:conclusao}. Os cantos de cada vértice são agrupados pelos componentes da sua estrela cortada pelas arestas
+abertas (dois cantos estão juntos se forem ligados por uma aresta que não foi aberta), e a partição dos cantos dos
+elementos de entrada do resultado precisa ser exatamente essa. Além disso: um elemento de interface por aresta aberta,
+entre as duas half-edges da aresta; uma aresta colapsada por vértice interno com uma única aresta; e o estado de cada
+vértice, contando os lados curtos em volta dele (\cref{fig:estados}). A mesma ideia se transporta para 3D: uma cópia
+por componente da estrela cortada pelas faces selecionadas.
+
+\paragraph{Os princípios do algoritmo.} Cada princípio da \cref{sec:arquitetura} que pode ser verificado pelo resultado
+tem um teste (\cref{tab:principios}). O único que não é testado é a restrição de um construtor por malha, que não tem
+mecanismo no código.
 
 \begin{table}[ht]
 \centering\small
-\begin{tabularx}{\linewidth}{>{\raggedright}p{4.6cm}c X}
+\begin{tabularx}{\linewidth}{>{\raggedright}p{4.4cm}>{\raggedright\arraybackslash}X}
 \toprule
-Núcleo & Falhas & Testes que falham\\
+Princípio ou propriedade & Teste\\
 \midrule
-atual & 0 de 31 & ---\\
-antes do I3 (commit \code{3b991e3}) & 4 de 31 & $\Op[\,]$ reservado; índice fora do vetor e índice de elemento da mesma
-chamada (asserção em \code{heOpposite}); índice no espaço reservado (asserção no Open Hole).\\
-antes do I5 (\code{2a4eb0e}) & 12 de 31 & os anteriores, cinco testes de contagem e três de entrada inválida, sendo
-três por laço infinito.\\
-antes do I4 (\code{28dd85d}) & 15 de 18\textsuperscript{*} & os mesmos testes de contagem e de entrada inválida e os
+P1: operadores e gabarito & cada inserção cria um elemento $[F,G,H,E]$ no fim da lista, com $h_2\leftrightarrow a$,
+$h_0\leftrightarrow b$, $E$ e $F$ cópias de $A$, $G$ e $H$ cópias de $B$, cada um do seu lado
+(\code{EveryInsertionFollowsTheTemplate}).\\
+P2: decisão centrada no vértice & o operador escolhido é o dado pelo estado do vértice, calculado da malha sem o
+construtor (\code{TheOperatorDependsOnlyOnTheStateOfTheVertex}).\\
+P3: localidade & só mudam cantos e opostas das estrelas de $A$ e $B$ (\code{OnlyTheStarsOfTheTwoVerticesChange}).\\
+P4: puramente topológico & o resultado é idêntico, índice a índice, com coordenadas originais, nulas ou aleatórias
+(\code{CoordinatesDoNotChangeTheResult}).\\
+P5: duplicação adiada & o Canônico num vértice interno não cria vértice e deixa uma aresta colapsada registrada; o estado
+dos vértices confirma uma colapsada por vértice interno com uma aresta.\\
+P6: incremental & uma aresta por chamada, lote e lotes com rejeições dão a topologia esperada depois de cada chamada.\\
+P7: memória previsível e exata & contagem exata em todos os testes; capacidade igual ao tamanho depois de cada chamada;
+com capacidade reservada antes, nenhuma realocação.\\
+Contrato de cada operador (\cref{sec:operadores}) & vértices novos, lado curto, arestas colapsadas e cantos movidos; o
+Split Element move exatamente dois cantos, o caso $O(1)$ (\code{EachOperatorHasItsEffect}).\\
+Split Element é caso particular do Expand Edge & substituir um pelo outro dá a mesma topologia
+(\code{SplitElementIsAParticularCaseOfExpandEdge})\textsuperscript{*}.\\
+Invariante e máquina de estados (\cref{sec:estados}) & topologia esperada e estado de cada vértice depois de cada
+chamada (\code{test\_random\_meshes}).\\
+Estruturas internas do construtor (\cref{tab:estado}) & flags de elementos e vértices, mapa de arestas colapsadas
+(sempre um lado curto, de um vértice interno, em um só elemento de interface) e tamanhos dos vetores.\\
+Operador sempre aplicável (B10) & as asserções ficam ligadas em todos os testes.\\
+\bottomrule
+\end{tabularx}
+\caption{Princípios e propriedades do algoritmo e os testes que os verificam. \textsuperscript{*}O teste usa uma réplica
+da inserção (em \code{tests/support/BuilderInspector.h}) que pode aplicar Expand Edge onde o construtor aplicaria Split
+Element. A réplica se valida sozinha: sem a troca, ela precisa dar exatamente a mesma malha que o construtor.}
+\label{tab:principios}
+\end{table}
+
+\paragraph{Teste de mutação.} Para medir o que o oráculo acrescenta, o código foi alterado de propósito numa cópia:
+o Canônico passou a tratar um vértice de borda como interno (aresta colapsada, sem cópia), e a pré-contagem foi ajustada
+do mesmo jeito. O resultado continua válido e coerente entre ordens, mas está errado: a trinca não se abre na borda. A
+rodada 2 do \code{stress.py} passou inteira (400/400) e a rodada 1 acusou só 44 dos 400 casos (os que chegaram a perder a
+validade). Já 39 testes do Google Test falharam: os 10 de malhas aleatórias, pelo oráculo, 13 de estrutura (contrato dos
+operadores, gabarito e equivalência Split/Expand) e 16 dos casos construídos à mão.
+
+\paragraph{Controle negativo.} Para saber se os testes detectam os defeitos já corrigidos, as suítes foram compiladas
+contra o núcleo de versões anteriores (\cref{tab:controle}). Cada correção é detectada por mais de um teste, e o núcleo
+atual passa em todos.
+
+\begin{table}[ht]
+\centering\small
+\begin{tabularx}{\linewidth}{>{\raggedright}p{4.6cm}X}
+\toprule
+Núcleo & Testes que falham\\
+\midrule
+antes do I3 (commit \code{3b991e3}) & 4 dos 31 testes da v0.4: $\Op[\,]$ reservado; índice fora do vetor e índice de
+elemento da mesma chamada (asserção em \code{heOpposite}); índice no espaço reservado (asserção no Open Hole).\\
+antes do I5 (\code{2a4eb0e}) & 12 de 31: os anteriores, cinco testes de contagem e três de entrada inválida, sendo três
+por laço infinito.\\
+antes do I4 (\code{28dd85d}) & 15 de 18\textsuperscript{*}: os mesmos testes de contagem e de entrada inválida e os
 quatro testes do exemplo que verificam a V7.\\
+antes do I1 (\code{9a66b9e}) & 6 dos 12 testes de vértice de borda e de contagem: abortam no Open Hole (o que confere a
+escolha do operador passa: a regra não mudou).\\
+antes do I6 (\code{3b14af8}) & o teste de morte das consultas: com sentinelas, $\nxt$, $\prv$ e $\mathrm{elem}$ não
+abortavam e devolviam valores sem sentido.\\
+antes do I2 (\code{63c42d1}) & os 2 testes de \code{isBorder}: não terminam.\\
 \bottomrule
 \end{tabularx}
 \caption{Controle negativo: as suítes compiladas contra o núcleo de versões anteriores. \textsuperscript{*}Sem
@@ -158,29 +233,32 @@ quatro testes do exemplo que verificam a V7.\\
 \label{tab:controle}
 \end{table}
 
-\subsection{O caso não suportado: vértice de borda com duas arestas}
+\subsection{Vértice de borda com duas arestas}
 \label{sec:falha-borda}
 
 Quando um vértice de borda já foi aberto pelo Canônico e recebe uma segunda aresta, ele pertence a um elemento de
-interface e não tem aresta colapsada; \code{retrieveOperator} escolhe então Open Hole. Mas um dos dois laços de
-\code{openHole} chega à borda da malha antes de encontrar um elemento de interface (\cref{fig:borda}). Em modo
-\emph{debug}, a asserção \code{currentHE != IBHM::BORDER} interrompe o programa (os comentários do código perguntam
-``\emph{@todo Is it possible?}'': sim, é possível). Em modo \emph{release} o resultado é pior: o primeiro laço escreve
-na posição \code{0xFFFFFFFF} do vetor de vértices, e o segundo laço não detecta a borda, porque testa $\nxt(\Op[h])$ em
-vez de $\Op[h]$ --- e, na IBHM, $\nxt(\BORDER)$ é uma busca binária com um índice inválido, cujo resultado é
-imprevisível.
+interface e não tem aresta colapsada; \code{retrieveOperator} escolhe então Open Hole. Até a v0.4, um dos dois laços de
+\code{openHole} chegava à borda da malha antes de encontrar um elemento de interface (\cref{fig:borda}a) e parava numa
+asserção; em modo \emph{release}, o primeiro laço escrevia na posição \code{0xFFFFFFFF} do vetor de vértices, e o
+segundo aplicava $\nxt$ a \BORDER. O caso não é raro: aparece sempre que uma trinca chega à borda por um vértice que já
+tem outra aresta selecionada, o que é comum em malhas de triângulos e nos vértices da borda de furos internos (defeito
+I1, 141 das 400 malhas da rodada 1 na v0.4).
 
-Esse caso não é raro: aparece sempre que uma trinca chega à borda por um vértice que já tem outra aresta selecionada, o
-que é comum em malhas de triângulos (63 das 100 malhas de triângulos da rodada 1) e nos vértices da borda de furos
-internos.
+A correção, discutida com o autor, trata o caso dentro do próprio Open Hole (\cref{sec:hole}): continua sendo um
+buraco, só que aberto para o exterior. Cada laço para na primeira ``parede'', que pode ser um elemento de interface ou a
+borda; do lado que termina na borda não há nada a descolar, e o setor entre a aresta nova e a borda fica com a cópia
+nova, como no Canônico de borda (\cref{fig:borda}b). Com $k$ arestas, o vértice de borda termina com $k+1$ cópias,
+como prevê o invariante e como já contava a pré-contagem. O custo não mudou: o segundo laço passou a testar a oposta
+antes de aplicar $\nxt$, no lugar de um teste que nunca detectava a borda.
 
 \begin{figure}[ht]
 \centering
-\input{figs/border_fail.tex}
-\caption{Configuração que falha. $Q$ está na borda e já foi aberto pela aresta $QR$ (cópias $Q$ e $Q_1$; os dois
-elementos à esquerda de $QR$ passaram a usar $Q_1$). Ao inserir $QP$, o Open Hole em $Q_1$ gira no sentido
-anti-horário a partir de $he$ e alcança imediatamente a borda (à esquerda), sem encontrar elemento de interface. Nesse
-caso não há buraco a abrir: bastaria duplicar $Q_1$ e mover para a cópia nova os elementos entre $QP$ e a borda (como no
-Canônico de borda), deixando o lado curto do novo elemento na borda.}
+\begin{subfigure}[b]{0.48\linewidth}\centering\input{figs/border_before.tex}\caption{Antes de $QP$.}\end{subfigure}\hfill
+\begin{subfigure}[b]{0.48\linewidth}\centering\input{figs/border_after.tex}\caption{Depois de $QP$.}\end{subfigure}
+\caption{Vértice de borda com duas arestas. (a) $Q$ está na borda e já foi aberto pela aresta $QR$ (cópias $Q$ e $Q_1$;
+os dois elementos à esquerda de $QR$ passaram a usar $Q_1$). Ao inserir $QP$, o Open Hole em $Q_1$ gira no sentido
+anti-horário a partir de $he$ e alcança a borda (à esquerda) sem encontrar elemento de interface: até a v0.4, esse era o
+ponto da falha. (b) Com a correção, o elemento à esquerda de $QP$ passa para a cópia nova $Q_2$, o lado curto do novo
+elemento fica na borda e $Q$ termina com três cópias.}
 \label{fig:borda}
 \end{figure}

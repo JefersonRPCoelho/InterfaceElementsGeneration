@@ -139,16 +139,19 @@ Estado extra de $\Op$ & --- & $\COLLAPSED=-2$ marca uma aresta \emph{colapsada} 
 elemento de interface\\
 Offsets & $n_c$ entradas & $n_c+1$ entradas (sentinela final), de modo que $n_v(c)=Of[c+1]-Of[c]$\\
 $\mathrm{elem}(h)$ & busca binária & busca binária com \code{std::upper\_bound} nas $n_c+1$ primeiras entradas de
-$Of[\,]$ (\code{offsetIterator}); $\nxt$ e $\prv$ também fazem essa busca\\
+$Of[\,]$ (\code{offsetIterator}); $\nxt$ e $\prv$ também fazem essa busca. As três consultas só aceitam half-edges
+de elementos válidos ($h<Of[n_c]$): os sentinelas e o espaço reservado param numa asserção\\
 Construção de $\Op$ & mapa indexado pelo par ordenado de vértices & para cada vértice, lista das half-edges que partem
 dele; procura-se a half-edge reversa (\code{buildOppositesLinear})\\
 Vetor $VH[\,]$ & sim & \textbf{não}; o teste de borda (\code{isBorder}) gira em torno do vértice\\
-Crescimento da malha & não previsto (``limitação'' declarada) & \code{reserveSpaceForElements} aumenta os vetores de
-elementos (\code{resize}; as posições novas de $\Op[\,]$ começam com \BORDER) e \code{commitElement} valida cada novo
-elemento; \code{numberOfHalfEdges} devolve $Of[n_c]$, o número de half-edges válidas (sem o espaço reservado);
-\code{reserveSpaceForNodes} reserva capacidade exata para os pontos (\code{reserve}); \code{addPoint} acrescenta um ponto
-com as coordenadas dadas num \code{std::vector} (vazio = origem) e \code{duplicatePoint} acrescenta a cópia de um vértice
-existente, com as mesmas coordenadas\\
+Crescimento da malha & não previsto (``limitação'' declarada) & \code{reserveSpaceForElements(p, e)} garante $p$
+posições e $e$ entradas livres depois dos elementos válidos, acrescentando só o que falta (as posições de arestas
+rejeitadas são reaproveitadas), com crescimento exato (\code{reserve} antes de \code{resize}); as posições novas de
+$\Op[\,]$ começam com \BORDER; \code{commitElement} valida cada novo elemento; \code{numberOfHalfEdges} devolve
+$Of[n_c]$, o número de half-edges válidas. \code{reserveCapacityForElements} e \code{reserveSpaceForNodes} reservam só
+capacidade, de forma exata, para quem vai inserir aos poucos; \code{addPoint} acrescenta um ponto com as coordenadas
+dadas num \code{std::vector} (vazio = origem) e \code{duplicatePoint} acrescenta a cópia de um vértice existente, com as
+mesmas coordenadas\\
 \bottomrule
 \end{tabularx}
 \caption{Diferenças entre a IBHM do artigo e a classe \code{IBHM} do repositório.}
@@ -157,10 +160,13 @@ existente, com as mesmas coordenadas\\
 
 Dois pontos merecem destaque. Primeiro, o estado \COLLAPSED{} é uma extensão criada para o algoritmo de inserção:
 ele permite que um elemento de interface tenha um lado de comprimento zero sem vizinho, e as consultas que giram em torno
-de vértices (\code{isBorder}) sabem pular esse lado. Segundo, a combinação ``contar $\to$ reservar $\to$ validar'' é a
+de vértices (\code{isBorder}) atravessam esse lado como um passo comum da rotação: o próximo canto é a half-edge seguinte
+do mesmo elemento, que também parte do vértice (até a v0.4, esse passo pulava o teste de parada, defeito I2). Segundo, a combinação ``contar $\to$ reservar $\to$ validar'' é a
 resposta da implementação à limitação apontada no artigo para alterações dinâmicas: o algoritmo de inserção calcula
-antes quantos vértices e elementos novos serão necessários (\cref{sec:contagem}), reserva o espaço de uma vez e só
-então altera a malha, sem realocações durante as operações.
+antes quantos vértices e elementos novos serão necessários (\cref{sec:contagem}), reserva o espaço de uma vez, com tamanho exato, e só
+então altera a malha, sem realocações durante as operações. A memória cresce só o necessário; quem vai inserir uma
+aresta por chamada (o caso de uma análise adaptativa) reserva capacidade antes, uma vez, e evita copiar a malha a cada
+chamada (\cref{sec:travessia}).
 
 A interface usada pelo construtor de elementos de interface é pequena: \code{heVertexIndex} ($\V$), \code{heOpposite}
 ($\Op$), \code{heNext}, \code{hePrevious}, \code{heElement}, \code{isBorder}, \code{setElementVertex} (altera $\V[h]$),
@@ -177,9 +183,9 @@ aberta. A aresta $4$--$7$ é compartilhada pelos triângulos que contêm as half
 o vértice 4 é interno e o vértice 7 está na borda.
 \begin{enumerate}
 \item \textbf{Reserva.} Antes de qualquer alteração, \code{reserveSpaceForElements(4, 1)} acrescenta 4 posições a
-$\V[\,]$ e a $\Op[\,]$ (estas com \BORDER) e uma entrada a $Of[\,]$, e \code{reserveSpaceForNodes(1)} reserva capacidade
-exata para um vértice, sem mudar o tamanho do vetor de coordenadas (a pré-contagem previu um vértice novo, para a
-borda).
+$\V[\,]$ e a $\Op[\,]$ (estas com \BORDER) e uma entrada a $Of[\,]$, com capacidade exata (só o que falta: não havia
+posições livres), e \code{reserveSpaceForNodes(1)} reserva capacidade exata para um vértice, sem mudar o tamanho do
+vetor de coordenadas (a pré-contagem previu um vértice novo, para a borda).
 \item \textbf{Validação antecipada.} \code{nextAvailableHE()} devolve $Of[n_c]=20$, a primeira half-edge livre, e
 \code{commitElement(4)} já declara o elemento 6 válido, gravando $Of[7]=24$. Na IBHM isso precisa acontecer \emph{antes}
 dos operadores, porque $\nxt$ e $\prv$ das half-edges 20--23 dependem do offset do elemento.

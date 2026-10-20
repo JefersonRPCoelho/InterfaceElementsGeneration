@@ -12,8 +12,8 @@ os resultados do relatório foram obtidos.
 \normalfont Arquivo & Papel\\
 \midrule
 tests/test\_*.cpp & suítes do Google Test (\cref{tab:suites});\\
-tests/support/ & malhas de teste, verificações V1--V7 e acesso de leitura ao estado do construtor, usados pelos testes e
-pelo \code{driver};\\
+tests/support/ & malhas de teste (fixas e aleatórias), verificações V1--V7, topologia esperada e estado do
+construtor, e o acesso ao estado privado do construtor, usados pelos testes e pelo \code{driver};\\
 tests/CMakeLists.txt & registra as suítes e o teste com malhas aleatórias no CTest;\\
 tools/driver.cpp & programa de teste da \code{IBHMInterfaceElementBuilder}: insere arestas, verifica a malha e grava cada
 estado em JSON;\\
@@ -54,9 +54,10 @@ c++ -std=c++17 -Icore/TopologyDataStructures -Icore/InterfaceElementsBuilder -It
 
 O alvo \code{InterfaceElementsTests} reúne as suítes da \cref{tab:suites}, e \code{gtest\_discover\_tests} registra
 cada \code{TEST} como um teste do CTest, com o rótulo \code{unit} e limite de 60\,s. Como cada teste roda num processo
-próprio, uma asserção ou um laço infinito faz falhar apenas aquele teste. O teste com malhas aleatórias entra como
-\code{stress\_supported} (rótulo \code{stress}), que chama o \code{stress.py} com o \code{driver}; o
-\code{stress\_all} está registrado, mas desativado até o I1 ser corrigido.
+próprio, uma asserção ou um laço infinito faz falhar apenas aquele teste. As suítes parametrizadas (malhas aleatórias e
+estrutura do algoritmo) geram um teste por tipo de malha, com nomes como \code{Kinds/RandomMeshes.\dots/Triangles}. O
+\code{stress.py} entra como \code{stress\_all} (rodada 1) e \code{stress\_supported} (rodada 2), com o rótulo
+\code{stress}, chamando o \code{driver}.
 
 \textbf{Asserções ligadas.} Alguns defeitos só aparecem como asserção, e o teste de morte de \code{addPoint} espera uma.
 Por isso o \code{tests/CMakeLists.txt} retira o \code{NDEBUG} das opções do diretório e compila o núcleo de novo
@@ -66,20 +67,26 @@ continua compilada normalmente.
 \textbf{Código de apoio} (\code{tests/support/}):
 \begin{itemize}
 \item \code{TestMeshes}: a malha base (\code{malha2Hyb.txt}, com o vértice $T$ em $(4,3)$) e a lista das 12 arestas do
-exemplo, a malha em leque do caso de borda com duas arestas e uma malha de dois triângulos;
+exemplo, leques de 3 e 4 quadriláteros em volta de um vértice de borda, a malha com furo (\code{meshIBHM.txt}) e uma
+malha de dois triângulos;
+\item \code{RandomMeshes}: o gerador de malhas aleatórias em C++, com os quatro tipos do \code{stress.py} e um tipo com
+furos (células removidas; a malha é sorteada de novo se ficar com um vértice de dois leques). Usa o \code{std::mt19937}
+com sorteio e embaralhamento próprios, para dar as mesmas malhas em qualquer compilador;
+\item \code{InsertionChecks}: a topologia esperada (o oráculo), a verificação do resultado (partição, um elemento de
+interface por aresta, arestas colapsadas), o estado de cada vértice e o estado interno do construtor;
 \item \code{MeshValidation}: a ``foto'' da malha (lida pela interface pública da \code{IBHM}, com $\nxt$/$\prv$
 recalculados), as verificações V1--V5, a origem de cada cópia e a V7, e a partição dos cantos usada para comparar
 topologias;
-\item \code{BuilderInspector}: acesso de leitura ao estado privado do construtor (o operador que seria escolhido,
-\code{\_isInterfaceElement}, \code{\_inInterfaceElement} e \code{\_collapsed}). O construtor a declara como classe
-amiga. A alternativa usada até a v0.3, \code{\#define private public}, foi abandonada: no MSVC o nível de acesso faz
+\item \code{BuilderInspector}: acesso ao estado privado do construtor (o operador que seria escolhido,
+\code{\_isInterfaceElement}, \code{\_inInterfaceElement}, \code{\_collapsed}) e a réplica da inserção usada no teste
+Split/Expand. O construtor a declara como classe amiga. A alternativa usada até a v0.3, \code{\#define private public}, foi abandonada: no MSVC o nível de acesso faz
 parte do nome decorado das funções, e a ligação falha.
 \end{itemize}
 
-\textbf{Defeitos em aberto.} Os testes de \code{test\_known\_defects.cpp} têm o prefixo \code{DISABLED\_}: aparecem como
-desativados em toda execução e descrevem o comportamento correto, de modo que, corrigido o defeito, basta tirar o
-prefixo. Para rodá-los mesmo assim: \code{InterfaceElementsTests --gtest\_also\_run\_disabled\_tests
---gtest\_filter='KnownDefects*'}.
+\textbf{Defeitos em aberto.} Um defeito em aberto pode ganhar um teste com o prefixo \code{DISABLED\_}, que aparece
+como desativado em toda execução e descreve o comportamento correto; corrigido o defeito, basta tirar o prefixo. Os
+testes do I1 e do I2 seguiram esse caminho até serem corrigidos; hoje não há nenhum teste desativado. Para rodar testes
+desativados mesmo assim: \code{InterfaceElementsTests --gtest\_also\_run\_disabled\_tests}.
 
 \subsection{O programa de teste (\code{driver.cpp})}
 
@@ -163,7 +170,9 @@ com a half-edge de cada aresta escolhida ao acaso, e uma vez em lote;
 partições sejam iguais.
 \end{enumerate}
 Um caso é marcado como ``vértice de borda com 2+ arestas'' quando a seleção tem um vértice de borda tocado por duas ou
-mais arestas (a configuração do defeito I1). Com \code{--skip-border-multi}, essas seleções são sorteadas de novo. No
+mais arestas (a configuração do defeito I1, corrigido na v0.5). Com \code{--skip-border-multi}, essas seleções são
+sorteadas de novo (a rodada 2). Quando uma execução aborta, as execuções restantes do caso são puladas, e seus sorteios
+não acontecem: os casos seguintes mudam (por isso a rodada 1 tinha 141 casos de borda na v0.4 e tem 148 na v0.5). No
 fim, o script imprime os contadores (casos válidos, inválidos e abortados, quantos abortados tinham a configuração do I1,
 casos dependentes da ordem, casos em que o lote difere, contagens erradas, operadores aplicados), a asserção que causou
 cada aborto e o número de casos válidos por tipo de malha. O código de saída é 0 se todos os casos passaram e 1 se

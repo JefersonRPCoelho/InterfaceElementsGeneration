@@ -3,12 +3,14 @@
 
 O protótipo 2D (\code{IBHMInterfaceElementBuilder}) cumpre o que a apresentação propôs: com quatro operadores locais,
 escolhidos apenas pelo estado do vértice, insere elementos de interface em qualquer ordem, sobre malhas híbridas que já
-contêm elementos de interface, em uma estrutura compacta baseada em índices e com memória reservada antecipadamente. A
-verificação experimental mostrou topologias válidas, contagem exata de vértices e independência da ordem e do modo de
-inserção em todas as configurações suportadas, em malhas de triângulos, quadriláteros e polígonos. Desde a v0.3, as
-cópias herdam as coordenadas do original, a entrada é validada, a contagem é exata e há testes automatizados que
-detectam cada uma dessas correções. O ponto fraco que resta está bem localizado: vértices de borda com mais de uma
-aresta (I1).
+contêm elementos de interface, em uma estrutura compacta baseada em índices e com memória reservada antecipadamente e de
+forma exata. A verificação mostrou, em malhas de triângulos, quadriláteros, polígonos e com furos, que o resultado é a
+topologia esperada (uma cópia por componente da estrela cortada), válido e independente da ordem e do modo de
+inserção, com contagem exata de vértices. Desde a v0.3 foram corrigidos todos os defeitos que afetavam o resultado:
+cópias com as coordenadas do original, entrada validada, contagem exata, vértice de borda com várias arestas, laço
+infinito latente e sentinelas protegidos por asserções. Os princípios do algoritmo têm testes automatizados próprios, e
+o teste de mutação mostrou que eles pegam erros que deixam o resultado válido mas errado. O que resta em aberto é relato
+à aplicação (I7), desempenho (I9) e memória temporária na construção (I12).
 
 \subsection{Um invariante que resume o algoritmo}
 
@@ -49,22 +51,19 @@ invariante acima continua valendo e dá o critério: uma cópia por componente.
 \subsection{Próximos passos sugeridos}
 
 \begin{enumerate}
-\item \textbf{Corrigir I1}, e em seguida o I2 latente e o I6 (\cref{tab:defeitos}). Ao corrigir o I1, reativar os testes
-desativados e o \code{stress\_all}: a rodada 1 da \cref{tab:estresse} deve passar inteira.
-\item \textbf{Ampliar os testes}: a malha com furo interno (\code{meshIBHM.txt}), que hoje falha pelo I1, e, se valer a
-pena, levar o gerador de malhas aleatórias para C++, como teste parametrizado (hoje ele é o \code{stress.py}, chamado
-pelo CTest).
-\item \textbf{Transferência de estado}: expor o mapa ``vértice novo $\to$ vértice de origem''. Numa análise adaptativa,
-os campos nodais (deslocamentos, poropressões etc.) dos vértices novos precisam ser copiados do vértice de origem; o
-construtor conhece essa informação no momento da criação (as coordenadas já são copiadas, I4).
-\item \textbf{Relatar resultados} (I7): devolver quais arestas foram inseridas e quais foram rejeitadas, e por quê.
+\item \textbf{Extensão 3D} com os testes como base. O oráculo da topologia esperada (\cref{sec:testes}) se transporta
+quase sem mudanças: uma cópia por componente da estrela de cada vértice (e de cada aresta) cortada pelas faces
+selecionadas. O gerador de malhas aleatórias, as verificações de estrutura (gabarito do elemento, decisão pelo estado,
+contrato de cada operador, localidade) e a equivalência entre o operador particular e o geral (Split/Expand) podem ser
+reescritos para 3D antes dos operadores, servindo de especificação executável.
+\item \textbf{Relatar resultados} (I7): uma entrada por aresta de entrada, com o elemento criado ou o motivo da
+rejeição; a biblioteca deixa de imprimir. Retomar junto o B10.
+\item \textbf{Transferência de estado}: expor o mapa ``vértice novo $\to$ vértice de origem'', no mesmo formato. Numa
+análise adaptativa, os campos nodais (deslocamentos, poropressões etc.) dos vértices novos precisam ser copiados do
+vértice de origem; o construtor conhece essa informação no momento da criação (as coordenadas já são copiadas, I4).
 \item \textbf{Simplificar os operadores} em torno de uma primitiva comum de ``divisão de leque'' (\cref{sec:relacoes}),
 mantendo o Split Element como otimização.
-\item \textbf{Manter o vetor $VH[\,]$} da IBHM, eliminando as rotações de \code{isBorder}, e reaproveitar o intervalo do
-elemento corrente nas rotações (I9).
-\item \textbf{Política de memória} (I11): aplicar a reserva exata também aos vetores de elementos e aos vetores do
-construtor, como já é feito com as coordenadas.
-\item \textbf{Retomar o B10}: decidir como os operadores devem relatar que não puderam ser aplicados sem pesar no
-caminho crítico.
-\item \textbf{Integração com o GeMA} e, em seguida, a extensão 3D.
+\item \textbf{Desempenho e memória} (I9, I12): manter o vetor $VH[\,]$, reaproveitar o intervalo do elemento corrente
+nas rotações e montar as opostas sem um vetor por vértice.
+\item \textbf{Integração com o GeMA}.
 \end{enumerate}

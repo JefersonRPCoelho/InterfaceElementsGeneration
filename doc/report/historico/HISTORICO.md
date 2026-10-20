@@ -56,44 +56,71 @@ Sugestões discutidas com o autor e deixadas para depois (decisão dele, 20/10/2
 
 - **I9 / C3 (desempenho):** cada `next`/`prev` refaz a busca binária em `Of[]`; aproveitar o elemento corrente nas
   rotações e manter o vetor `VH[]` atualizado pelos operadores (elimina as rotações de `isBorder`).
-- **Pico de memória na construção da IBHM:** `buildOppositesLinear` monta uma tabela temporária com um `std::vector` por
+- **I12, pico de memória na construção da IBHM:** `buildOppositesLinear` monta uma tabela temporária com um `std::vector` por
   vértice (cerca de 36 MB de pico extra numa malha de 1M elementos, medido em 20/10/2026). Trocar por dois vetores
   planos (contagem de half-edges por vértice e índices).
 - **Menores:** D1 (vértice 18 de `malha2Hyb.txt` em (3,4), deveria ser (4,3)); D3 (`readHybridMesh` imprime os offsets
   a cada elemento); `@todo` do construtor (nome do `commitElement`, garantir um único construtor por malha, eliminar o
   mapa `_collapsed`).
 
-## Pendências para a próxima versão (v0.5)
+## Pendências para a próxima versão (v0.6)
 
 Itens pedidos pelo autor para entrar quando o relatório for gerado novamente. **Não gerar o relatório antes de o autor
 pedir.**
 
-- [ ] Refletir a correção do I1 (lista abaixo): seção 3.4 (figura de estados: o vértice de borda deixa de ter o
-  estado "não suportado"; com k arestas termina com k+1 cópias), seção 4.4 (Open Hole: as duas paredes possíveis,
-  elemento de interface ou borda, e a semelhança com o Canônico de borda; Algoritmo 5 com as paradas na borda e a
-  asserção final), seção 6 (tabela do estresse com a rodada 1 agora 400/400 e 148 casos de borda com 2+ arestas; a
-  seção 6.4 deixa de ser "caso não suportado" e passa a mostrar o caso tratado, com a figura antes/depois; malha com
-  furo válida), seção 7.4 (I1 na tabela de corrigidos, com o controle negativo), seção 8 (próximos passos) e apêndice
-  (suíte `test_open_hole_border`, `stress_all` ativo, nota do `stress.py` sobre sorteios pulados após um aborto).
-  Pensar numa figura nova do Open Hole na borda (o `gen.py` hoje desenha só o estado antes da segunda aresta).
-- [ ] Refletir a correção do I6 (lista abaixo): seção 7.4 (I6 na tabela de corrigidos), seção 2 (pré-condição das
-  consultas `next`/`prev`/`elem`: só half-edges de elementos válidos), comentário B8 e apêndice (teste de morte novo).
-- [ ] Refletir a correção do I2 (lista abaixo): seção 7.4 (I2 na tabela de corrigidos; a tabela de abertos fica com
-  I7, I9 e I11), seção 2 (`isBorder` atravessa a aresta colapsada como um passo da rotação), seção 6.3 e apêndice
-  (`test_known_defects.cpp` removido; testes `IBHMIsBorder`; mecanismo de testes desativados mantido para defeitos
-  futuros).
-- [ ] Seção 7.4 e seção 8: trocar a sugestão do I7 pela da seção "Sugestões registradas para implementação futura"
-  (resultado por aresta, motivo das rejeições, problemas do `printf`) e registrar o pico de memória da construção como
-  item novo.
-- [ ] Refletir o B10 (lista abaixo): seção 7.1 (B10 tratado com `assert` no chamador, provisório) e seção 7.4 (I7 em
-  aberto, sem o B10).
-- [ ] Refletir a correção do I11 (lista abaixo): seção 2 (tabela de diferenças: crescimento exato,
-  `reserveCapacityForElements`, reserva só do que falta; passo "Reserva" da inserção), seção 5 (parágrafo de memória:
-  reservar capacidade antes para inserções de uma aresta por chamada), seção 7.4 (I11 na tabela de corrigidos, com a
-  medição da malha 1000×1000) e apêndice/seção 6.3 (testes novos). Avaliar registrar como item novo o pico de memória
-  temporário de `buildOppositesLinear` (um vetor por vértice: ~36 MB de pico extra na malha de 1M elementos).
+- (nenhum por enquanto)
 
-### Modificações de código desde a v0.4
+### Modificações de código desde a v0.5
+
+- (nenhuma por enquanto)
+
+## v0.5 — 20/10/2026
+
+- Reflete as correções I1 (Open Hole em vértice de borda), I2 (`isBorder`), I6 (sentinelas com asserções), I11
+  (crescimento exato, `reserveCapacityForElements`) e o B10 tratado com asserções (provisório), nas seções 2, 3, 4, 5 e
+  7: tabela de diferenças da IBHM, máquina de estados sem o estado "não suportado" (com os lados curtos por estado),
+  Open Hole com as duas paredes (elemento de interface ou borda) e o Algoritmo 5 novo, algoritmo de inserção com as
+  asserções, parágrafo de memória com a medição da malha de 1M elementos.
+- Seção 6: tabela do estresse com as colunas v0.4/v0.5 (rodada 1 agora 400/400, 148 casos de borda); cenários
+  atualizados; seção 6.3 nova: suítes (91 testes), o oráculo da topologia esperada, a tabela princípio → teste, o teste
+  de mutação e o controle negativo ampliado (I1, I2, I6); seção 6.4 "vértice de borda com duas arestas" com figura
+  antes/depois.
+- Seção 7: B8 e B10 atualizados; defeitos em aberto I7 (com a sugestão combinada e a análise do `printf`), I9 e o novo
+  I12 (pico de memória da construção); I1, I2, I6 e I11 na tabela de corrigidos.
+- Seção 8: conclusões e próximos passos (3D com os testes como especificação executável, I7, mapa de origem, operadores,
+  I9/I12, GeMA). Apêndice com as suítes novas, o código de apoio e o `stress.py` (sorteios pulados após aborto).
+- Figuras regeneradas: todas iguais às da v0.4, mais `border_before`/`border_after` (no lugar de `border_fail`).
+  Resumo, nota de rodapé (commit `97dcfb7`, com os testes da v0.5) e tabela de histórico atualizados.
+
+### Modificações de código entre a v0.4 e a v0.5
+
+- Testes automatizados novos, pedidos pelo autor ("todo princípio do projeto que for testável vale a pena um teste";
+  validar também as estruturas internas do construtor):
+  - `tests/support/InsertionChecks.{h,cpp}`: a topologia esperada (oráculo), calculada só da malha de entrada e das
+    arestas (uma cópia por componente da estrela cortada); a verificação do resultado (partição dos cantos, número de
+    pontos, um elemento de interface por aresta entre `a` e `b`, número de arestas colapsadas); o estado de cada vértice
+    (máquina de estados da seção 3.4, contando os lados curtos: colapsado / colados / borda); o estado interno do
+    construtor (flags de elementos e vértices e seus tamanhos, mapa `_collapsed`, aresta colapsada sempre lado curto de
+    vértice interno em um só elemento de interface).
+  - `tests/support/RandomMeshes.{h,cpp}`: gerador de malhas aleatórias em C++ (os 4 tipos do `stress.py` e malhas com
+    furos, validadas), com `std::mt19937` e sorteio/embaralhamento próprios (mesmas malhas em qualquer compilador).
+  - `BuilderInspector`: tamanhos dos vetores de flags e `insertEdge`, réplica da inserção que pode trocar Split Element
+    por Expand Edge (auto-validada contra o construtor real).
+  - `test_random_meshes.cpp` (10 testes, 5 tipos × 2): seleções aleatórias inseridas uma por chamada, em lote e em lotes
+    com entradas rejeitadas; depois de cada chamada, V1–V7, contagem (e que contar não altera a malha), topologia
+    esperada, estado dos vértices, estado do construtor e memória exata (capacidade = tamanho); também todas as arestas
+    internas abertas.
+  - `test_special_meshes.cpp` (4): malha sem aresta interna, dois triângulos separados, todas as arestas da malha base,
+    pontos com 3 coordenadas.
+  - `test_algorithm_structure.cpp` (30, 5 tipos × 6): gabarito do elemento (P1), decisão pelo estado do vértice
+    calculada sem o construtor (P2), contrato de cada operador (Split move exatamente 2 cantos), localidade (P3),
+    independência das coordenadas (P4), equivalência Split/Expand.
+  - `test_base_mesh.cpp`: estado do construtor a cada passo e topologia esperada no fim.
+  - Teste de mutação (no scratchpad): o Canônico tratando borda como interna, com a contagem ajustada, passa na rodada 2
+    do `stress.py` (400/400) e falha em só 44/400 da rodada 1; 39 testes do Google Test falham (os 10 aleatórios, 13 de
+    estrutura e 16 manuais).
+  - `ctest`: 91 testes (89 do Google Test + 2 de estresse), todos ok em Debug e Release.
+- `gen.py`: a figura do vértice de borda com duas arestas virou `border_before` / `border_after` (antes `border_fail`).
 
 - B10 tratado com asserções, por decisão do autor (provisória: prefere que o erro apareça cedo; o relato de falhas fica
   para depois): em `insertInterfaceElements`, o resultado de cada operador (em A e em B) é guardado e verificado com

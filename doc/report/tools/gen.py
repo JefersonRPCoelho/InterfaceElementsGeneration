@@ -12,7 +12,7 @@ Every mesh picture in the report is a state produced by the real C++ code. For e
 
 Figures produced (name in figs/ -> what it shows): example_* (the 12-edge example of the slides), canon_* (canonical
 operator), split_x1_* / split_x3_* (split element, both hypotheses), expand_* (expand edge), hole_step* (open hole),
-border_fail (the failing border case), ibhm_example / ibhm_arrays (IBHM arrays of meshIBHM.txt), insert_* (arrays
+border_before / border_after (border vertex with two edges: Open Hole on the border), ibhm_example / ibhm_arrays (IBHM arrays of meshIBHM.txt), insert_* (arrays
 before and after one insertion), stress_* (one mesh of each kind used by stress.py).
 
 The figures must not be edited by hand: change this script and run it again.
@@ -576,8 +576,9 @@ for k in range(5):
                                vlabel_font=r'\tiny\bfseries'))
 
 # ----------------------------------------------------------------------------------------------------------------------
-# 5. Border vertex with two selected edges (defect I1 of report v0.4, fixed after it). The figure shows the state after
-#    the first edge, before the second one (until the fix, the driver aborted on the second edge). Figure: border_fail.
+# 5. Border vertex with two selected edges (defect I1 of report v0.4, fixed after it): the state after the first edge
+#    (before the second one) and after the second one, where Open Hole on the border vertex reaches the border on one
+#    side. Figures: border_before, border_after.
 # ----------------------------------------------------------------------------------------------------------------------
 fan = os.path.join(WORK, 'fan.txt')
 fan_pts = [(0, 0), (1, 0), (0.5, 0.866), (-0.5, 0.866), (-1, 0), (1.2, 0.7), (0, 1.4), (-1.2, 0.7)]
@@ -585,9 +586,12 @@ fan_el = [[0, 1, 5, 2], [0, 2, 6, 3], [0, 3, 7, 4]]
 write_mesh(fan, fan_pts, fan_el)
 d = run(fan, [he_index(fan_el, 0, 2), he_index(fan_el, 0, 3)], 'fan')
 s1 = State(d, 1)
-save('border_fail', draw(s1, names={0: 'Q', 2: 'R', 3: 'P'}, scale=2.2, delta=0.15, label_set={0, 2, 3},
-                         pending=[(2, (0, 3))], show_numbers=False, vsize=0.12,
-                         he_labels=[(he_index(fan_el, 0, 3), 'a', 'red!70!black')]))
+save('border_before', draw(s1, names={0: 'Q', 2: 'R', 3: 'P'}, scale=2.2, delta=0.15, label_set={0, 2, 3},
+                           pending=[(2, (0, 3))], show_numbers=False, vsize=0.12,
+                           he_labels=[(he_index(fan_el, 0, 3), 'a', 'red!70!black')]))
+s2 = State(d, 2)
+save('border_after', draw(s2, names={0: 'Q', 2: 'R', 3: 'P'}, scale=2.2, delta=0.15, label_set={0, 2, 3},
+                          show_numbers=False, vsize=0.12))
 
 # ----------------------------------------------------------------------------------------------------------------------
 # 6. IBHM arrays of meshIBHM.txt (no insertion: the arrays built by the IBHM class). Figure: ibhm_example; table:

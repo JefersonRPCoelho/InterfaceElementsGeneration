@@ -25,8 +25,10 @@ uma segunda aresta chegar. É isso que faz uma ponta de trinca ficar fechada e q
 \item \textbf{Incremental.} O construtor guarda o estado necessário entre chamadas; novas arestas podem ser inseridas a
 qualquer momento sobre uma malha que já tem elementos de interface (inserção adaptativa).
 \item \textbf{Memória previsível.} O número de vértices novos é calculado antes de alterar a malha, e todo o espaço é
-reservado de uma vez (\cref{sec:contagem}).
+reservado de uma vez (\cref{sec:contagem}), com tamanho exato.
 \end{enumerate}
+Cada um desses princípios, quando pode ser verificado pelo resultado, tem um teste automatizado
+(\cref{tab:principios}, \cref{sec:testes}).
 
 \subsection{Componentes}
 
@@ -125,8 +127,9 @@ Do ponto de vista de um vértice original, a sequência de inserções o faz pas
 (\cref{fig:estados}). Um vértice interno começa \emph{regular}; a primeira aresta o deixa \emph{colapsado} (um elemento
 de interface, nenhuma cópia nova); a segunda o \emph{divide} em duas cópias, que ficam unidas pelos lados curtos dos
 dois elementos de interface; a terceira e as seguintes abrem e aumentam um \emph{buraco}. Um vértice de borda é
-dividido já na primeira aresta, porque a abertura escapa para o exterior. O caso de uma segunda aresta em um vértice de
-borda não é tratado pela implementação atual (\cref{sec:falha-borda}).
+dividido já na primeira aresta, porque a abertura escapa para o exterior; cada aresta seguinte acrescenta uma cópia pelo
+Open Hole, com o buraco aberto para o exterior (\cref{sec:falha-borda}). Os testes automatizados verificam essa máquina
+de estados em cada vértice, depois de cada inserção (\cref{sec:testes}).
 
 \begin{figure}[ht]
 \centering
@@ -141,16 +144,18 @@ borda não é tratado pela implementação atual (\cref{sec:falha-borda}).
   \draw[flow] (H) edge[loop below, looseness=5] node[below, font=\scriptsize\bfseries] {Open Hole} (H);
   \node[state, fill=ceblue, below=1.5cm of R] (Rb) {\textbf{Regular}\\ \scriptsize na borda};
   \node[state, fill=ieorange!60, right=of Rb] (Db) {\textbf{Aberto}\\ \scriptsize 1 EI, 2 cópias};
-  \node[state, draw=red!60!black, dashed, right=of Db, text=red!60!black] (Fb) {\textbf{não suportado}\\ \scriptsize
-  (falha de asserção)};
+  \node[state, fill=ieorange!60, right=of Db] (Fb) {\textbf{Aberto}\\ \scriptsize $k\ge2$ EI, $k+1$ cópias};
   \draw[flow] (Rb) -- node[above, font=\scriptsize\bfseries, align=center] {Canônico\\(borda)} (Db);
-  \draw[flow, red!60!black, dashed] (Db) -- node[above, font=\scriptsize\bfseries] {Open Hole} (Fb);
+  \draw[flow] (Db) -- node[above, font=\scriptsize\bfseries] {Open Hole} (Fb);
+  \draw[flow] (Fb) edge[loop below, looseness=5] node[below, font=\scriptsize\bfseries] {Open Hole} (Fb);
   \node[anchor=west, font=\scriptsize, text=black!60] at ($(R.north west)+(0,0.35)$) {vértice interno};
   \node[anchor=west, font=\scriptsize, text=black!60] at ($(Rb.north west)+(0,0.35)$) {vértice de borda};
 \end{tikzpicture}
 \caption{Estados de um vértice original ao longo das inserções (EI = elemento de interface). Os rótulos das
 transições são os operadores aplicados. Com $k$ arestas selecionadas, um vértice interno termina com $\max(1,k)$ cópias
-e um de borda com $k+1$ (este último só é atingido hoje para $k=1$).}
+e um de borda com $k+1$. Os lados curtos dos elementos de interface em volta do vértice são: uma aresta colapsada ($k=1$,
+interno), dois lados colados um no outro ($k=2$, interno) ou $k$ lados de borda (buraco com $k\ge3$, interno, ou
+abertura para o exterior, borda).}
 \label{fig:estados}
 \end{figure}
 
