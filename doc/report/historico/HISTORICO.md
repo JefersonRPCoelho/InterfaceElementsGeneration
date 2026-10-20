@@ -25,9 +25,29 @@ pedir.**
   Pensar numa figura nova do Open Hole na borda (o `gen.py` hoje desenha só o estado antes da segunda aresta).
 - [ ] Refletir a correção do I6 (lista abaixo): seção 7.4 (I6 na tabela de corrigidos), seção 2 (pré-condição das
   consultas `next`/`prev`/`elem`: só half-edges de elementos válidos), comentário B8 e apêndice (teste de morte novo).
+- [ ] Refletir a correção do I2 (lista abaixo): seção 7.4 (I2 na tabela de corrigidos; a tabela de abertos fica com
+  I7, I9 e I11), seção 2 (`isBorder` atravessa a aresta colapsada como um passo da rotação), seção 6.3 e apêndice
+  (`test_known_defects.cpp` removido; testes `IBHMIsBorder`; mecanismo de testes desativados mantido para defeitos
+  futuros).
 
 ### Modificações de código desde a v0.4
 
+- I2 corrigido (`IBHM.{h,cpp}`, `isBorder`), como proposto e aprovado pelo autor:
+  - O passo pela aresta colapsada (que vai do vértice para ele mesmo e não tem oposta) virou um passo normal da
+    rotação: o próximo canto é `next(c)`, comparado com a half-edge inicial pela condição do laço como todos os outros.
+    Antes, o código ia de `c` para `next(c)` e já calculava o passo seguinte, pulando a comparação: começando em
+    `next(c)`, a rotação nunca parava. Fora esse caso, visita os mesmos cantos na mesma ordem; não há verificação nova
+    (o ramo da colapsada faz até uma consulta `heOpposite` a menos).
+  - Documentação do método no cabeçalho: qualquer half-edge do vértice serve, inclusive de elemento de interface; a
+    borda de um buraco (inclusive o aberto pelo Open Hole) conta como borda.
+  - Testes (em `test_ibhm.cpp`, suíte `IBHMIsBorder`): começar na aresta colapsada (51) e logo depois dela (48) após
+    abrir K–L (era o teste desativado do I2); e `isBorder` comparado, para todas as half-edges, com o esperado calculado
+    sobre a cópia da malha (o vértice tem uma half-edge de saída sem oposta), na malha de entrada e depois de cada uma
+    das 12 inserções do exemplo. Com o `isBorder` anterior, os dois testes não terminam.
+  - `tests/test_known_defects.cpp` removido (o único teste foi para `test_ibhm.cpp`) e retirado do CMake; o comentário
+    do `tests/CMakeLists.txt` mantém o mecanismo de testes desativados para defeitos futuros.
+  - Verificação: `ctest` com 42 testes ok em Debug e Release, nenhum desativado; estresse com os mesmos números
+    (400/400 nas duas rodadas). Compila sem aviso novo com `NDEBUG`.
 - I6 corrigido com asserções (pedido do autor), sem custo em release:
   - `IBHM::heNext`, `hePrevious` e `heElement`: `assert(halfEdge < numberOfHalfEdges())`. Os sentinelas `BORDER` e
     `COLLAPSED` e as posições reservadas ainda não validadas param na asserção, em vez de chegar à busca binária (antes,

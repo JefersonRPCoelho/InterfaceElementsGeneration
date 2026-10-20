@@ -1,9 +1,11 @@
-// Tests of the IBHM class alone: point storage (reserveSpaceForNodes, addPoint, duplicatePoint) and the half-edge
-// space (numberOfHalfEdges, reserveSpaceForElements, and the half-edge queries reject the sentinels).
+// Tests of the IBHM class: point storage (reserveSpaceForNodes, addPoint, duplicatePoint), the half-edge space
+// (numberOfHalfEdges, reserveSpaceForElements, and the half-edge queries reject the sentinels), and the border test
+// (isBorder), also on meshes with interface elements, which are built with IBHMInterfaceElementBuilder.
 #include <string>
 #include <vector>
 #include <gtest/gtest.h>
 #include "IBHM.h"
+#include "IBHMInterfaceElementBuilder.h"
 #include "MeshValidation.h"
 #include "TestMeshes.h"
 
@@ -20,6 +22,32 @@ std::vector<double> coordinatesOf(const IBHM &mesh, const unsigned int point)
     std::vector<double> coordinates(mesh.numberCoordinatesByVertex());
     mesh.coordinatesFromIndex(point, coordinates.data());
     return coordinates;
+}
+
+/**
+ * @brief Check isBorder() for every half-edge of a mesh, including the half-edges of interface elements.
+ *
+ * The expected value is computed on the snapshot, without rotations: a vertex is on the border if some half-edge that
+ * starts at it has no opposite (BORDER).
+ * @param mesh The mesh.
+ */
+void expectIsBorderForEveryHalfEdge(const IBHM &mesh)
+{
+    const MeshSnapshot snapshot = takeSnapshot(mesh);
+    std::vector<bool> border(snapshot.numberOfPoints, false);
+    for (unsigned int he = 0; he < snapshot.opposite.size(); he++)
+    {
+        if (snapshot.opposite[he] == static_cast<unsigned int>(IBHM::BORDER))
+        {
+            border[snapshot.vertex(he)] = true;
+        }
+    }
+
+    for (unsigned int he = 0; he < snapshot.opposite.size(); he++)
+    {
+        EXPECT_EQ(mesh.isBorder(he), static_cast<bool>(border[snapshot.vertex(he)]))
+            << "half-edge " << he << ", vertex " << snapshot.vertex(he);
+    }
 }
 }
 
@@ -200,5 +228,38 @@ TEST(IBHMHalfEdgesDeathTest, QueriesRejectSentinelsAndReservedPositions)
         EXPECT_DEATH((void) mesh.heNext(he), "halfEdge < numberOfHalfEdges");
         EXPECT_DEATH((void) mesh.hePrevious(he), "halfEdge < numberOfHalfEdges");
         EXPECT_DEATH((void) mesh.heElement(he), "halfEdge < numberOfHalfEdges");
+    }
+}
+
+
+// ---- Border test ----------------------------------------------------------------------------------------------------
+
+TEST(IBHMIsBorder, StartingAtACollapsedEdgeAndRightAfterIt)
+{
+    // I2: on the base mesh, after opening K-L (half-edge 34), the interface element is [48, 49, 50, 51]: 51 is the
+    // collapsed edge at K, and 48 starts at K right after it. K is internal. The former isBorder() never returned when
+    // it started at 48: the step over the collapsed edge jumped over the comparison with the starting half-edge.
+    IBHM mesh = baseMesh();
+    IBHMInterfaceElementBuilder builder(&mesh);
+    builder.insertInterfaceElements({34});
+    ASSERT_EQ(mesh.heOpposite(51), static_cast<unsigned int>(IBHM::COLLAPSED));
+
+    EXPECT_FALSE(mesh.isBorder(51));
+    EXPECT_FALSE(mesh.isBorder(48));
+}
+
+TEST(IBHMIsBorder, EveryHalfEdgeOfTheBaseMeshExample)
+{
+    // Every half-edge, in the input mesh and after each of the 12 insertions of the example: collapsed edges (K, L, M,
+    // G and F along the way), split vertices, holes (their borders count as borders) and the outer border.
+    IBHM mesh = baseMesh();
+    IBHMInterfaceElementBuilder builder(&mesh);
+    expectIsBorderForEveryHalfEdge(mesh);
+
+    for (const unsigned int edge: baseMeshEdges())
+    {
+        SCOPED_TRACE("after the edge of half-edge " + std::to_string(edge));
+        builder.insertInterfaceElements({edge});
+        expectIsBorderForEveryHalfEdge(mesh);
     }
 }

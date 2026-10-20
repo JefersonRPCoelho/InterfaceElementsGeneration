@@ -50,14 +50,12 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
 
 ## Defeitos conhecidos da IBHM (relatório v0.4, seção 7.4: tabela de abertos e de corrigidos)
 
-- **I2 (mitigado)** `isBorder` tem um defeito latente (o desvio da aresta colapsada pode pular a parada), mas desde a
-  correção do I5 o construtor não chega mais a esse caminho: arestas de elementos de interface são descartadas antes.
-- I2 tem teste desativado em `tests/test_known_defects.cpp` (prefixo `DISABLED_`; não termina enquanto o defeito
-  existir). Defeito corrigido sai desse arquivo e ganha testes próprios.
-- **I7, I9, I11**: ver relatório.
-- **Já corrigidos:** I6 (sentinelas: `heNext`/`hePrevious`/`heElement` têm `assert(halfEdge < numberOfHalfEdges())`;
-  `assert(!= COLLAPSED)` em x1/x3, `reindexElementsCCW` e laços do Open Hole; só em debug), I1 (Open Hole em vértice de
-  borda: os dois laços param na borda, `assert` de que ao menos um lado encontra EI; testes em
+- **Em aberto: I7 (+ B10), I9, I11**: ver relatório. Um defeito em aberto pode ganhar um teste desativado (prefixo
+  `DISABLED_`) que descreve o comportamento correto; ao corrigir, o teste é ativado. Hoje não há nenhum.
+- **Já corrigidos:** I2 (`isBorder`: o passo pela aresta colapsada passa pela condição de parada como os demais; testes
+  `IBHMIsBorder` em `test_ibhm.cpp`), I6 (sentinelas: `heNext`/`hePrevious`/`heElement` têm `assert(halfEdge <
+  numberOfHalfEdges())`; `assert(!= COLLAPSED)` em x1/x3, `reindexElementsCCW` e laços do Open Hole; só em debug), I1
+  (Open Hole em vértice de borda: os dois laços param na borda, `assert` de que ao menos um lado encontra EI; testes em
   `test_open_hole_border.cpp`), I3 (índices fora de `[0, numberOfHalfEdges())` rejeitados na inserção e na contagem;
   `O[]` reservado começa com `BORDER`), I4 (cópias nascem com as coordenadas do original, via `IBHM::duplicatePoint`),
   I5 (contagem exata de vértices novos), I8 e I10 (includes; o CMake não depende mais de Qt). Correções feitas desde a
@@ -80,10 +78,11 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
 - **Testes (`tests/`)**: Google Test (pacote instalado, ou v1.17.0 baixado pelo `FetchContent` com hash fixo), cada
   `TEST` roda em processo próprio no CTest (timeout 60 s). O núcleo é recompilado sem `NDEBUG` para os testes
   (`InterfaceElementsLibChecked`), em qualquer tipo de build: os `assert` precisam estar ligados.
-  - `test_ibhm.cpp` (pontos, reserva, `numberOfHalfEdges`, teste de morte do `addPoint`), `test_vertex_count.cpp`,
+  - `test_ibhm.cpp` (pontos, reserva, `numberOfHalfEdges`, testes de morte, `isBorder` em toda half-edge do
+    exemplo), `test_vertex_count.cpp`,
     `test_base_mesh.cpp` (exemplo dos slides: 24 operadores, vértices por passo, V1–V7, ordem/lote/várias chamadas),
     `test_invalid_input.cpp` (I3 e rejeições), `test_open_hole_border.cpp` (I1: vértice de borda com 2+ arestas,
-    nas duas ordens, em lote, na malha com furo e com 3 arestas), `test_known_defects.cpp` (I2 desativado).
+    nas duas ordens, em lote, na malha com furo e com 3 arestas).
   - `tests/support/`: `TestMeshes` (malha base = `malha2Hyb.txt` com o vértice 18 em (4,3), leques com 3 e 4
     quadriláteros, `meshIBHM.txt` com furo, dois triângulos),
     `MeshValidation` (snapshot, V1–V5, origem das cópias e V7, partição dos cantos), `BuilderInspector` (acesso de
@@ -134,8 +133,7 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
 
 ## Roteiro
 
-1. Corrigir I1–I4 (feito; I2 só latente) e transformar o driver/stress em testes automatizados (feito: Google Test +
-   CTest).
+1. Corrigir I1–I6 (feito) e transformar o driver/stress em testes automatizados (feito: Google Test + CTest).
 2. Geometria das cópias (coordenada do vértice de origem) e mapa vértice novo → origem (transferência de campos).
 3. Relato de erros/rejeições na API; manter `VH[]` da IBHM.
 4. Integração com o GeMA.

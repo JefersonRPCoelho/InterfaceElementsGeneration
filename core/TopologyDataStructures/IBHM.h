@@ -237,6 +237,12 @@ public:
 
     /**
      * Determine if a vertex is on the mesh border or not.
+     *
+     * The method rotates clockwise around the vertex until it finds a half-edge without opposite (BORDER) or returns to
+     * the starting half-edge. A collapsed edge of an interface element (opposite COLLAPSED) is crossed through the next
+     * half-edge of the same element, which also starts at the vertex. Any half-edge that starts at the vertex can be
+     * used, including the half-edges of interface elements. The border of a hole in the mesh, including the hole that
+     * Open Hole creates at a junction, is a border too.
      * @param he A half-edge in the vertex that should be tested if it is on the border or not.
      * @return True if the vertex is on the border and false otherwise.
      */

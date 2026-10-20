@@ -370,20 +370,13 @@ unsigned int IBHM::firstElementHE(const unsigned int elementIndex) const
 
 bool IBHM::isBorder(const unsigned int he) const
 {
+    // Rotate clockwise around the vertex of he (h <- next(O[h])), visiting its corners one by one, until a border edge
+    // is found or the rotation is back to 'he'.
     unsigned int currentHE = he;
     bool border = false;
-    //Turn around the vertex until get the starting point or hit a boundary.
     do
     {
-        // Go to the next face.
-        unsigned int oppositeHE = heOpposite(currentHE);
-
-        // If the edge is collapsed, skip it.
-        if (oppositeHE == IBHM::COLLAPSED)
-        {
-            currentHE = heNext(currentHE);
-            oppositeHE = heOpposite(currentHE);
-        }
+        const unsigned int oppositeHE = heOpposite(currentHE);
 
         // If it hits a border, stop.
         if (oppositeHE == IBHM::BORDER)
@@ -392,8 +385,18 @@ bool IBHM::isBorder(const unsigned int he) const
             break;
         }
 
-        // Get the next half-edge. Basically, it goes back to a half-edge emanating from the vertex.
-        currentHE = heNext(oppositeHE);
+        // Go to the next corner around the vertex. A collapsed edge goes from the vertex to itself and has no opposite:
+        // the next half-edge in the same interface element also starts at the vertex, so it is the next corner. Like
+        // every other step, this one is compared with he by the loop condition. The former code jumped over this
+        // comparison and never stopped when the rotation started right after a collapsed edge.
+        if (oppositeHE == IBHM::COLLAPSED)
+        {
+            currentHE = heNext(currentHE);
+        }
+        else
+        {
+            currentHE = heNext(oppositeHE);
+        }
     }
     while (currentHE != he);
 

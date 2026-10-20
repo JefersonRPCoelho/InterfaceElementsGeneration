@@ -4,7 +4,8 @@
 #     ctest -L unit            only the Google Test suites
 #     ctest -L stress          only the stress test
 #
-# The tests whose name starts with DISABLED_ describe known defects that are still open (test_known_defects.cpp).
+# A known defect that is still open can be described by a disabled test (prefix DISABLED_): it shows up as disabled in
+# every run and is enabled when the defect is fixed. There is none at the moment.
 
 # The tests rely on the assertions of the library: some defects show up only as an assertion, and the death tests
 # expect them. So NDEBUG is removed from the flags of this directory, whatever the build type, and the core is compiled
@@ -52,7 +53,6 @@ add_executable(InterfaceElementsTests
         test_vertex_count.cpp
         test_base_mesh.cpp
         test_invalid_input.cpp
-        test_known_defects.cpp
         test_open_hole_border.cpp
 )
 target_link_libraries(InterfaceElementsTests PRIVATE InterfaceElementsTestSupport GTest::gtest_main)
