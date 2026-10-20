@@ -89,6 +89,21 @@ TEST_F(InvalidInput, EdgeOpenedInAPreviousCall)
     expectRejected({mesh.heOpposite(34)});
 }
 
+TEST_F(InvalidInput, RejectedEdgesDoNotAccumulateReservedSpace)
+{
+    // Each call reserves one element (4 positions) per edge. The positions left by a rejected edge are used by the
+    // next calls instead of accumulating (I11): before, the three calls below left 12 unused positions.
+    builder.insertInterfaceElements({0});
+    builder.insertInterfaceElements({0});
+    builder.insertInterfaceElements({0});
+    EXPECT_EQ(mesh.numberReservedElements(), 52u);
+
+    builder.insertInterfaceElements({34});
+    EXPECT_EQ(mesh.numberOfHalfEdges(), 52u);
+    EXPECT_EQ(mesh.numberReservedElements(), 52u);
+    EXPECT_EQ(mesh.elementsList().capacity(), 52u);
+}
+
 TEST_F(InvalidInput, EdgeRepeatedInTheSameCallIsOpenedOnce)
 {
     builder.insertInterfaceElements({34, 34, mesh.heOpposite(34)});

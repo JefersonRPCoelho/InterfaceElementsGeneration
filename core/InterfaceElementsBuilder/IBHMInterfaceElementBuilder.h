@@ -92,7 +92,13 @@ public:
      *     2. Border edges, i.e., the provided half-edge has no opposite.
      *     3. Edges that already belong to an interface element, for example, an edge provided twice in the same call or
      *     in different calls.
-     * The space reserved for the skipped edges is left unused.
+     * The space reserved for the skipped edges stays reserved and is used by the next calls.
+     *
+     * The memory grows exactly to what each call needs (one element per edge and the vertices counted by
+     * computeNumberOfNewVertices()). So, each call that adds elements reallocates the element vectors, which copies the
+     * whole mesh. To insert many edges in separate calls (for example, one edge per call in an adaptive analysis),
+     * reserve the capacity in advance with IBHM::reserveCapacityForElements() and IBHM::reserveSpaceForNodes(): the
+     * calls do not reallocate while it is enough.
      *
      * @param edges A vector with one half-edge for each input edge. Each edge is defined by two half-edges. The user
      * can select any of them.

@@ -161,6 +161,27 @@ TEST_F(BaseMesh, FinalMesh)
     }
 }
 
+TEST_F(BaseMesh, PreReservedCapacityAvoidsReallocations)
+{
+    // I11: with the capacity reserved in advance for the 12 elements (48 half-edges) and the 19 new vertices, inserting
+    // one edge per call never reallocates the element list nor the coordinates, and no memory is left over.
+    mesh.reserveCapacityForElements(48, 12);
+    mesh.reserveSpaceForNodes(19);
+    const unsigned int *elements = mesh.elementsList().data();
+    const float *points = mesh.points().data();
+
+    for (const unsigned int edge: baseMeshEdges())
+    {
+        builder.insertInterfaceElements({edge});
+    }
+
+    EXPECT_EQ(mesh.elementsList().data(), elements);
+    EXPECT_EQ(mesh.points().data(), points);
+    EXPECT_EQ(mesh.numberReservedElements(), 96u);
+    EXPECT_EQ(mesh.elementsList().capacity(), 96u);
+    EXPECT_EQ(mesh.points().capacity(), (INPUT_POINTS + 19) * 2u);
+}
+
 TEST(BaseMeshTopology, OneCallGivesTheSameTopologyAsOneCallPerEdge)
 {
     std::vector<std::vector<unsigned int>> oneCallPerEdge;

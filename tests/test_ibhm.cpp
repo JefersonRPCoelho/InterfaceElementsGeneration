@@ -201,6 +201,50 @@ TEST(IBHMHalfEdges, NumberOfHalfEdgesDoesNotCountTheReservedSpace)
     EXPECT_EQ(mesh.numberOfElements(), 14u);
 }
 
+TEST(IBHMHalfEdges, ReserveSpaceForElementsGrowsExactly)
+{
+    // I11: resize() alone would grow the capacity geometrically (to 96 positions in libc++ and libstdc++).
+    IBHM mesh = baseMesh();
+
+    mesh.reserveSpaceForElements(4, 1);
+
+    EXPECT_EQ(mesh.numberReservedElements(), 52u);
+    EXPECT_EQ(mesh.elementsList().size(), 52u);
+    EXPECT_EQ(mesh.elementsList().capacity(), 52u);
+}
+
+TEST(IBHMHalfEdges, ReserveSpaceForElementsOnlyAddsWhatIsMissing)
+{
+    // The positions already reserved and not used count toward the request (I11).
+    IBHM mesh = baseMesh();
+
+    mesh.reserveSpaceForElements(4, 1);
+    mesh.reserveSpaceForElements(4, 1);
+    EXPECT_EQ(mesh.numberReservedElements(), 52u) << "4 positions were already free";
+
+    mesh.reserveSpaceForElements(8, 2);
+    EXPECT_EQ(mesh.numberReservedElements(), 56u) << "only 4 positions were missing";
+    EXPECT_EQ(mesh.elementsList().capacity(), 56u);
+    EXPECT_EQ(mesh.numberOfHalfEdges(), 48u);
+}
+
+TEST(IBHMHalfEdges, ReserveCapacityForElementsKeepsTheSizeAndAvoidsReallocations)
+{
+    IBHM mesh = baseMesh();
+
+    mesh.reserveCapacityForElements(400, 100);
+    EXPECT_EQ(mesh.numberReservedElements(), 48u) << "no position is reserved";
+    EXPECT_EQ(mesh.numberOfHalfEdges(), 48u);
+    EXPECT_EQ(mesh.elementsList().capacity(), 448u);
+
+    // The positions are then reserved inside the capacity: no reallocation, and the capacity does not change.
+    const unsigned int *data = mesh.elementsList().data();
+    mesh.reserveSpaceForElements(4, 1);
+    EXPECT_EQ(mesh.numberReservedElements(), 52u);
+    EXPECT_EQ(mesh.elementsList().data(), data);
+    EXPECT_EQ(mesh.elementsList().capacity(), 448u);
+}
+
 TEST(IBHMHalfEdges, ReservedOppositesStartAsBorder)
 {
     IBHM mesh = baseMesh();

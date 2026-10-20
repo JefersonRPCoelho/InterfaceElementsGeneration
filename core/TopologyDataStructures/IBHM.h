@@ -166,8 +166,8 @@ public:
      * @brief Get the number of reserved half-edge positions in the element's list.
      *
      * Despite the name, the value is not a number of elements: since the elements may have different sizes, it returns
-     * the size of the element's list, i.e., the number of half-edge positions available before requiring reallocation,
-     * including the positions reserved by reserveSpaceForElements() and not used yet.
+     * the size of the element's list, i.e., the half-edges of the valid elements plus the positions reserved by
+     * reserveSpaceForElements() and not used yet. The capacity reserved by reserveCapacityForElements() is not counted.
      * @return The number of reserved half-edge positions.
      */
     [[nodiscard]] unsigned int numberReservedElements() const;
@@ -262,16 +262,38 @@ public:
     /**
      * @brief Reserve space for new elements.
      *
-     * Although the space is reserved, it is not used. The number of elements inserted in the mesh is controlled by
-     * _numberOfValidElements, so avoid using the vectors' size to determine the number of elements.
+     * After the call, there are at least @p numberPositions half-edge positions and @p numberElements element entries
+     * after the valid elements, ready to be used by commitElement(). Although the space is reserved, it is not used.
+     * The number of elements inserted in the mesh is controlled by _numberOfValidElements, so avoid using the vectors'
+     * size to determine the number of elements.
+     *
+     * Positions already reserved and not used yet (for example, left by edges that the interface element builder
+     * rejected) count toward the request: only the missing positions are added, so unused positions do not accumulate.
+     * The vectors grow exactly to the new size, without the geometric growth of std::vector, so no memory is allocated
+     * beyond what is requested. As the growth is exact, calling this function many times with small values reallocates
+     * the vectors at each call; to avoid it, reserve the capacity in advance with reserveCapacityForElements().
      *
      * The reserved positions of the opposite table start with BORDER. So, a reserved half-edge queried before being
      * linked by its owner is seen as a border, and not as a link to half-edge 0, which is a valid half-edge of the
      * mesh.
-     * @param numberPositions Number of extra vector positions to be allocated.
-     * @param numberElements The number of elements that will be stored in the reserved space.
+     * @param numberPositions Number of half-edge positions needed after the valid elements.
+     * @param numberElements Number of elements that will be stored in the reserved space.
      */
     void reserveSpaceForElements(unsigned int numberPositions, unsigned int numberElements);
+
+    /**
+     * @brief Reserve capacity for new elements, without reserving positions.
+     *
+     * Only the capacity of the element vectors changes (half-edge vertices, opposites and offsets); their sizes, the
+     * valid elements and the reserved positions stay the same. The capacity becomes exactly the valid half-edges and
+     * elements plus the requested ones (or stays the same if it is already larger). Afterwards,
+     * reserveSpaceForElements() does not reallocate the vectors while the capacity is enough, so many small insertions
+     * (for example, one edge per call of the interface element builder) do not copy the mesh at each call. It is the
+     * counterpart of reserveSpaceForNodes() for the elements.
+     * @param numberPositions Number of half-edge positions expected in the new elements.
+     * @param numberElements Number of new elements expected.
+     */
+    void reserveCapacityForElements(unsigned int numberPositions, unsigned int numberElements);
 
     /**
      * @brief Reserve space for new nodes.

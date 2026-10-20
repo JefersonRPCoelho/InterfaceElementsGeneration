@@ -156,11 +156,40 @@ void IBHM::print() const
 
 void IBHM::reserveSpaceForElements(const unsigned int numberPositions, const unsigned int numberElements)
 {
-    _offset.resize(_offset.size() + numberElements);
-    _halfEdgeVertex.resize(_halfEdgeVertex.size() + numberPositions);
+    // Sizes needed: the valid half-edges and elements plus the requested ones. The positions and offset entries that
+    // are already reserved and not used yet (for example, left by edges rejected by the interface element builder)
+    // count toward the request, so only the missing ones are added (I11).
+    const size_t positions = static_cast<size_t>(numberOfHalfEdges()) + numberPositions;
+    const size_t offsets = static_cast<size_t>(_numberOfValidElements) + 1 + numberElements;
 
-    // The new positions start as borders (see the header). With the default value (0), they would point to half-edge 0.
-    _oppositeHalfEdge.resize(_oppositeHalfEdge.size() + numberPositions, static_cast<unsigned int>(BORDER));
+    // Each vector grows exactly to the new size.
+    if (positions > _halfEdgeVertex.size())
+    {
+        _halfEdgeVertex.reserve(positions);
+        _halfEdgeVertex.resize(positions);
+
+        // The new positions start as borders (see the header). With the default value (0), they would point to
+        // half-edge 0.
+        _oppositeHalfEdge.reserve(positions);
+        _oppositeHalfEdge.resize(positions, static_cast<unsigned int>(BORDER));
+    }
+    if (offsets > _offset.size())
+    {
+        _offset.reserve(offsets);
+        _offset.resize(offsets);
+    }
+}
+
+
+
+void IBHM::reserveCapacityForElements(const unsigned int numberPositions, const unsigned int numberElements)
+{
+    // Only the capacity grows, exactly to the valid half-edges and elements plus the requested ones (or it stays the
+    // same if it is already larger). The sizes, and therefore the reserved positions, do not change.
+    const size_t positions = static_cast<size_t>(numberOfHalfEdges()) + numberPositions;
+    _halfEdgeVertex.reserve(positions);
+    _oppositeHalfEdge.reserve(positions);
+    _offset.reserve(static_cast<size_t>(_numberOfValidElements) + 1 + numberElements);
 }
 
 

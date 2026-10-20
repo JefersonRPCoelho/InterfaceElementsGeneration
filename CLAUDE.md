@@ -50,20 +50,26 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
 
 ## Defeitos conhecidos da IBHM (relatório v0.4, seção 7.4: tabela de abertos e de corrigidos)
 
-- **Em aberto: I7 (+ B10), I9, I11**: ver relatório. Um defeito em aberto pode ganhar um teste desativado (prefixo
+- **Em aberto: I7 (+ B10), I9**: ver relatório. Um defeito em aberto pode ganhar um teste desativado (prefixo
   `DISABLED_`) que descreve o comportamento correto; ao corrigir, o teste é ativado. Hoje não há nenhum.
-- **Já corrigidos:** I2 (`isBorder`: o passo pela aresta colapsada passa pela condição de parada como os demais; testes
-  `IBHMIsBorder` em `test_ibhm.cpp`), I6 (sentinelas: `heNext`/`hePrevious`/`heElement` têm `assert(halfEdge <
-  numberOfHalfEdges())`; `assert(!= COLLAPSED)` em x1/x3, `reindexElementsCCW` e laços do Open Hole; só em debug), I1
-  (Open Hole em vértice de borda: os dois laços param na borda, `assert` de que ao menos um lado encontra EI; testes em
-  `test_open_hole_border.cpp`), I3 (índices fora de `[0, numberOfHalfEdges())` rejeitados na inserção e na contagem;
-  `O[]` reservado começa com `BORDER`), I4 (cópias nascem com as coordenadas do original, via `IBHM::duplicatePoint`),
-  I5 (contagem exata de vértices novos), I8 e I10 (includes; o CMake não depende mais de Qt). Correções feitas desde a
-  última versão do relatório: `doc/report/historico/HISTORICO.md`.
-- **Memória é prioridade:** reservas devem ser exatas (sem crescimento geométrico); quem usa a IBHM pode reservar mais
-  espaço de uma vez. Não assumir número máximo fixo de coordenadas: `addPoint` recebe `const std::vector<float>&`
-  (vazio = origem), nunca ponteiro para o vetor interno. Para copiar um vértice, usar `duplicatePoint(vertex)` (sem
-  vetor temporário).
+- **Já corrigidos:** I11 (crescimento exato: `reserve` antes de cada `resize` em `reserveSpaceForElements` e nos vetores
+  de flags do construtor; reserva só o que falta; `reserveCapacityForElements` público), I2 (`isBorder`: o passo pela
+  aresta colapsada passa pela condição de parada como os demais; testes `IBHMIsBorder` em `test_ibhm.cpp`), I6
+  (sentinelas: `heNext`/`hePrevious`/`heElement` têm `assert(halfEdge < numberOfHalfEdges())`; `assert(!= COLLAPSED)` em
+  x1/x3, `reindexElementsCCW` e laços do Open Hole; só em debug), I1 (Open Hole em vértice de borda: os dois laços param
+  na borda, `assert` de que ao menos um lado encontra EI; testes em `test_open_hole_border.cpp`), I3 (índices fora de
+  `[0, numberOfHalfEdges())` rejeitados na inserção e na contagem; `O[]` reservado começa com `BORDER`), I4 (cópias
+  nascem com as coordenadas do original, via `IBHM::duplicatePoint`), I5 (contagem exata de vértices novos), I8 e I10
+  (includes; o CMake não depende mais de Qt). Correções feitas desde a última versão do relatório:
+  `doc/report/historico/HISTORICO.md`.
+- **Memória é prioridade:** reservas devem ser exatas (sem crescimento geométrico: `reserve` exato antes de todo
+  `resize` que cresce um vetor); quem usa a IBHM pode reservar mais espaço de uma vez, com
+  `reserveCapacityForElements(posições, elementos)` e `reserveSpaceForNodes(nós)` (só capacidade). Sem essa reserva,
+  inserir uma aresta por chamada realoca e copia a malha a cada chamada; com ela, nenhuma realocação.
+  `reserveSpaceForElements(p, e)` garante `p` posições e `e` entradas livres depois dos elementos válidos e reaproveita
+  as que sobraram (de arestas rejeitadas). Não assumir número máximo fixo de coordenadas: `addPoint` recebe `const
+  std::vector<float>&` (vazio = origem), nunca ponteiro para o vetor interno. Para copiar um vértice, usar
+  `duplicatePoint(vertex)` (sem vetor temporário).
 
 ## Build e testes
 

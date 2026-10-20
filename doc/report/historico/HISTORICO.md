@@ -29,9 +29,35 @@ pedir.**
   I7, I9 e I11), seção 2 (`isBorder` atravessa a aresta colapsada como um passo da rotação), seção 6.3 e apêndice
   (`test_known_defects.cpp` removido; testes `IBHMIsBorder`; mecanismo de testes desativados mantido para defeitos
   futuros).
+- [ ] Refletir a correção do I11 (lista abaixo): seção 2 (tabela de diferenças: crescimento exato,
+  `reserveCapacityForElements`, reserva só do que falta; passo "Reserva" da inserção), seção 5 (parágrafo de memória:
+  reservar capacidade antes para inserções de uma aresta por chamada), seção 7.4 (I11 na tabela de corrigidos, com a
+  medição da malha 1000×1000) e apêndice/seção 6.3 (testes novos). Avaliar registrar como item novo o pico de memória
+  temporário de `buildOppositesLinear` (um vetor por vértice: ~36 MB de pico extra na malha de 1M elementos).
 
 ### Modificações de código desde a v0.4
 
+- I11 corrigido (`IBHM.{h,cpp}`, `IBHMInterfaceElementBuilder.{h,cpp}`), opção B + complemento C, aprovada pelo autor:
+  - `reserveSpaceForElements(p, e)`: garante `p` posições de half-edge e `e` entradas de elemento livres depois dos
+    elementos válidos. As posições já reservadas e não usadas (de arestas rejeitadas) contam: só o que falta é
+    acrescentado (antes, cada aresta rejeitada deixava 4 posições e uma entrada sobrando para sempre). Cada vetor cresce
+    com `reserve` exato antes do `resize` (antes, `resize` dobrava a capacidade no libc++/libstdc++ e a multiplicava
+    por 1,5 no MSVC).
+  - Novo `reserveCapacityForElements(p, e)`: só capacidade, exata (par de `reserveSpaceForNodes` para os elementos).
+    Com ela, `reserveSpaceForElements` não realoca enquanto a capacidade bastar.
+  - Construtor: os vetores de flags (`_isInterfaceElement`, `_inInterfaceElement`) seguem a mesma política (exato, só o
+    que falta, contando a partir do número de elementos e de pontos válidos).
+  - Documentação: `reserveSpaceForElements`, `reserveCapacityForElements`, `numberReservedElements` (que confundia
+    tamanho com capacidade) e `insertInterfaceElements` (comportamento de memória e como reservar antes).
+  - Medição (grade 1000×1000 quadriláteros, 1M elementos, 4M half-edges, Apple clang -O2; ferramenta no scratchpad):
+    V/O/Of alocados ao inserir 1 aresta: 68,7 MB antes, 34,3 MB agora (o usado é 34,3 MB). 1000 chamadas de 1 aresta
+    sem reserva: antes 1 realocação e ~113 ms (com 2× de memória); agora 1000 realocações e ~700 ms (memória exata).
+    Com `reserveCapacityForElements` + `reserveSpaceForNodes` antes: 0 realocações, ~26 ms e memória exata.
+  - Testes novos: `ReserveSpaceForElementsGrowsExactly`, `ReserveSpaceForElementsOnlyAddsWhatIsMissing`,
+    `ReserveCapacityForElementsKeepsTheSizeAndAvoidsReallocations` (`test_ibhm.cpp`),
+    `RejectedEdgesDoNotAccumulateReservedSpace` (`test_invalid_input.cpp`) e `PreReservedCapacityAvoidsReallocations`
+    (`test_base_mesh.cpp`: o exemplo inteiro, uma aresta por chamada, sem nenhuma realocação). `ctest`: 47 testes ok
+    em Debug e Release; sem aviso novo com `NDEBUG`.
 - I2 corrigido (`IBHM.{h,cpp}`, `isBorder`), como proposto e aprovado pelo autor:
   - O passo pela aresta colapsada (que vai do vértice para ele mesmo e não tem oposta) virou um passo normal da
     rotação: o próximo canto é `next(c)`, comparado com a half-edge inicial pela condição do laço como todos os outros.

@@ -31,13 +31,25 @@ void IBHMInterfaceElementBuilder::insertInterfaceElements(const std::vector<unsi
     const unsigned int numNewVertices = computeNumberOfNewVertices(edges);
     const unsigned int numNewElements = static_cast<unsigned int>(edges.size());
 
-    // Reserve space for the new elements. It assumes all edges are valid and one element will be inserted for each edge.
+    // Reserve space for the new elements, as if all edges were valid: one element (4 half-edges) for each edge. Only
+    // what is missing is added, and the vectors grow exactly (see IBHM::reserveSpaceForElements()). The same policy is
+    // used for the interface element flags: one flag for each valid element plus one for each new element.
     _ibhm->reserveSpaceForElements(4 * numNewElements, numNewElements);
-    _isInterfaceElement.resize(_isInterfaceElement.size() + edges.size(), false);
+    const size_t numberOfElementFlags = static_cast<size_t>(_ibhm->numberOfElements()) + numNewElements;
+    if (numberOfElementFlags > _isInterfaceElement.size())
+    {
+        _isInterfaceElement.reserve(numberOfElementFlags);
+        _isInterfaceElement.resize(numberOfElementFlags, false);
+    }
 
-    // Reserve space for new nodes. It assumes all edges are valid and one element will be inserted for each edge.
+    // Reserve space for the new nodes, exactly (see IBHM::reserveSpaceForNodes()), and one flag for each of them.
     _ibhm->reserveSpaceForNodes(numNewVertices);
-    _inInterfaceElement.resize(_inInterfaceElement.size() + numNewVertices, false);
+    const size_t numberOfVertexFlags = static_cast<size_t>(_ibhm->numberPoints()) + numNewVertices;
+    if (numberOfVertexFlags > _inInterfaceElement.size())
+    {
+        _inInterfaceElement.reserve(numberOfVertexFlags);
+        _inInterfaceElement.resize(numberOfVertexFlags, false);
+    }
 
     // Insert an element for each edge.
     for (auto &a: edges)
