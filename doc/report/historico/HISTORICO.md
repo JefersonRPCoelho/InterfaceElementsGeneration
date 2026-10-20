@@ -23,9 +23,29 @@ pedir.**
   furo válida), seção 7.4 (I1 na tabela de corrigidos, com o controle negativo), seção 8 (próximos passos) e apêndice
   (suíte `test_open_hole_border`, `stress_all` ativo, nota do `stress.py` sobre sorteios pulados após um aborto).
   Pensar numa figura nova do Open Hole na borda (o `gen.py` hoje desenha só o estado antes da segunda aresta).
+- [ ] Refletir a correção do I6 (lista abaixo): seção 7.4 (I6 na tabela de corrigidos), seção 2 (pré-condição das
+  consultas `next`/`prev`/`elem`: só half-edges de elementos válidos), comentário B8 e apêndice (teste de morte novo).
 
 ### Modificações de código desde a v0.4
 
+- I6 corrigido com asserções (pedido do autor), sem custo em release:
+  - `IBHM::heNext`, `hePrevious` e `heElement`: `assert(halfEdge < numberOfHalfEdges())`. Os sentinelas `BORDER` e
+    `COLLAPSED` e as posições reservadas ainda não validadas param na asserção, em vez de chegar à busca binária (antes,
+    `heNext(BORDER)` só abortava quando não havia espaço reservado; com reserva, lia o offset reservado e devolvia lixo).
+    Documentado como pré-condição no cabeçalho.
+  - `IBHMInterfaceElementBuilder`: `assert(x1 != COLLAPSED)` e `assert(x3 != COLLAPSED)` em `retrieveAvailableVertex`
+    (`he` e `b` estão em elementos contínuos, cujas arestas nunca são colapsadas); `assert(currentHE != COLLAPSED)` em
+    `reindexElementsCCW` (pré-condição B8, agora verificada); asserções equivalentes nos dois laços do `openHole`. Cada
+    uma com o motivo de valer pela arquitetura.
+  - Teste de morte novo `IBHMHalfEdgesDeathTest.QueriesRejectSentinelsAndReservedPositions` (`test_ibhm.cpp`): `BORDER`,
+    `COLLAPSED` e a posição reservada 48 nas três consultas. Com a IBHM anterior, o teste falha (as consultas não
+    abortam). `ctest`: 40 testes ok em Debug e Release (o estresse roda com as asserções ligadas: nenhuma chamada
+    legítima viola a pré-condição nas 800 malhas), 1 desativado (I2).
+  - Correção de build: o commit `3b14af8` tinha trocado `if (foundCounterclockwise)`/`if (foundClockwise)` por
+    `if (currentHE != IBHM::BORDER)` no `openHole`, mas a `assert(foundCounterclockwise || foundClockwise)` ficou, sem as
+    variáveis: não compilava com as asserções ligadas (Debug e testes). As variáveis voltaram, a pedido do autor, com
+    os nomes `foundCCW` e `foundCW`, usadas nos dois `if` e na asserção (assim não geram aviso de variável não usada
+    com `NDEBUG`).
 - I1 corrigido (`IBHMInterfaceElementBuilder.{h,cpp}`, `openHole`), como proposto e discutido com o autor:
   - Decisão do autor: tratar o caso dentro do Open Hole (sem quinto operador). As regras de decisão levam a ele: o
     vértice de borda já aberto está em elemento de interface e não tem aresta colapsada. Continua sendo um buraco,

@@ -1,5 +1,6 @@
 // Tests of the IBHM class alone: point storage (reserveSpaceForNodes, addPoint, duplicatePoint) and the half-edge
-// space (numberOfHalfEdges, reserveSpaceForElements).
+// space (numberOfHalfEdges, reserveSpaceForElements, and the half-edge queries reject the sentinels).
+#include <string>
 #include <vector>
 #include <gtest/gtest.h>
 #include "IBHM.h"
@@ -181,5 +182,23 @@ TEST(IBHMHalfEdges, ReservedOppositesStartAsBorder)
     for (unsigned int he = 48; he < 52; he++)
     {
         EXPECT_EQ(mesh.heOpposite(he), static_cast<unsigned int>(IBHM::BORDER)) << "reserved half-edge " << he;
+    }
+}
+
+TEST(IBHMHalfEdgesDeathTest, QueriesRejectSentinelsAndReservedPositions)
+{
+    // next(), previous() and element() only accept half-edges of valid elements (I6): the sentinels and the positions
+    // reserved and not committed yet must stop at the assertion instead of reaching the binary search.
+    IBHM mesh = baseMesh();
+    mesh.reserveSpaceForElements(4, 1);
+
+    const std::vector<unsigned int> invalid = {static_cast<unsigned int>(IBHM::BORDER),
+                                               static_cast<unsigned int>(IBHM::COLLAPSED), 48};
+    for (const unsigned int he: invalid)
+    {
+        SCOPED_TRACE("half-edge " + std::to_string(he));
+        EXPECT_DEATH((void) mesh.heNext(he), "halfEdge < numberOfHalfEdges");
+        EXPECT_DEATH((void) mesh.hePrevious(he), "halfEdge < numberOfHalfEdges");
+        EXPECT_DEATH((void) mesh.heElement(he), "halfEdge < numberOfHalfEdges");
     }
 }

@@ -54,11 +54,13 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
   correção do I5 o construtor não chega mais a esse caminho: arestas de elementos de interface são descartadas antes.
 - I2 tem teste desativado em `tests/test_known_defects.cpp` (prefixo `DISABLED_`; não termina enquanto o defeito
   existir). Defeito corrigido sai desse arquivo e ganha testes próprios.
-- **I6, I7, I9, I11**: ver relatório.
-- **Já corrigidos:** I1 (Open Hole em vértice de borda: os dois laços param na borda, `assert` de que ao menos um
-  lado encontra EI; testes em `test_open_hole_border.cpp`), I3 (índices fora de `[0, numberOfHalfEdges())`
-  rejeitados na inserção e na contagem; `O[]` reservado começa com `BORDER`), I4 (cópias nascem com as coordenadas do original, via `IBHM::duplicatePoint`), I5
-  (contagem exata de vértices novos), I8 e I10 (includes; o CMake não depende mais de Qt). Correções feitas desde a
+- **I7, I9, I11**: ver relatório.
+- **Já corrigidos:** I6 (sentinelas: `heNext`/`hePrevious`/`heElement` têm `assert(halfEdge < numberOfHalfEdges())`;
+  `assert(!= COLLAPSED)` em x1/x3, `reindexElementsCCW` e laços do Open Hole; só em debug), I1 (Open Hole em vértice de
+  borda: os dois laços param na borda, `assert` de que ao menos um lado encontra EI; testes em
+  `test_open_hole_border.cpp`), I3 (índices fora de `[0, numberOfHalfEdges())` rejeitados na inserção e na contagem;
+  `O[]` reservado começa com `BORDER`), I4 (cópias nascem com as coordenadas do original, via `IBHM::duplicatePoint`),
+  I5 (contagem exata de vértices novos), I8 e I10 (includes; o CMake não depende mais de Qt). Correções feitas desde a
   última versão do relatório: `doc/report/historico/HISTORICO.md`.
 - **Memória é prioridade:** reservas devem ser exatas (sem crescimento geométrico); quem usa a IBHM pode reservar mais
   espaço de uma vez. Não assumir número máximo fixo de coordenadas: `addPoint` recebe `const std::vector<float>&`

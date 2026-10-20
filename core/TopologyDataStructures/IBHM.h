@@ -68,6 +68,9 @@ public:
 
     /**
      * @brief Given a half-edge, return the element that contains the provided half-edge.
+     *
+     * The half-edge must belong to a valid element (halfEdge < numberOfHalfEdges()). The sentinels BORDER and COLLAPSED
+     * are not half-edges: test an opposite before passing it here. Checked by an assertion in debug.
      * @param halfEdge The half-edge provided to recognize the element it belongs to.
      * @return The element the provided half-edge belongs to.
      */
@@ -78,6 +81,9 @@ public:
      *
      * Given a half-edge, the next half-edge is that half-edge that appears just after the given half-edge when
      * considering the element orientation.
+     *
+     * The half-edge must belong to a valid element (halfEdge < numberOfHalfEdges()). The sentinels BORDER and COLLAPSED
+     * are not half-edges: test an opposite before passing it here. Checked by an assertion in debug.
      * @param halfEdge The given half-edge to get the next.
      * @return The next half-edge in relation to the provided half-edge.
      */
@@ -88,6 +94,9 @@ public:
      *
      * Given a half-edge, the previous half-edge is that half-edge that appears just before the given half-edge when
      * considering the element orientation.
+     *
+     * The half-edge must belong to a valid element (halfEdge < numberOfHalfEdges()). The sentinels BORDER and COLLAPSED
+     * are not half-edges: test an opposite before passing it here. Checked by an assertion in debug.
      * @param halfEdge The given half-edge to get the previous.
      * @return The previous half-edge in relation to the provided half-edge.
      */

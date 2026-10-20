@@ -196,6 +196,11 @@ unsigned int IBHM::heOpposite(const unsigned int halfEdge) const
 
 unsigned int IBHM::heElement(const unsigned int halfEdge) const
 {
+    // Only half-edges of valid elements are accepted. The sentinels BORDER and COLLAPSED, and the positions reserved
+    // and not committed yet, are not half-edges of an element: the binary search would return a wrong element. The
+    // caller must test an opposite before using it here.
+    assert(halfEdge < numberOfHalfEdges());
+
     return static_cast<unsigned int>(offsetIterator(halfEdge) - _offset.begin());
 }
 
@@ -203,6 +208,11 @@ unsigned int IBHM::heElement(const unsigned int halfEdge) const
 
 unsigned int IBHM::heNext(const unsigned int halfEdge) const
 {
+    // Only half-edges of valid elements are accepted. The sentinels BORDER and COLLAPSED, and the positions reserved
+    // and not committed yet, are not half-edges of an element: the binary search would return a wrong element. The
+    // caller must test an opposite before using it here.
+    assert(halfEdge < numberOfHalfEdges());
+
     // Get the element first half-edge.
     const auto it = offsetIterator(halfEdge);
     assert(it != _offset.end());
@@ -222,7 +232,12 @@ unsigned int IBHM::heNext(const unsigned int halfEdge) const
 
 unsigned int IBHM::hePrevious(const unsigned int halfEdge) const
 {
-    /// Get the element first half-edge.
+    // Only half-edges of valid elements are accepted. The sentinels BORDER and COLLAPSED, and the positions reserved
+    // and not committed yet, are not half-edges of an element: the binary search would return a wrong element. The
+    // caller must test an opposite before using it here.
+    assert(halfEdge < numberOfHalfEdges());
+
+    // Get the element first half-edge.
     const auto it = offsetIterator(halfEdge);
     assert(it != _offset.end());
 

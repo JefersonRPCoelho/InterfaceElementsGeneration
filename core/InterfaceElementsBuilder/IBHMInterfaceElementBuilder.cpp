@@ -331,13 +331,18 @@ bool IBHMInterfaceElementBuilder::openHole(const unsigned int he, const unsigned
 
         // Go to the next element counterclockwise. It is BORDER if the edge before the corner is on the mesh border.
         currentHE = _ibhm->heOpposite(_ibhm->hePrevious(currentHE));
+
+        // The edge before the corner is an edge of a continuum element (the loop stops at the first interface element),
+        // so it is never collapsed.
+        assert(currentHE != IBHM::COLLAPSED);
     }
     while (currentHE != IBHM::BORDER && !_isInterfaceElement[_ibhm->heElement(currentHE)]);
 
     // Wall 1 (interface element J): its corner at v is also moved to the new vertex, and the short side of J that
     // arrives at this corner is unstuck (it is already a border if v is a border vertex).
     // Wall 2 (border): nothing else to do on this side.
-    if (currentHE != IBHM::BORDER)
+    const bool foundCCW = currentHE != IBHM::BORDER;
+    if (foundCCW)
     {
         _ibhm->setElementVertex(currentHE, newVertex);
         _ibhm->setOpposite(_ibhm->hePrevious(currentHE), IBHM::BORDER);
@@ -349,8 +354,12 @@ bool IBHMInterfaceElementBuilder::openHole(const unsigned int he, const unsigned
     currentHE = he;
     do
     {
-        // Go to the next element clockwise, or stop if the edge of the current corner is on the mesh border.
+        // Go to the next element clockwise, or stop if the edge of the current corner is on the mesh border. As in
+        // loop 1, the edge is an edge of a continuum element, so it is never collapsed.
         const unsigned int oppositeHE = _ibhm->heOpposite(currentHE);
+
+        assert(oppositeHE != IBHM::COLLAPSED);
+
         currentHE = oppositeHE == IBHM::BORDER ? oppositeHE : _ibhm->heNext(oppositeHE);
     }
     while (currentHE != IBHM::BORDER && !_isInterfaceElement[_ibhm->heElement(currentHE)]);
@@ -358,14 +367,15 @@ bool IBHMInterfaceElementBuilder::openHole(const unsigned int he, const unsigned
     // Wall 1 (interface element K): the short side of K that leaves v is unstuck (it is already a border if v is a
     // border vertex).
     // Wall 2 (border): nothing to do on this side.
-    if (currentHE != IBHM::BORDER)
+    const bool foundCW = currentHE != IBHM::BORDER;
+    if (foundCW)
     {
         _ibhm->setOpposite(currentHE, IBHM::BORDER);
     }
 
     // The vertex belongs to an interface element and its corners form a single fan, so an interface element corner is
     // always found on at least one side. If none is found, the mesh or the builder state is inconsistent.
-    assert(foundCounterclockwise || foundClockwise);
+    assert(foundCCW || foundCW);
 
     // Update the new interface element.
     _ibhm->setElementVertex(elementHE, newVertex);
@@ -443,6 +453,10 @@ void IBHMInterfaceElementBuilder::reindexElementsCCW(const unsigned int he, cons
 
         // Get the opposite half-edge.
         currentHE = _ibhm->heOpposite(_ibhm->hePrevious(currentHE));
+
+        // Precondition (see the header): the rotation never crosses a collapsed edge, so COLLAPSED is never used as a
+        // half-edge in the next iteration.
+        assert(currentHE != IBHM::COLLAPSED);
     }
     while (currentHE != stopHE && currentHE != IBHM::BORDER && currentHE != startHE);
 }
@@ -506,8 +520,14 @@ void IBHMInterfaceElementBuilder::retrieveAvailableVertex(const unsigned int he,
     // The tests are only true when the edge being split and the interface element with the available vertex share an
     // element.
 
+    // The half-edges he and b belong to continuum elements (the edges of interface elements are rejected before the
+    // operators), and an edge of a continuum element is never collapsed: only the short sides of interface elements
+    // are. So x1 and x3 are half-edges or BORDER, never COLLAPSED, and the BORDER test is enough before next() and
+    // previous() are applied to them.
+
     // Test the first hypothesis.
     const unsigned int x1 = _ibhm->heOpposite(_ibhm->hePrevious(he));
+    assert(x1 != IBHM::COLLAPSED);
     if (x1 != IBHM::BORDER)
     {
         if (_collapsed[v] == _ibhm->hePrevious(x1))
@@ -520,6 +540,7 @@ void IBHMInterfaceElementBuilder::retrieveAvailableVertex(const unsigned int he,
 
     // Test the second hypothesis.
     const unsigned int x3 = _ibhm->heOpposite(_ibhm->heNext(b));
+    assert(x3 != IBHM::COLLAPSED);
     if (x3 != IBHM::BORDER)
     {
         const unsigned int x = _ibhm->heNext(x3);

@@ -231,8 +231,8 @@ private:
      *
      * Precondition: the rotation must reach stopHE, the border, or 'he' again before it arrives at the half-edge that
      * follows a collapsed edge. The next half-edge is obtained as opposite(previous(currentHE)), and a COLLAPSED value
-     * is not tested, so it would be used as a half-edge index. The operators that call this method respect this
-     * condition.
+     * would be used as a half-edge index. The operators that call this method respect this condition, and an assertion
+     * checks it in debug.
      *
      * @param he A half-edge outgoing from the vertex that should be replaced by v.
      * @param stopHE The half-edge the algorithm should stop when finding it. It can be IBHM::BORDER.
