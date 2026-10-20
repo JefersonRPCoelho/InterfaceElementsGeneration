@@ -53,6 +53,7 @@ add_executable(InterfaceElementsTests
         test_base_mesh.cpp
         test_invalid_input.cpp
         test_known_defects.cpp
+        test_open_hole_border.cpp
 )
 target_link_libraries(InterfaceElementsTests PRIVATE InterfaceElementsTestSupport GTest::gtest_main)
 gtest_discover_tests(InterfaceElementsTests PROPERTIES LABELS unit TIMEOUT 60)
@@ -61,9 +62,10 @@ gtest_discover_tests(InterfaceElementsTests PROPERTIES LABELS unit TIMEOUT 60)
 add_executable(driver ${PROJECT_SOURCE_DIR}/doc/report/tools/driver.cpp)
 target_link_libraries(driver PRIVATE InterfaceElementsTestSupport)
 
-# Random stress test (doc/report/tools/stress.py), with the seeds of the report.
-#   stress_supported  seed 22, without the configuration of defect I1: must pass.
-#   stress_all        seed 21, all configurations: disabled while I1 is open (141 of the 400 cases abort).
+# Random stress test (doc/report/tools/stress.py), with the seeds of the report. Both must pass.
+#   stress_all        seed 21, all configurations (round 1 of the report; before the fix of I1, 141 of the 400 cases
+#                     aborted).
+#   stress_supported  seed 22, without a border vertex with two or more edges (round 2 of the report).
 find_package(Python3 COMPONENTS Interpreter)
 if (Python3_FOUND)
     set(STRESS ${PROJECT_SOURCE_DIR}/doc/report/tools/stress.py)
@@ -74,7 +76,6 @@ if (Python3_FOUND)
             COMMAND ${Python3_EXECUTABLE} -I ${STRESS} $<TARGET_FILE:driver> 21 400
             ${CMAKE_CURRENT_BINARY_DIR}/stress_all)
     set_tests_properties(stress_supported stress_all PROPERTIES LABELS stress TIMEOUT 1800)
-    set_tests_properties(stress_all PROPERTIES DISABLED TRUE)
 else ()
     message(STATUS "Python 3 not found: the stress test is not registered")
 endif ()

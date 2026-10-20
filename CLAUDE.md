@@ -34,7 +34,9 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
   - vértice fora de EI → **Canônico** (interno: aresta colapsada, 0 vértices; borda: vértice novo + rotação até a borda);
   - colapsado e EI vizinho de um elemento da aresta nova (hipóteses x1/x3) → **Split Element** (O(1));
   - colapsado, sem elemento comum → **Expand Edge** (rotação anti-horária de `c` até `he`);
-  - em EI sem colapsada → **Open Hole** (abre/aumenta o buraco).
+  - em EI sem colapsada → **Open Hole** (abre/aumenta o buraco). Em vértice de borda (externa ou de furo), um dos
+    dois laços pode chegar à borda antes de um EI: o buraco se abre para o exterior e esse lado age como o Canônico
+    de borda (correção do I1; decisão do autor: tratar dentro do Open Hole, sem quinto operador).
 - Split Element é um caso particular (otimização) do Expand Edge: trocar um pelo outro dá a mesma topologia.
 - **Princípio:** a arquitetura deve garantir que o operador escolhido sempre é aplicável; se não for, é bug. Uma
   implementação com verificações prévias e `assert` foi testada e revertida por custo (B10 em aberto; detalhes em
@@ -48,14 +50,14 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
 
 ## Defeitos conhecidos da IBHM (relatório v0.4, seção 7.4: tabela de abertos e de corrigidos)
 
-- **I1 (alta)** `openHole` em vértice de borda (externa ou de furo) já aberto: asserção em debug, escrita fora do
-  vetor em release. Comum em malhas de triângulos. Precisa de tratamento próprio.
 - **I2 (mitigado)** `isBorder` tem um defeito latente (o desvio da aresta colapsada pode pular a parada), mas desde a
   correção do I5 o construtor não chega mais a esse caminho: arestas de elementos de interface são descartadas antes.
-- I1 e I2 têm testes desativados em `tests/test_known_defects.cpp` (prefixo `DISABLED_`): ao corrigir, tirar o prefixo.
+- I2 tem teste desativado em `tests/test_known_defects.cpp` (prefixo `DISABLED_`; não termina enquanto o defeito
+  existir). Defeito corrigido sai desse arquivo e ganha testes próprios.
 - **I6, I7, I9, I11**: ver relatório.
-- **Já corrigidos:** I3 (índices fora de `[0, numberOfHalfEdges())` rejeitados na inserção e na contagem; `O[]`
-  reservado começa com `BORDER`), I4 (cópias nascem com as coordenadas do original, via `IBHM::duplicatePoint`), I5
+- **Já corrigidos:** I1 (Open Hole em vértice de borda: os dois laços param na borda, `assert` de que ao menos um
+  lado encontra EI; testes em `test_open_hole_border.cpp`), I3 (índices fora de `[0, numberOfHalfEdges())`
+  rejeitados na inserção e na contagem; `O[]` reservado começa com `BORDER`), I4 (cópias nascem com as coordenadas do original, via `IBHM::duplicatePoint`), I5
   (contagem exata de vértices novos), I8 e I10 (includes; o CMake não depende mais de Qt). Correções feitas desde a
   última versão do relatório: `doc/report/historico/HISTORICO.md`.
 - **Memória é prioridade:** reservas devem ser exatas (sem crescimento geométrico); quem usa a IBHM pode reservar mais
@@ -78,12 +80,15 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
   (`InterfaceElementsLibChecked`), em qualquer tipo de build: os `assert` precisam estar ligados.
   - `test_ibhm.cpp` (pontos, reserva, `numberOfHalfEdges`, teste de morte do `addPoint`), `test_vertex_count.cpp`,
     `test_base_mesh.cpp` (exemplo dos slides: 24 operadores, vértices por passo, V1–V7, ordem/lote/várias chamadas),
-    `test_invalid_input.cpp` (I3 e rejeições), `test_known_defects.cpp` (I1, I2 desativados).
-  - `tests/support/`: `TestMeshes` (malha base = `malha2Hyb.txt` com o vértice 18 em (4,3), leque, dois triângulos),
+    `test_invalid_input.cpp` (I3 e rejeições), `test_open_hole_border.cpp` (I1: vértice de borda com 2+ arestas,
+    nas duas ordens, em lote, na malha com furo e com 3 arestas), `test_known_defects.cpp` (I2 desativado).
+  - `tests/support/`: `TestMeshes` (malha base = `malha2Hyb.txt` com o vértice 18 em (4,3), leques com 3 e 4
+    quadriláteros, `meshIBHM.txt` com furo, dois triângulos),
     `MeshValidation` (snapshot, V1–V5, origem das cópias e V7, partição dos cantos), `BuilderInspector` (acesso de
     leitura ao estado privado do construtor, que o declara `friend`; não usar `#define private public`, que quebra a
     ligação no MSVC).
-  - `stress_all` (seed 21/400, todas as configurações) está desativado no CTest até o I1 ser corrigido.
+  - `stress_all` (seed 21/400, todas as configurações) e `stress_supported` (seed 22/400, sem vértice de borda com
+    2+ arestas) precisam passar.
 - `doc/report/tools/driver.cpp` (alvo `driver`): insere arestas (`--batch` para lote), imprime o operador por vértice,
   valida com `tests/support/MeshValidation` (V1–V7) e grava JSON (usado por `gen.py`, `stress.py`, `compare.py`).
   Exemplo dos slides: `driver malha2Hyb.txt $W/ex.json 31 34 11 26 47 38 23 19 30 42 29 45` → 19 vértices novos,
@@ -94,9 +99,9 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
       core/InterfaceElementsBuilder/IBHMInterfaceElementBuilder.cpp -o $W/driver
   ```
 - `doc/report/tools/stress.py <driver> <seed> <casos> <dir> [--skip-border-multi]`: malhas aleatórias (quad, tri,
-  híbrida, polígonos), 3 ordens + lote; código de saída 1 se algum caso falhar. Referência: seed 21/400 → 259 ok e
-  141 abortos (todos I1); seed 22/400 com `--skip-border-multi` → 400/400 ok. Após corrigir I1, a primeira rodada deve
-  passar inteira.
+  híbrida, polígonos), 3 ordens + lote; código de saída 1 se algum caso falhar. Referência atual: seed 21/400 →
+  400/400 (148 com vértice de borda com 2+ arestas); seed 22/400 com `--skip-border-multi` → 400/400. Até a v0.4
+  (antes do I1) a seed 21 dava 259 ok e 141 abortos; os casos mudam porque um aborto pula sorteios.
 - `doc/report/tools/compare.py`: compara topologias (partição dos cantos dos elementos originais). As ferramentas são
   explicadas no apêndice A do relatório.
 - Formato de malha (`malha2Hyb.txt`, `meshIBHM.txt`): `np ne`, `np` linhas `x y`, `ne` linhas `n v0 ... v(n-1)`.
@@ -127,7 +132,8 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
 
 ## Roteiro
 
-1. Corrigir I1–I4 (I3 e I4 feitos) e transformar o driver/stress em testes automatizados (feito: Google Test + CTest).
+1. Corrigir I1–I4 (feito; I2 só latente) e transformar o driver/stress em testes automatizados (feito: Google Test +
+   CTest).
 2. Geometria das cópias (coordenada do vértice de origem) e mapa vértice novo → origem (transferência de campos).
 3. Relato de erros/rejeições na API; manter `VH[]` da IBHM.
 4. Integração com o GeMA.

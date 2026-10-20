@@ -36,6 +36,29 @@ IBHM fanMesh()
 
 
 
+IBHM wideFanMesh()
+{
+    // Q at the origin, p1 to p5 at radius 1 every 45 degrees, and one outer vertex per element at radius 1.5.
+    const std::vector<float> coordinates = {0, 0,
+                                            1, 0, 0.7071f, 0.7071f, 0, 1, -0.7071f, 0.7071f, -1, 0,
+                                            1.3858f, 0.5740f, 0.5740f, 1.3858f, -0.5740f, 1.3858f, -1.3858f, 0.5740f};
+    const std::vector<unsigned int> elements = {0, 1, 6, 2, 0, 2, 7, 3, 0, 3, 8, 4, 0, 4, 9, 5};
+    const std::vector<unsigned int> offset = {0, 4, 8, 12, 16};
+    return IBHM(coordinates, elements, offset, 2);
+}
+
+
+
+IBHM holeMesh()
+{
+    const std::vector<float> coordinates = {3, 3, 0, 3, 0, 0, 3, 0, 2, 2, 1, 2, 1, 1, 2, 1, 1.5f, 3};
+    const std::vector<unsigned int> elements = {4, 0, 8, 0, 4, 7, 3, 3, 7, 6, 2, 2, 6, 5, 1, 1, 5, 8, 5, 4, 8};
+    const std::vector<unsigned int> offset = {0, 3, 7, 11, 15, 18, 21};
+    return IBHM(coordinates, elements, offset, 2);
+}
+
+
+
 IBHM twoTrianglesMesh()
 {
     const std::vector<float> coordinates = {0, 0, 1, 0, 1, 1, 0, 1};

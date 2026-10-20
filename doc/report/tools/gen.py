@@ -576,8 +576,8 @@ for k in range(5):
                                vlabel_font=r'\tiny\bfseries'))
 
 # ----------------------------------------------------------------------------------------------------------------------
-# 5. Border vertex with two selected edges (the case that fails, defect I1). The driver aborts on the second edge, so
-#    the figure shows the state after the first one. Figure: border_fail.
+# 5. Border vertex with two selected edges (defect I1 of report v0.4, fixed after it). The figure shows the state after
+#    the first edge, before the second one (until the fix, the driver aborted on the second edge). Figure: border_fail.
 # ----------------------------------------------------------------------------------------------------------------------
 fan = os.path.join(WORK, 'fan.txt')
 fan_pts = [(0, 0), (1, 0), (0.5, 0.866), (-0.5, 0.866), (-1, 0), (1.2, 0.7), (0, 1.4), (-1.2, 0.7)]

@@ -82,10 +82,12 @@ TEST_F(VertexCount, VertexAlreadyInAnInterfaceElement)
 
 TEST(VertexCountFan, BorderVertexWithTwoEdgesInTheSameCall)
 {
-    // Count only: the insertion does not support this case yet (I1, see test_known_defects.cpp). Q (border) with 2
-    // edges -> 2, R and P (border) with 1 edge each -> 1 + 1. Total 4. The old count gave 5.
+    // Q (border) with 2 edges -> 2, R and P (border) with 1 edge each -> 1 + 1. Total 4. The old count gave 5. The
+    // insertion of the second edge at Q is an Open Hole on a border vertex (test_open_hole_border.cpp).
     IBHM mesh = fanMesh();
-    const IBHMInterfaceElementBuilder builder(&mesh);
+    IBHMInterfaceElementBuilder builder(&mesh);
 
     EXPECT_EQ(builder.computeNumberOfNewVertices({4, 8}), 4u);
+    builder.insertInterfaceElements({4, 8});
+    EXPECT_EQ(mesh.numberPoints(), 8u + 4u);
 }

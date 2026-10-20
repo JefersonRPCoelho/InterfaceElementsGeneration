@@ -15,11 +15,44 @@ Para publicar uma nova versão:
 Itens pedidos pelo autor para entrar quando o relatório for gerado novamente. **Não gerar o relatório antes de o autor
 pedir.**
 
-- (nenhum por enquanto)
+- [ ] Refletir a correção do I1 (lista abaixo): seção 3.4 (figura de estados: o vértice de borda deixa de ter o
+  estado "não suportado"; com k arestas termina com k+1 cópias), seção 4.4 (Open Hole: as duas paredes possíveis,
+  elemento de interface ou borda, e a semelhança com o Canônico de borda; Algoritmo 5 com as paradas na borda e a
+  asserção final), seção 6 (tabela do estresse com a rodada 1 agora 400/400 e 148 casos de borda com 2+ arestas; a
+  seção 6.4 deixa de ser "caso não suportado" e passa a mostrar o caso tratado, com a figura antes/depois; malha com
+  furo válida), seção 7.4 (I1 na tabela de corrigidos, com o controle negativo), seção 8 (próximos passos) e apêndice
+  (suíte `test_open_hole_border`, `stress_all` ativo, nota do `stress.py` sobre sorteios pulados após um aborto).
+  Pensar numa figura nova do Open Hole na borda (o `gen.py` hoje desenha só o estado antes da segunda aresta).
 
 ### Modificações de código desde a v0.4
 
-- (nenhuma por enquanto)
+- I1 corrigido (`IBHMInterfaceElementBuilder.{h,cpp}`, `openHole`), como proposto e discutido com o autor:
+  - Decisão do autor: tratar o caso dentro do Open Hole (sem quinto operador). As regras de decisão levam a ele: o
+    vértice de borda já aberto está em elemento de interface e não tem aresta colapsada. Continua sendo um buraco,
+    aberto para o exterior; o lado que chega à borda faz o mesmo que o Canônico de borda.
+  - Laço 1 (anti-horário): se chega à borda, o setor entre a aresta nova e a borda já está com o vértice novo e não há
+    canto de elemento de interface a mover nem lado curto a descolar (a `assert(currentHE != BORDER)` virou `if`).
+  - Laço 2 (horário): testa `O[h] == BORDER` *antes* de aplicar `next` (antes aplicava `next(BORDER)`, o que na IBHM é
+    uma busca binária com índice inválido); se chega à borda, não há o que descolar. Resolve também a parte do I6 que
+    cabia ao segundo laço do Open Hole.
+  - Asserção única depois dos dois laços (pedida pelo autor): ao menos um lado encontra elemento de interface, porque o
+    vértice pertence a um. Só em debug; em release não custa nada.
+  - Custo: o laço 1 não muda; no laço 2, o teste inútil depois do `next` foi trocado pelo teste antes dele (mesmo número
+    de comparações). Nenhuma rotação nova, nenhum `isBorder`.
+  - Comentários detalhados no código e na documentação do operador (`openHole` e `OPEN_HOLE` no cabeçalho), e no
+    comentário da contagem (`computeNumberOfNewVertices`), que dizia que o caso não era suportado.
+  - Testes: nova suíte `tests/test_open_hole_border.cpp` (6 testes): a regra escolhe Open Hole na segunda aresta; leque
+    nas duas ordens e em lote (cada ordem leva um laço diferente à borda); vértice H da malha base (H–M e G–H nas duas
+    ordens e em lote); exemplo dos slides seguido de G–H; vértice 4 da malha com furo (`meshIBHM.txt`); vértice de
+    borda com 3 arestas em todas as 6 ordens e em lote (aresta do meio por último: os dois laços encontram elemento de
+    interface). Todos verificam V1–V7, a contagem, o número de cópias (k+1) e a mesma topologia. `TestMeshes` ganhou
+    `wideFanMesh()` e `holeMesh()`. Os dois testes desativados do I1 saíram de `test_known_defects.cpp` (fica só o I2);
+    `VertexCountFan` passou a inserir também. `stress_all` reativado no CTest.
+  - Verificação: `ctest` com 39 testes ok (Debug e Release), 1 desativado (I2). Rodada 1 do estresse (seed 21): 400/400,
+    148 casos com vértice de borda com 2+ arestas, sem dependência de ordem ou de lote e contagem exata; rodada 2: mesmos
+    números de antes. Controle negativo: com o `openHole` anterior, 6 dos testes novos abortam na asserção do laço 1.
+  - `stress.py`: docstring atualizada (I1 corrigido; com aborto, os sorteios restantes do caso são pulados e os casos
+    seguintes mudam, por isso 141 → 148). `gen.py`: comentário da figura `border_fail` atualizado.
 
 ## v0.4 — 19/10/2026
 

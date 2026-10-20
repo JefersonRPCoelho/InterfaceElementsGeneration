@@ -16,9 +16,13 @@ What each case does
 4. Checks that every run is valid (the driver returns 0 only if the checks V1-V5 pass after every step), that the
    number of new vertices is always the predicted one (V6), and that the four runs give the same topology (compare.py).
 
-A configuration is known to fail (defect I1 of the report): a border vertex that receives two or more selected edges.
-The case is marked "border_multi" when its selection contains such a vertex. With --skip-border-multi, these selections
-are discarded and drawn again, so only supported configurations are tested.
+The case is marked "border_multi" when its selection contains a border vertex that receives two or more selected
+edges. Until report v0.4, this configuration failed (defect I1, Open Hole on a border vertex, fixed after it). With
+--skip-border-multi, these selections are discarded and drawn again (round 2 of the report).
+
+When a run aborts, the other runs of the case are skipped and their random draws are not made, so the cases that come
+after an abort differ from those of a run without aborts (e.g., seed 21 had 141 border_multi cases before the fix of I1
+and has 148 after it).
 
 Output
 ------

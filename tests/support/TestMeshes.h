@@ -28,6 +28,21 @@
 [[nodiscard]] IBHM fanMesh();
 
 /**
+ * @brief Four quadrilaterals around the border vertex Q = 0 (a half disk), so Q has three interior edges: Q-p2
+ * (half-edge 4), Q-p3 (half-edge 8) and Q-p4 (half-edge 12), where p1 to p5 are the vertices 1 to 5 on the inner arc.
+ * @return The mesh.
+ */
+[[nodiscard]] IBHM wideFanMesh();
+
+/**
+ * @brief The mesh of meshIBHM.txt: a square with a square hole, made of three quadrilaterals and three triangles.
+ *
+ * The vertex 4 is on the border of the hole and has two interior edges: 0-4 (half-edge 3) and 4-8 (half-edge 19).
+ * @return The mesh.
+ */
+[[nodiscard]] IBHM holeMesh();
+
+/**
  * @brief Two triangles sharing an edge: 4 points in 2D, (0, 0), (1, 0), (1, 1) and (0, 1).
  * @return The mesh.
  */

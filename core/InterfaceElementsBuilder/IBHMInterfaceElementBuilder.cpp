@@ -304,41 +304,68 @@ bool IBHMInterfaceElementBuilder::openHole(const unsigned int he, const unsigned
     // Create the new vertex as a copy of v, i.e., with the same coordinates.
     const unsigned int newVertex = _ibhm->duplicatePoint(v);
 
-    // Reindex with the new vertex.
+    // The corners of v form a single fan, which is split by the new edge (he). The operator moves to the new vertex
+    // the sector that goes from he, counterclockwise, to the next "wall", and unsticks the short sides of the interface
+    // elements that bound the opening on both sides of he. There are two kinds of wall:
+    //     1. An interface element: always the case for an internal vertex, whose fan is a cycle. The short sides of the
+    //     interface elements found on both sides are unstuck (opposite = BORDER), which opens or increases the hole.
+    //     2. The mesh border (outer border or border of a hole in the mesh): only for a border vertex, whose fan is a
+    //     path from border to border. The rotation reaches the border before finding an interface element, so there
+    //     is no interface element corner to move nor short side to unstick on that side: the hole is open to the
+    //     exterior of the mesh. In this case, that side behaves as the canonical operator on the border, which also
+    //     moves the elements from the edge to the border to the new vertex.
+    // For example, a border vertex whose first edge was opened by the canonical operator has an interface element on
+    // one side of the second edge and the border on the other side: the sector between the second edge and the border
+    // gets the new vertex. With k edges, a border vertex ends with k + 1 copies, which is the count of
+    // computeNumberOfNewVertices().
+    //
+    // In all cases, the short side of the new interface element is a border (see below).
+
+    // Loop 1: rotate counterclockwise from he, moving each corner to the new vertex, until the first interface element
+    // (J) or the border.
     unsigned int currentHE = he;
     do
     {
         // Reindex the element to the new vertex.
         _ibhm->setElementVertex(currentHE, newVertex);
 
-        // Get the opposite half-edge.
+        // Go to the next element counterclockwise. It is BORDER if the edge before the corner is on the mesh border.
         currentHE = _ibhm->heOpposite(_ibhm->hePrevious(currentHE));
     }
     while (currentHE != IBHM::BORDER && !_isInterfaceElement[_ibhm->heElement(currentHE)]);
 
-    // @todo Is it possible?
-    assert(currentHE != IBHM::BORDER);
+    // Wall 1 (interface element J): its corner at v is also moved to the new vertex, and the short side of J that
+    // arrives at this corner is unstuck (it is already a border if v is a border vertex).
+    // Wall 2 (border): nothing else to do on this side.
+    if (currentHE != IBHM::BORDER)
+    {
+        _ibhm->setElementVertex(currentHE, newVertex);
+        _ibhm->setOpposite(_ibhm->hePrevious(currentHE), IBHM::BORDER);
+    }
 
-    // Update the interface element.
-    _ibhm->setElementVertex(currentHE, newVertex);
-
-    // Open a hole in the interface element.
-    _ibhm->setOpposite(_ibhm->hePrevious(currentHE), IBHM::BORDER);
-
-    // Look for the half-edge in the other side to create a hole.
+    // Loop 2: rotate clockwise from he, without changing any corner, until the first interface element (K) or the
+    // border. The opposite must be tested before next() is applied: next(BORDER) is not a valid query (in the IBHM, it
+    // is a binary search with an invalid index).
     currentHE = he;
     do
     {
-        // Get the opposite half-edge.
-        currentHE = _ibhm->heNext(_ibhm->heOpposite(currentHE));
+        // Go to the next element clockwise, or stop if the edge of the current corner is on the mesh border.
+        const unsigned int oppositeHE = _ibhm->heOpposite(currentHE);
+        currentHE = oppositeHE == IBHM::BORDER ? oppositeHE : _ibhm->heNext(oppositeHE);
     }
     while (currentHE != IBHM::BORDER && !_isInterfaceElement[_ibhm->heElement(currentHE)]);
 
-    // @todo Is it possible?
-    assert(currentHE != IBHM::BORDER);
+    // Wall 1 (interface element K): the short side of K that leaves v is unstuck (it is already a border if v is a
+    // border vertex).
+    // Wall 2 (border): nothing to do on this side.
+    if (currentHE != IBHM::BORDER)
+    {
+        _ibhm->setOpposite(currentHE, IBHM::BORDER);
+    }
 
-    // Open a hole in the interface element.
-    _ibhm->setOpposite(currentHE, IBHM::BORDER);
+    // The vertex belongs to an interface element and its corners form a single fan, so an interface element corner is
+    // always found on at least one side. If none is found, the mesh or the builder state is inconsistent.
+    assert(foundCounterclockwise || foundClockwise);
 
     // Update the new interface element.
     _ibhm->setElementVertex(elementHE, newVertex);

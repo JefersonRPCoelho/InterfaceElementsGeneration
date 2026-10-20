@@ -55,7 +55,7 @@ public:
      *
      * OPEN_HOLE: The operator that should be applied to a vertex that is already part of an interface element, and
      * there is no vertex available (duplicated vertex in the topology but not in the geometry). The operator will
-     * insert or increase a hole.
+     * insert or increase a hole. On a border vertex, the hole is open to the exterior of the mesh.
      *
      * UNDEFINED: Use to initialize variables as an invalid type.
      */
@@ -187,6 +187,13 @@ private:
      * found. The other side should be traversed to update the opposite of the first edge in an interface element to
      * BORDER. Doing it from both sides will open or increase the hole.
      *
+     * Border vertices (outer border or border of a hole in the mesh) are also handled. The fan of a border vertex goes
+     * from border to border, so one of the two traversals may reach the border before finding an interface element.
+     * On that side there is nothing else to change: the elements up to the border already use the new vertex (as in
+     * the canonical operator on the border), and the hole is open to the exterior of the mesh. The short sides of the
+     * interface elements at a border vertex are already borders. At least one side always ends at an interface element,
+     * since the vertex belongs to one.
+     *
      * The elementHE, as in the canonical operator, should represent the first edge-vertex being opened. First, in the
      * sense of orientation.
      *
@@ -273,7 +280,7 @@ public:
      *
      * The result is the exact number of vertices the insertion creates, so it can be used to reserve exactly the memory
      * needed. A second edge on a border vertex that is already part of an interface element is counted as one new
-     * vertex, which is the expected result, although the insertion does not support this case yet.
+     * vertex, as the insertion does (Open Hole on a border vertex).
      *
      * @param edges The group of edges, each one represented by one of its half-edges, that should be used to insert new
      * interface elements.
