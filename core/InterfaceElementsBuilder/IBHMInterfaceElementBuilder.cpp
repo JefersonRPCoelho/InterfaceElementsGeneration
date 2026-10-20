@@ -75,13 +75,13 @@ void IBHMInterfaceElementBuilder::insertInterfaceElements(const std::vector<unsi
         // If the half-edge has no opposite, it is not valid, once it is not possible to open an edge.
         if (b == IBHM::BORDER || b == IBHM::COLLAPSED)
         {
-            printf("The edge represent by the half-edge [%u]is not valid\n", a);
+            printf("The edge represent by the half-edge [%u] is not valid\n", a);
             continue;
         }
 
         if (_isInterfaceElement[_ibhm->heElement(a)] || _isInterfaceElement[_ibhm->heElement(b)])
         {
-            printf("The edge represent by the half-edge [%u]is not valid because it is on an interface element\n", a);
+            printf("The edge represent by the half-edge [%u] is not valid because it is on an interface element\n", a);
             continue;
         }
 
@@ -111,47 +111,54 @@ void IBHMInterfaceElementBuilder::insertInterfaceElements(const std::vector<unsi
         // Variable used to determine the available vertex half-edge index for the SPLIT_ELEMENT operator.
         unsigned int availableVertexHE = IBHM::BORDER, sharedElementHE = IBHM::BORDER;
 
-        // Retrieve the operator for the vertex A.
+        // Retrieve and apply the operator for the vertex A. The architecture guarantees that the chosen operator is
+        // applicable, so an operator that returns false, or an undefined operator, is a defect: it stops at the
+        // assertion below (B10). The operators return true in the current implementation; when they report failures,
+        // the assertion will catch them.
+        [[maybe_unused]] bool appliedA = false;
         switch (retrieveOperator(a, availableVertexHE, sharedElementHE))
         {
             case OperatorType::CANONICAL:
-                canonical(a, h3);
+                appliedA = canonical(a, h3);
                 break;
             case OperatorType::SPLIT_ELEMENT:
-                splitElement(a, availableVertexHE, sharedElementHE, h3);
+                appliedA = splitElement(a, availableVertexHE, sharedElementHE, h3);
                 break;
             case OperatorType::EXPAND_EDGE:
-                expandEdge(a, h3);
+                appliedA = expandEdge(a, h3);
                 break;
             case OperatorType::OPEN_HOLE:
-                openHole(a, h3);
+                appliedA = openHole(a, h3);
                 break;
             case OperatorType::UNDEFINED:
             default:
                 printf("It was not possible to recognize the operator for the half-edge %u\n", a);
                 break;
         }
+        assert(appliedA);
 
-        // Retrieve the operator for the vertex B.
+        // Retrieve and apply the operator for the vertex B (same contract as for A).
+        [[maybe_unused]] bool appliedB = false;
         switch (retrieveOperator(b, availableVertexHE, sharedElementHE))
         {
             case OperatorType::CANONICAL:
-                canonical(b, h1);
+                appliedB = canonical(b, h1);
                 break;
             case OperatorType::SPLIT_ELEMENT:
-                splitElement(b, availableVertexHE, sharedElementHE, h1);
+                appliedB = splitElement(b, availableVertexHE, sharedElementHE, h1);
                 break;
             case OperatorType::EXPAND_EDGE:
-                expandEdge(b, h1);
+                appliedB = expandEdge(b, h1);
                 break;
             case OperatorType::OPEN_HOLE:
-                openHole(b, h1);
+                appliedB = openHole(b, h1);
                 break;
             case OperatorType::UNDEFINED:
             default:
                 printf("It was not possible to recognize the operator for the half-edge %u\n", b);
                 break;
         }
+        assert(appliedB);
 
         // Update the opposites for the middle edges.
         _ibhm->setOpposite(h0, b);

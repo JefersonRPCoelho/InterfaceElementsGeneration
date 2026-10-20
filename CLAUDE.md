@@ -39,8 +39,10 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
     de borda (correção do I1; decisão do autor: tratar dentro do Open Hole, sem quinto operador).
 - Split Element é um caso particular (otimização) do Expand Edge: trocar um pelo outro dá a mesma topologia.
 - **Princípio:** a arquitetura deve garantir que o operador escolhido sempre é aplicável; se não for, é bug. Uma
-  implementação com verificações prévias e `assert` foi testada e revertida por custo (B10 em aberto; detalhes em
-  `historico/HISTORICO.md`). Evitar verificações extras no caminho crítico sem combinar com o autor.
+  implementação com verificações prévias e `assert` foi testada e revertida por custo. Decisão provisória do autor
+  (B10): os operadores devolvem `true` e `insertInterfaceElements` faz `assert` do resultado (e do operador
+  `UNDEFINED`), para o erro aparecer cedo; o relato de falhas fica para depois. Evitar verificações extras no caminho
+  crítico sem combinar com o autor.
 - Invariante: cada vértice termina com tantas cópias quantos são os componentes da sua estrela cortada pelas arestas
   selecionadas (interno com 1 aresta: 1 cópia, colapsado; borda com k arestas: k+1). Por isso o resultado não depende
   da ordem de inserção nem de inserir em lote.
@@ -50,8 +52,13 @@ algoritmo: Jeferson Coelho (Tecgraf/PUC-Rio).
 
 ## Defeitos conhecidos da IBHM (relatório v0.4, seção 7.4: tabela de abertos e de corrigidos)
 
-- **Em aberto: I7 (+ B10), I9**: ver relatório. Um defeito em aberto pode ganhar um teste desativado (prefixo
-  `DISABLED_`) que descreve o comportamento correto; ao corrigir, o teste é ativado. Hoje não há nenhum.
+- **Em aberto (deixados para depois pelo autor): I7 (relato de inseridas/rejeitadas; hoje `printf`), I9 (desempenho)**,
+  mais o pico de memória da construção (`buildOppositesLinear`) e pendências menores. As sugestões combinadas estão em
+  `doc/report/historico/HISTORICO.md`, seção "Sugestões registradas para implementação futura": para o I7, devolver uma
+  entrada por aresta de entrada (elemento criado ou código de rejeição), não a contagem nem a lista (os elementos novos
+  já são a faixa contígua no fim); a biblioteca deixa de imprimir e quem chama registra. Não implementar sem o autor
+  pedir. Um defeito em aberto pode ganhar um teste desativado (prefixo `DISABLED_`) que descreve o comportamento
+  correto; ao corrigir, o teste é ativado. Hoje não há nenhum.
 - **Já corrigidos:** I11 (crescimento exato: `reserve` antes de cada `resize` em `reserveSpaceForElements` e nos vetores
   de flags do construtor; reserva só o que falta; `reserveCapacityForElements` público), I2 (`isBorder`: o passo pela
   aresta colapsada passa pela condição de parada como os demais; testes `IBHMIsBorder` em `test_ibhm.cpp`), I6

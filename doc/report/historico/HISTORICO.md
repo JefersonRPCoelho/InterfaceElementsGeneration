@@ -10,6 +10,59 @@ Para publicar uma nova versão:
 3. regenerar as figuras (`tools/gen.py`, ver Apêndice A do relatório) e compilar;
 4. copiar o PDF compilado para `historico/relatorio_vX.Y.pdf`, sem apagar as versões anteriores.
 
+## Sugestões registradas para implementação futura
+
+Sugestões discutidas com o autor e deixadas para depois (decisão dele, 20/10/2026). Não implementar sem o autor pedir.
+
+### I7: relato do resultado de `insertInterfaceElements`
+
+- **Problema.** O método devolve `void`. Quem chama não sabe quais arestas viraram elementos, quais foram rejeitadas e
+  por quê; as rejeições só aparecem no console (`printf`).
+- **Por que não basta devolver a contagem ou a lista dos elementos inseridos.** Os elementos novos sempre entram no fim
+  e em sequência: são os índices de `numberOfElements()` antes da chamada até `numberOfElements()` depois. Quem chama já
+  obtém a contagem e a lista comparando esses dois valores. O que falta é a correspondência aresta → elemento (as
+  arestas rejeitadas são puladas, então o elemento k não corresponde a `edges[k]`) e o motivo de cada rejeição. Na
+  integração com o GeMA, isso será necessário para associar cada elemento de interface à fratura, falha ou lei coesiva
+  da aresta de origem.
+- **Sugestão.** Uma entrada por aresta de entrada, na mesma ordem:
+  - o índice do elemento de interface criado para ela; ou
+  - um código de rejeição: índice que não é half-edge da malha (`h >= numberOfHalfEdges()` no início da chamada);
+    aresta de borda (oposta `BORDER`); aresta de elemento de interface (já aberta, inclusive repetida no mesmo lote).
+- **Forma.** Um `std::vector<unsigned int>` do tamanho da entrada, com sentinelas no estilo de `IBHM::BORDER` e
+  `IBHM::COLLAPSED` (por exemplo, valores no fim da faixa de `unsigned`), ou um pequeno `struct` {elemento, estado}.
+  Para não alocar quando ninguém usa, pode ser um parâmetro de saída opcional (ponteiro, `nullptr` por padrão). Custo:
+  uma escrita por aresta, fora dos operadores (não toca o caminho crítico).
+- **Relação com o B10.** Hoje os operadores devolvem `true` e o chamador faz `assert` (decisão provisória). Se um dia os
+  operadores relatarem falhas, o mesmo vetor pode ganhar um código "operador não aplicável" no lugar da asserção.
+- **Mesmo padrão para o roteiro (item 2).** O mapa "vértice novo → vértice de origem", para transferir campos nodais
+  (deslocamentos, poropressões etc.), pode ser devolvido do mesmo jeito: uma entrada por vértice novo com o vértice
+  original. O construtor conhece essa informação no momento da criação (`duplicatePoint(v)`).
+
+### Rejeições impressas com `printf`
+
+- **Não há problema de correção nem de desempenho:** o `printf` só roda quando uma aresta é rejeitada.
+- **Problemas de uso como biblioteca:**
+  1. Quem chama não fica sabendo: a informação não volta para o programa (é o I7).
+  2. O canal não é controlado por quem chama: vai para a saída padrão do programa hospedeiro (GeMA). Polui saídas e
+     logs, se perde numa aplicação gráfica no Windows (sem console) e se embaralha em execuções em paralelo.
+     Diagnóstico costuma ir para a saída de erro ou para o log do hospedeiro.
+  3. Volume: numa análise adaptativa que repete pedidos de arestas já abertas, podem sair milhares de linhas.
+  4. Testes: as mensagens aparecem no meio da saída do Google Test e não podem ser verificadas.
+- **Sugestão.** Enquanto o projeto está em desenvolvimento, manter o `printf` (ajuda a depurar). Ao fazer o I7, a
+  biblioteca deixa de imprimir e devolve os códigos de rejeição; o registro fica com quem chama (GeMA, `driver`,
+  testes). Passo intermediário possível, se incomodar antes: imprimir na saída de erro (`fprintf(stderr, ...)`).
+
+### Outros itens deixados para depois
+
+- **I9 / C3 (desempenho):** cada `next`/`prev` refaz a busca binária em `Of[]`; aproveitar o elemento corrente nas
+  rotações e manter o vetor `VH[]` atualizado pelos operadores (elimina as rotações de `isBorder`).
+- **Pico de memória na construção da IBHM:** `buildOppositesLinear` monta uma tabela temporária com um `std::vector` por
+  vértice (cerca de 36 MB de pico extra numa malha de 1M elementos, medido em 20/10/2026). Trocar por dois vetores
+  planos (contagem de half-edges por vértice e índices).
+- **Menores:** D1 (vértice 18 de `malha2Hyb.txt` em (3,4), deveria ser (4,3)); D3 (`readHybridMesh` imprime os offsets
+  a cada elemento); `@todo` do construtor (nome do `commitElement`, garantir um único construtor por malha, eliminar o
+  mapa `_collapsed`).
+
 ## Pendências para a próxima versão (v0.5)
 
 Itens pedidos pelo autor para entrar quando o relatório for gerado novamente. **Não gerar o relatório antes de o autor
@@ -29,6 +82,11 @@ pedir.**
   I7, I9 e I11), seção 2 (`isBorder` atravessa a aresta colapsada como um passo da rotação), seção 6.3 e apêndice
   (`test_known_defects.cpp` removido; testes `IBHMIsBorder`; mecanismo de testes desativados mantido para defeitos
   futuros).
+- [ ] Seção 7.4 e seção 8: trocar a sugestão do I7 pela da seção "Sugestões registradas para implementação futura"
+  (resultado por aresta, motivo das rejeições, problemas do `printf`) e registrar o pico de memória da construção como
+  item novo.
+- [ ] Refletir o B10 (lista abaixo): seção 7.1 (B10 tratado com `assert` no chamador, provisório) e seção 7.4 (I7 em
+  aberto, sem o B10).
 - [ ] Refletir a correção do I11 (lista abaixo): seção 2 (tabela de diferenças: crescimento exato,
   `reserveCapacityForElements`, reserva só do que falta; passo "Reserva" da inserção), seção 5 (parágrafo de memória:
   reservar capacidade antes para inserções de uma aresta por chamada), seção 7.4 (I11 na tabela de corrigidos, com a
@@ -37,6 +95,12 @@ pedir.**
 
 ### Modificações de código desde a v0.4
 
+- B10 tratado com asserções, por decisão do autor (provisória: prefere que o erro apareça cedo; o relato de falhas fica
+  para depois): em `insertInterfaceElements`, o resultado de cada operador (em A e em B) é guardado e verificado com
+  `assert`; o operador `UNDEFINED` também para na asserção (antes, imprimia uma mensagem e seguia, deixando o elemento
+  pela metade). Variáveis com `[[maybe_unused]]`, sem aviso com `NDEBUG`. O `@return` dos quatro operadores documenta
+  que hoje sempre devolvem `true` e que o chamador verifica. `ctest`: 47 testes ok em Debug e Release.
+- Mensagens de rejeição com o espaço que faltava (`[%u] is not valid`), corrigidas pelo autor.
 - I11 corrigido (`IBHM.{h,cpp}`, `IBHMInterfaceElementBuilder.{h,cpp}`), opção B + complemento C, aprovada pelo autor:
   - `reserveSpaceForElements(p, e)`: garante `p` posições de half-edge e `e` entradas de elemento livres depois dos
     elementos válidos. As posições já reservadas e não usadas (de arestas rejeitadas) contam: só o que falta é

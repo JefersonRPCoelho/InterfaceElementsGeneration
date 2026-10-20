@@ -100,6 +100,11 @@ public:
      * reserve the capacity in advance with IBHM::reserveCapacityForElements() and IBHM::reserveSpaceForNodes(): the
      * calls do not reallocate while it is enough.
      *
+     * @todo Report the result of each input edge to the caller (I7): the index of the interface element created for it,
+     * or the reason of the rejection, instead of printing the rejections. The new elements are already known (the
+     * contiguous range at the end of the element list), but not which edge each one comes from. See the suggestion in
+     * doc/report/historico/HISTORICO.md, section "Sugestões registradas para implementação futura".
+     *
      * @param edges A vector with one half-edge for each input edge. Each edge is defined by two half-edges. The user
      * can select any of them.
      */
@@ -129,7 +134,9 @@ private:
      * element. The operator supposes that the element is already created and will only work on adjusting the neighbor
      * around the vertex. Therefore, this parameter provides information about the new interface element that should be
      * modified by the canonical operator.
-     * @return True if the operation was performed successfully and false otherwise.
+     * @return True if the operation was performed successfully and false otherwise. The current implementation always
+     * returns true: the architecture guarantees that the chosen operator is applicable, and insertInterfaceElements()
+     * asserts the result, so a false result stops at the assertion in debug (B10).
      */
     bool canonical(unsigned int edgeHE, unsigned int elementHE);
 
@@ -160,7 +167,9 @@ private:
     * @param elementHE The half-edge that identifies the edge being created in the vertice inside the new interface
      * element. The operator supposes that the element is already created and will only work on adjusting the neighbor
      * around the vertex.
-     * @return True if the operation was performed successfully and false otherwise.
+     * @return True if the operation was performed successfully and false otherwise. The current implementation always
+     * returns true: the architecture guarantees that the chosen operator is applicable, and insertInterfaceElements()
+     * asserts the result, so a false result stops at the assertion in debug (B10).
      */
     bool splitElement(unsigned int he, unsigned int availableVertexHE, unsigned int sharedElementHE,
                       unsigned int elementHE);
@@ -180,7 +189,9 @@ private:
      * @param elementHE The half-edge that identifies the edge being created in the vertice inside the new interface
      * element. The operator supposes that the element is already created and will only work on adjusting the neighbor
      * around the vertex.
-     * @return True if the operation was performed successfully and false otherwise.
+     * @return True if the operation was performed successfully and false otherwise. The current implementation always
+     * returns true: the architecture guarantees that the chosen operator is applicable, and insertInterfaceElements()
+     * asserts the result, so a false result stops at the assertion in debug (B10).
      */
     bool expandEdge(unsigned int he, unsigned int elementHE);
 
@@ -208,7 +219,9 @@ private:
      * @param elementHE The half-edge that identifies the edge being created in the vertice inside the new interface
      * element. The operator supposes that the element is already created and will only work on adjusting the neighbor
      * around the vertex.
-     * @return True if the operation was performed successfully and false otherwise.
+     * @return True if the operation was performed successfully and false otherwise. The current implementation always
+     * returns true: the architecture guarantees that the chosen operator is applicable, and insertInterfaceElements()
+     * asserts the result, so a false result stops at the assertion in debug (B10).
      */
     bool openHole(unsigned int he, unsigned int elementHE);
 
