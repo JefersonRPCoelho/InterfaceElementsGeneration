@@ -10,6 +10,7 @@
 #include "IBHM.h"
 #include "IBHMInterfaceElementBuilder.h"
 #include "BuilderInspector.h"
+#include "InsertionChecks.h"
 #include "MeshValidation.h"
 #include "TestMeshes.h"
 
@@ -140,7 +141,13 @@ TEST_F(BaseMesh, OperatorsAndNewVerticesOfEachInsertion)
         EXPECT_EQ(after.elements.size(), before.elements.size() + 1) << "one interface element per edge";
         EXPECT_EQ(checkTopology(after), std::vector<std::string>{}) << "topology (V1 to V5)";
         EXPECT_EQ(origins.checkCoordinates(mesh), std::vector<std::string>{}) << "coordinates of the copies (V7)";
+        EXPECT_EQ(checkBuilderState(builder, after, INPUT_ELEMENTS), std::vector<std::string>{}) << "builder state";
     }
+
+    // The final mesh is the expected topology (one copy per component of the star of each vertex).
+    const MeshSnapshot input = takeSnapshot(baseMesh());
+    EXPECT_EQ(checkInsertionResult(input, takeSnapshot(mesh), openableEdges(input, baseMeshEdges())),
+              std::vector<std::string>{});
 }
 
 TEST_F(BaseMesh, FinalMesh)

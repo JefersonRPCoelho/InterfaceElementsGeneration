@@ -38,9 +38,12 @@ include(GoogleTest)
 add_library(InterfaceElementsLibChecked STATIC ${INTERFACE_ELEMENTS_CORE_SOURCES})
 target_include_directories(InterfaceElementsLibChecked PUBLIC ${INTERFACE_ELEMENTS_CORE_INCLUDE_DIRS})
 
-# Code shared by the tests and the driver: test meshes, topology checks (V1 to V7) and the builder inspector.
+# Code shared by the tests and the driver: test meshes (fixed and random), topology checks (V1 to V7), the expected
+# topology of an insertion and the builder bookkeeping checks, and the builder inspector.
 add_library(InterfaceElementsTestSupport STATIC
+        support/InsertionChecks.cpp
         support/MeshValidation.cpp
+        support/RandomMeshes.cpp
         support/TestMeshes.cpp
 )
 target_include_directories(InterfaceElementsTestSupport PUBLIC support)
@@ -54,6 +57,9 @@ add_executable(InterfaceElementsTests
         test_base_mesh.cpp
         test_invalid_input.cpp
         test_open_hole_border.cpp
+        test_random_meshes.cpp
+        test_special_meshes.cpp
+        test_algorithm_structure.cpp
 )
 target_link_libraries(InterfaceElementsTests PRIVATE InterfaceElementsTestSupport GTest::gtest_main)
 gtest_discover_tests(InterfaceElementsTests PROPERTIES LABELS unit TIMEOUT 60)
