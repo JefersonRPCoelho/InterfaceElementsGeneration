@@ -1,0 +1,20 @@
+\begin{tikzpicture}[scale=2.200, every node/.style={font=\scriptsize}]
+\filldraw[cefill] (0.130,0.075) -- (1.000,0.000) -- (1.200,0.700) -- (0.552,0.725) -- cycle;
+\filldraw[cefill] (0.000,0.150) -- (0.352,0.841) -- (0.000,1.400) -- (-0.352,0.841) -- cycle;
+\filldraw[cefill] (-0.130,0.075) -- (-0.552,0.725) -- (-1.200,0.700) -- (-1.000,0.000) -- cycle;
+\filldraw[iefill] (0.130,0.075) -- (0.552,0.725) -- (0.352,0.841) -- (0.000,0.150) -- cycle;
+\filldraw[iefill] (0.000,0.150) -- (-0.352,0.841) -- (-0.552,0.725) -- (-0.130,0.075) -- cycle;
+\node[vie, minimum size=0.29cm] at (0.130,0.075) {$Q$};
+\node[vreg, dot] at (1.000,0.000) {};
+\node[vie, minimum size=0.29cm] at (0.352,0.841) {$R$};
+\node[vie, minimum size=0.29cm] at (-0.552,0.725) {$P$};
+\node[vreg, dot] at (-1.000,0.000) {};
+\node[vreg, dot] at (1.200,0.700) {};
+\node[vreg, dot] at (0.000,1.400) {};
+\node[vreg, dot] at (-1.200,0.700) {};
+\node[vie, minimum size=0.29cm] at (0.000,0.150) {$Q_{1}$};
+\node[vie, minimum size=0.29cm] at (0.552,0.725) {$R_{1}$};
+\node[vie, minimum size=0.29cm] at (-0.130,0.075) {$Q_{2}$};
+\node[vie, minimum size=0.29cm] at (-0.352,0.841) {$P_{1}$};
+
+\end{tikzpicture}
